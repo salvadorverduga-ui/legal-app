@@ -1,0 +1,9 @@
+.env
+.env.local
+.env.production
+node_modules/
+supabase/.branches
+supabase/.temp
+.DS_Store
+Thumbs.db
+.vercel 
