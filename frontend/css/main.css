@@ -1,0 +1,1481 @@
+/* ============================================================
+   main.css — Estilos base de LegalEC
+   Mobile-first. Sin librerías externas.
+   Estructura:
+     1. Variables (:root)
+     2. Reset
+     3. Base (body, tipografía)
+     4. Layout
+     5. Componentes: encabezado, hero, tarjetas de rol, auth
+     6. Formularios
+     7. Botones
+     8. Badges (individual / estudio / red / verificado)
+     9. Spinner y estados de carga
+    10. Footer
+    11. Utilidades
+    12. Media queries
+   ============================================================ */
+
+
+/* ────────────────────────────────────────────────────────────
+   1. VARIABLES
+   ──────────────────────────────────────────────────────────── */
+:root {
+  /* Colores principales */
+  --color-primario:          #1A2E4A;   /* Azul navy — autoridad, confianza */
+  --color-primario-hover:    #142238;
+  --color-primario-suave:    #EEF2F8;   /* Tinte de navy para fondos */
+
+  --color-acento:            #C9A148;   /* Dorado — premium, justicia */
+  --color-acento-hover:      #B8903A;
+
+  /* Superficie y fondo */
+  --color-fondo:             #F4F6FA;
+  --color-fondo-card:        #FFFFFF;
+  --color-borde:             #DDE3EE;
+  --color-borde-suave:       #EDF0F5;
+
+  /* Texto */
+  --color-texto:             #1E293B;
+  --color-texto-suave:       #64748B;
+  --color-texto-muy-suave:   #94A3B8;
+  --color-texto-inverso:     #FFFFFF;
+
+  /* Semánticos */
+  --color-exito:             #15803D;
+  --color-exito-bg:          #F0FDF4;
+  --color-error:             #DC2626;
+  --color-error-bg:          #FEF2F2;
+  --color-advertencia:       #B45309;
+  --color-advertencia-bg:    #FFFBEB;
+  --color-info:              #1D4ED8;
+  --color-info-bg:           #EFF6FF;
+
+  /* Badges de tipo de perfil */
+  --badge-individual-bg:     #EFF6FF;
+  --badge-individual-color:  #1E40AF;
+  --badge-individual-borde:  #BFDBFE;
+
+  --badge-estudio-bg:        #F5F3FF;
+  --badge-estudio-color:     #5B21B6;
+  --badge-estudio-borde:     #DDD6FE;
+
+  --badge-red-bg:            #F0FDF4;
+  --badge-red-color:         #166534;
+  --badge-red-borde:         #BBF7D0;
+
+  --badge-verificado-bg:     #F0FDF4;
+  --badge-verificado-color:  #15803D;
+  --badge-verificado-borde:  #86EFAC;
+
+  --badge-pendiente-bg:      #FFFBEB;
+  --badge-pendiente-color:   #92400E;
+  --badge-pendiente-borde:   #FDE68A;
+
+  /* Tipografía */
+  --fuente: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+            Helvetica, Arial, sans-serif;
+
+  --texto-xs:   0.75rem;    /*  12px */
+  --texto-sm:   0.875rem;   /*  14px */
+  --texto-base: 1rem;       /*  16px */
+  --texto-lg:   1.125rem;   /*  18px */
+  --texto-xl:   1.25rem;    /*  20px */
+  --texto-2xl:  1.5rem;     /*  24px */
+  --texto-3xl:  1.875rem;   /*  30px */
+  --texto-4xl:  2.25rem;    /*  36px */
+
+  --peso-normal:    400;
+  --peso-medio:     500;
+  --peso-semibold:  600;
+  --peso-bold:      700;
+
+  --altura-linea-ajustada:  1.2;
+  --altura-linea-normal:    1.5;
+  --altura-linea-suelta:    1.7;
+
+  /* Espaciado (múltiplos de 4px) */
+  --esp-1:   0.25rem;   /*  4px */
+  --esp-2:   0.5rem;    /*  8px */
+  --esp-3:   0.75rem;   /* 12px */
+  --esp-4:   1rem;      /* 16px */
+  --esp-5:   1.25rem;   /* 20px */
+  --esp-6:   1.5rem;    /* 24px */
+  --esp-8:   2rem;      /* 32px */
+  --esp-10:  2.5rem;    /* 40px */
+  --esp-12:  3rem;      /* 48px */
+  --esp-16:  4rem;      /* 64px */
+  --esp-20:  5rem;      /* 80px */
+
+  /* Bordes */
+  --radio-sm:       0.25rem;    /*  4px */
+  --radio-md:       0.5rem;     /*  8px */
+  --radio-lg:       0.75rem;    /* 12px */
+  --radio-xl:       1rem;       /* 16px */
+  --radio-2xl:      1.25rem;    /* 20px */
+  --radio-completo: 9999px;
+
+  /* Sombras */
+  --sombra-xs: 0 1px 2px rgba(26,46,74, 0.06);
+  --sombra-sm: 0 1px 3px rgba(26,46,74, 0.08), 0 1px 2px rgba(26,46,74, 0.05);
+  --sombra-md: 0 4px 6px rgba(26,46,74, 0.07), 0 2px 4px rgba(26,46,74, 0.05);
+  --sombra-lg: 0 10px 15px rgba(26,46,74, 0.08), 0 4px 6px rgba(26,46,74, 0.04);
+  --sombra-xl: 0 20px 25px rgba(26,46,74, 0.09), 0 10px 10px rgba(26,46,74, 0.03);
+
+  /* Transiciones */
+  --transicion: 0.18s ease;
+  --transicion-lenta: 0.3s ease;
+
+  /* Anchos máximos */
+  --ancho-contenedor: 1100px;
+  --ancho-formulario: 460px;
+}
+
+
+/* ────────────────────────────────────────────────────────────
+   2. RESET
+   ──────────────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+img, svg, video {
+  display: block;
+  max-width: 100%;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+ul, ol {
+  list-style: none;
+}
+
+input, textarea, select {
+  font: inherit;
+}
+
+
+/* ────────────────────────────────────────────────────────────
+   3. BASE
+   ──────────────────────────────────────────────────────────── */
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--fuente);
+  font-size: var(--texto-base);
+  font-weight: var(--peso-normal);
+  line-height: var(--altura-linea-normal);
+  color: var(--color-texto);
+  background-color: var(--color-fondo);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+main {
+  flex: 1;
+}
+
+h1, h2, h3, h4 {
+  line-height: var(--altura-linea-ajustada);
+  font-weight: var(--peso-bold);
+  color: var(--color-primario);
+}
+
+p {
+  line-height: var(--altura-linea-suelta);
+}
+
+
+/* ────────────────────────────────────────────────────────────
+   4. LAYOUT
+   ──────────────────────────────────────────────────────────── */
+.contenedor {
+  width: 100%;
+  max-width: var(--ancho-contenedor);
+  margin-inline: auto;
+  padding-inline: var(--esp-4);
+}
+
+
+/* ────────────────────────────────────────────────────────────
+   5A. ENCABEZADO
+   ──────────────────────────────────────────────────────────── */
+.encabezado {
+  background-color: var(--color-primario);
+  padding-block: var(--esp-4);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: var(--sombra-md);
+}
+
+.encabezado__contenedor {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-2);
+  color: var(--color-texto-inverso);
+}
+
+.logo__nombre {
+  font-size: var(--texto-xl);
+  font-weight: var(--peso-bold);
+  letter-spacing: -0.02em;
+}
+
+/* Acento dorado en la segunda mitad del nombre (EC) */
+.logo__nombre::after {
+  content: '';
+}
+
+
+/* ────────────────────────────────────────────────────────────
+   5B. HERO
+   ──────────────────────────────────────────────────────────── */
+.hero {
+  background: linear-gradient(160deg, var(--color-primario) 0%, #24437A 100%);
+  color: var(--color-texto-inverso);
+  padding-block: var(--esp-12) var(--esp-16);
+  text-align: center;
+}
+
+.hero__contenedor {
+  max-width: 680px;
+}
+
+.hero__titulo {
+  font-size: var(--texto-2xl);
+  color: var(--color-texto-inverso);
+  margin-bottom: var(--esp-4);
+  line-height: 1.3;
+}
+
+.hero__subtitulo {
+  font-size: var(--texto-base);
+  color: rgba(255, 255, 255, 0.82);
+  max-width: 560px;
+  margin-inline: auto;
+  line-height: var(--altura-linea-suelta);
+}
+
+
+/* ────────────────────────────────────────────────────────────
+   5C. SELECCIÓN DE ROL
+   ──────────────────────────────────────────────────────────── */
+.seleccion-rol {
+  padding-block: var(--esp-12);
+}
+
+.seleccion-rol__titulo {
+  font-size: var(--texto-xl);
+  text-align: center;
+  margin-bottom: var(--esp-8);
+  color: var(--color-primario);
+}
+
+.tarjetas-rol {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--esp-4);
+  max-width: 720px;
+  margin-inline: auto;
+}
+
+.tarjeta-rol {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--esp-3);
+  padding: var(--esp-6);
+  background-color: var(--color-fondo-card);
+  border: 2px solid var(--color-borde);
+  border-radius: var(--radio-xl);
+  box-shadow: var(--sombra-sm);
+  text-align: left;
+  transition: border-color var(--transicion), box-shadow var(--transicion), transform var(--transicion);
+  cursor: pointer;
+  width: 100%;
+}
+
+.tarjeta-rol:hover {
+  border-color: var(--color-primario);
+  box-shadow: var(--sombra-lg);
+  transform: translateY(-2px);
+}
+
+.tarjeta-rol:focus-visible {
+  outline: 3px solid var(--color-acento);
+  outline-offset: 2px;
+}
+
+.tarjeta-rol--activa {
+  border-color: var(--color-primario);
+  background-color: var(--color-primario-suave);
+  box-shadow: var(--sombra-md);
+}
+
+.tarjeta-rol__icono {
+  width: 48px;
+  height: 48px;
+  background-color: var(--color-primario-suave);
+  border-radius: var(--radio-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--color-primario);
+  transition: background-color var(--transicion);
+}
+
+.tarjeta-rol__icono svg {
+  width: 26px;
+  height: 26px;
+}
+
+.tarjeta-rol--activa .tarjeta-rol__icono {
+  background-color: var(--color-primario);
+  color: var(--color-texto-inverso);
+}
+
+.tarjeta-rol__nombre {
+  font-size: var(--texto-lg);
+  font-weight: var(--peso-semibold);
+  color: var(--color-primario);
+}
+
+.tarjeta-rol__descripcion {
+  font-size: var(--texto-sm);
+  color: var(--color-texto-suave);
+  line-height: var(--altura-linea-suelta);
+}
+
+.tarjeta-rol__etiqueta {
+  display: inline-block;
+  font-size: var(--texto-xs);
+  font-weight: var(--peso-semibold);
+  padding: var(--esp-1) var(--esp-3);
+  border-radius: var(--radio-completo);
+  background-color: var(--color-primario-suave);
+  color: var(--color-primario);
+  border: 1px solid var(--color-borde);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.tarjeta-rol__etiqueta--gratis {
+  background-color: var(--badge-verificado-bg);
+  color: var(--badge-verificado-color);
+  border-color: var(--badge-verificado-borde);
+}
+
+
+/* ────────────────────────────────────────────────────────────
+   5D. SECCIÓN AUTH
+   ──────────────────────────────────────────────────────────── */
+.seccion-auth {
+  padding-block: var(--esp-4) var(--esp-16);
+}
+
+.tarjeta-auth {
+  background-color: var(--color-fondo-card);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-xl);
+  box-shadow: var(--sombra-lg);
+  padding: var(--esp-6);
+  max-width: var(--ancho-formulario);
+  margin-inline: auto;
+}
+
+.auth-cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--esp-5);
+}
+
+.btn-volver {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-2);
+  font-size: var(--texto-sm);
+  font-weight: var(--peso-medio);
+  color: var(--color-texto-suave);
+  padding: var(--esp-2) var(--esp-3);
+  border-radius: var(--radio-md);
+  transition: color var(--transicion), background-color var(--transicion);
+}
+
+.btn-volver:hover {
+  color: var(--color-primario);
+  background-color: var(--color-primario-suave);
+}
+
+.auth-cabecera__rol {
+  font-size: var(--texto-xs);
+  font-weight: var(--peso-semibold);
+  color: var(--color-texto-suave);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.auth__titulo {
+  font-size: var(--texto-xl);
+  margin-bottom: var(--esp-5);
+  color: var(--color-primario);
+}
+
+/* Tabs ingresar / crear cuenta */
+.auth-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--esp-1);
+  background-color: var(--color-borde-suave);
+  border-radius: var(--radio-lg);
+  padding: var(--esp-1);
+  margin-bottom: var(--esp-6);
+}
+
+.auth-tab {
+  padding: var(--esp-2) var(--esp-4);
+  border-radius: var(--radio-md);
+  font-size: var(--texto-sm);
+  font-weight: var(--peso-medio);
+  color: var(--color-texto-suave);
+  transition: background-color var(--transicion), color var(--transicion), box-shadow var(--transicion);
+  text-align: center;
+}
+
+.auth-tab--activo {
+  background-color: var(--color-fondo-card);
+  color: var(--color-primario);
+  font-weight: var(--peso-semibold);
+  box-shadow: var(--sombra-sm);
+}
+
+.auth-tab:focus-visible {
+  outline: 2px solid var(--color-acento);
+  outline-offset: 2px;
+}
+
+
+/* ────────────────────────────────────────────────────────────
+   6. FORMULARIOS
+   ──────────────────────────────────────────────────────────── */
+.formulario {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-5);
+}
+
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-2);
+}
+
+.campo__etiqueta {
+  font-size: var(--texto-sm);
+  font-weight: var(--peso-medio);
+  color: var(--color-texto);
+}
+
+.campo__input {
+  width: 100%;
+  padding: var(--esp-3) var(--esp-4);
+  border: 1.5px solid var(--color-borde);
+  border-radius: var(--radio-md);
+  font-size: var(--texto-base);
+  color: var(--color-texto);
+  background-color: var(--color-fondo-card);
+  transition: border-color var(--transicion), box-shadow var(--transicion);
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.campo__input:focus {
+  outline: none;
+  border-color: var(--color-primario);
+  box-shadow: 0 0 0 3px rgba(26, 46, 74, 0.12);
+}
+
+.campo__input::placeholder {
+  color: var(--color-texto-muy-suave);
+}
+
+.campo__input:invalid:not(:placeholder-shown) {
+  border-color: var(--color-error);
+}
+
+.campo__ayuda {
+  font-size: var(--texto-xs);
+  color: var(--color-texto-suave);
+}
+
+.campo__error {
+  font-size: var(--texto-sm);
+  color: var(--color-error);
+  font-weight: var(--peso-medio);
+  min-height: 1.25rem; /* evita salto de layout cuando aparece */
+}
+
+
+/* ────────────────────────────────────────────────────────────
+   7. BOTONES
+   ──────────────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--esp-2);
+  padding: var(--esp-3) var(--esp-6);
+  border-radius: var(--radio-md);
+  font-size: var(--texto-base);
+  font-weight: var(--peso-semibold);
+  line-height: 1;
+  transition: background-color var(--transicion), color var(--transicion),
+              box-shadow var(--transicion), transform var(--transicion);
+  cursor: pointer;
+  border: 2px solid transparent;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.btn:focus-visible {
+  outline: 3px solid var(--color-acento);
+  outline-offset: 2px;
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+/* Primario: navy sólido */
+.btn--primario {
+  background-color: var(--color-primario);
+  color: var(--color-texto-inverso);
+  border-color: var(--color-primario);
+}
+
+.btn--primario:hover:not(:disabled) {
+  background-color: var(--color-primario-hover);
+  border-color: var(--color-primario-hover);
+  box-shadow: var(--sombra-md);
+  transform: translateY(-1px);
+}
+
+/* Acento: dorado */
+.btn--acento {
+  background-color: var(--color-acento);
+  color: var(--color-texto-inverso);
+  border-color: var(--color-acento);
+}
+
+.btn--acento:hover:not(:disabled) {
+  background-color: var(--color-acento-hover);
+  border-color: var(--color-acento-hover);
+}
+
+/* Secundario: contorno */
+.btn--secundario {
+  background-color: transparent;
+  color: var(--color-primario);
+  border-color: var(--color-primario);
+}
+
+.btn--secundario:hover:not(:disabled) {
+  background-color: var(--color-primario-suave);
+}
+
+/* Modificador ancho completo */
+.btn--completo {
+  width: 100%;
+}
+
+/* Modificador tamaño pequeño */
+.btn--sm {
+  padding: var(--esp-2) var(--esp-4);
+  font-size: var(--texto-sm);
+}
+
+
+/* ────────────────────────────────────────────────────────────
+   8. BADGES
+   Se usan en el listado de búsqueda y en los perfiles.
+   ──────────────────────────────────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--esp-1);
+  padding: 0.2rem var(--esp-3);
+  border-radius: var(--radio-completo);
+  font-size: var(--texto-xs);
+  font-weight: var(--peso-semibold);
+  letter-spacing: 0.03em;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+/* Abogado independiente */
+.badge--individual {
+  background-color: var(--badge-individual-bg);
+  color: var(--badge-individual-color);
+  border-color: var(--badge-individual-borde);
+}
+
+/* Estudio jurídico */
+.badge--estudio {
+  background-color: var(--badge-estudio-bg);
+  color: var(--badge-estudio-color);
+  border-color: var(--badge-estudio-borde);
+}
+
+/* Red de colaboradores */
+.badge--red {
+  background-color: var(--badge-red-bg);
+  color: var(--badge-red-color);
+  border-color: var(--badge-red-borde);
+}
+
+/* Verificado — aparece en perfiles verificados */
+.badge--verificado {
+  background-color: var(--badge-verificado-bg);
+  color: var(--badge-verificado-color);
+  border-color: var(--badge-verificado-borde);
+}
+
+/* Pendiente de verificación */
+.badge--pendiente {
+  background-color: var(--badge-pendiente-bg);
+  color: var(--badge-pendiente-color);
+  border-color: var(--badge-pendiente-borde);
+}
+
+/* Estado de solicitud */
+.badge--estado-pendiente    { background-color: #FFF7ED; color: #9A3412; border-color: #FED7AA; }
+.badge--estado-aceptada     { background-color: var(--badge-verificado-bg); color: var(--badge-verificado-color); border-color: var(--badge-verificado-borde); }
+.badge--estado-completada   { background-color: var(--badge-individual-bg); color: var(--badge-individual-color); border-color: var(--badge-individual-borde); }
+.badge--estado-rechazada    { background-color: var(--color-error-bg); color: var(--color-error); border-color: #FECACA; }
+.badge--estado-expirada     { background-color: #F8FAFC; color: var(--color-texto-suave); border-color: var(--color-borde); }
+
+
+/* ────────────────────────────────────────────────────────────
+   9. SPINNER Y ESTADOS DE CARGA
+   ──────────────────────────────────────────────────────────── */
+.pantalla-carga {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--esp-4);
+  min-height: 60vh;
+  color: var(--color-texto-suave);
+  font-size: var(--texto-sm);
+}
+
+.spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid var(--color-borde);
+  border-top-color: var(--color-primario);
+  border-radius: 50%;
+  animation: girar 0.7s linear infinite;
+}
+
+@keyframes girar {
+  to { transform: rotate(360deg); }
+}
+
+/* Confirmación post-registro */
+.mensaje-confirmacion {
+  padding: var(--esp-6);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-3);
+}
+
+.mensaje-confirmacion__titulo {
+  font-size: var(--texto-lg);
+  font-weight: var(--peso-semibold);
+  color: var(--color-primario);
+}
+
+
+/* ────────────────────────────────────────────────────────────
+   10. FOOTER
+   ──────────────────────────────────────────────────────────── */
+.pie {
+  background-color: var(--color-primario);
+  color: rgba(255, 255, 255, 0.7);
+  padding-block: var(--esp-8);
+  margin-top: auto;
+}
+
+.pie__contenedor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-3);
+  align-items: center;
+  text-align: center;
+}
+
+.pie__aviso {
+  font-size: var(--texto-xs);
+  line-height: var(--altura-linea-suelta);
+}
+
+.pie__nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--esp-3);
+}
+
+.pie__enlace {
+  font-size: var(--texto-xs);
+  color: rgba(255, 255, 255, 0.7);
+  transition: color var(--transicion);
+}
+
+.pie__enlace:hover {
+  color: var(--color-texto-inverso);
+}
+
+.pie__separador {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+
+/* ────────────────────────────────────────────────────────────
+   11. UTILIDADES
+   ──────────────────────────────────────────────────────────── */
+
+/* Accesibilidad: ocultar visualmente pero mantener en el árbol de accesibilidad */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Separador de sección */
+.separador {
+  border: none;
+  border-top: 1px solid var(--color-borde);
+  margin-block: var(--esp-6);
+}
+
+/* Estado vacío genérico (lista sin resultados, etc.) */
+.estado-vacio {
+  padding: var(--esp-12) var(--esp-4);
+  text-align: center;
+  color: var(--color-texto-suave);
+}
+
+.estado-vacio__titulo {
+  font-size: var(--texto-lg);
+  font-weight: var(--peso-semibold);
+  color: var(--color-texto);
+  margin-bottom: var(--esp-2);
+}
+
+
+/* ────────────────────────────────────────────────────────────
+   12. MEDIA QUERIES (tablet en adelante)
+   ──────────────────────────────────────────────────────────── */
+@media (min-width: 640px) {
+  .contenedor {
+    padding-inline: var(--esp-6);
+  }
+
+  .hero {
+    padding-block: var(--esp-16) var(--esp-20);
+  }
+
+  .hero__titulo {
+    font-size: var(--texto-3xl);
+  }
+
+  .hero__subtitulo {
+    font-size: var(--texto-lg);
+  }
+
+  .tarjetas-rol {
+    grid-template-columns: 1fr 1fr;
+    gap: var(--esp-6);
+  }
+
+  .tarjeta-auth {
+    padding: var(--esp-8);
+  }
+}
+
+@media (min-width: 1024px) {
+  .hero__titulo {
+    font-size: var(--texto-4xl);
+  }
+
+  .contenedor {
+    padding-inline: var(--esp-8);
+  }
+}
+
+
+/* ============================================================
+   PÁGINA: BÚSQUEDA DE ABOGADOS
+   Estilos específicos de busqueda.html
+   ============================================================ */
+
+/* ── Encabezado con navegación de usuario ─────────────────── */
+.nav-usuario {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-3);
+}
+
+.nav-usuario__nombre {
+  font-size: var(--texto-sm);
+  color: rgba(255, 255, 255, 0.82);
+  display: none;
+}
+
+/* ── Barra de búsqueda / filtros ──────────────────────────── */
+.barra-busqueda {
+  background-color: var(--color-fondo-card);
+  border-bottom: 1px solid var(--color-borde);
+  padding-block: var(--esp-4);
+  position: sticky;
+  top: 57px; /* altura exacta del .encabezado */
+  z-index: 90;
+  box-shadow: var(--sombra-sm);
+}
+
+.form-busqueda {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-3);
+}
+
+.form-busqueda__campos {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--esp-3);
+}
+
+.form-busqueda__acciones {
+  display: flex;
+  gap: var(--esp-3);
+  align-items: center;
+}
+
+/* Filtro por tipo de perfil: botones pill */
+.filtro-tipo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--esp-2);
+}
+
+.filtro-tipo__label {
+  font-size: var(--texto-xs);
+  font-weight: var(--peso-semibold);
+  color: var(--color-texto-suave);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.filtro-tipo__btn {
+  padding: var(--esp-1) var(--esp-3);
+  border-radius: var(--radio-completo);
+  font-size: var(--texto-xs);
+  font-weight: var(--peso-semibold);
+  border: 1.5px solid var(--color-borde);
+  color: var(--color-texto-suave);
+  background-color: transparent;
+  transition: border-color var(--transicion), color var(--transicion),
+              background-color var(--transicion);
+  cursor: pointer;
+}
+
+.filtro-tipo__btn:hover {
+  border-color: var(--color-primario);
+  color: var(--color-primario);
+}
+
+.filtro-tipo__btn--activo {
+  background-color: var(--color-primario);
+  border-color: var(--color-primario);
+  color: var(--color-texto-inverso);
+}
+
+.filtro-tipo__btn:focus-visible {
+  outline: 2px solid var(--color-acento);
+  outline-offset: 2px;
+}
+
+/* Chips de filtros activos (bajo el formulario) */
+.filtros-activos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--esp-2);
+  padding-top: var(--esp-2);
+}
+
+.filtros-activos:empty {
+  display: none;
+}
+
+.chip-filtro {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--esp-2);
+  padding: var(--esp-1) var(--esp-2) var(--esp-1) var(--esp-3);
+  background-color: var(--color-primario-suave);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-completo);
+  font-size: var(--texto-xs);
+  font-weight: var(--peso-medio);
+  color: var(--color-primario);
+}
+
+.chip-filtro__quitar {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background-color: rgba(26, 46, 74, 0.15);
+  color: var(--color-primario);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  line-height: 1;
+  transition: background-color var(--transicion);
+  flex-shrink: 0;
+}
+
+.chip-filtro__quitar:hover {
+  background-color: rgba(26, 46, 74, 0.3);
+}
+
+/* ── Sección de resultados ─────────────────────────────────── */
+.seccion-resultados {
+  padding-block: var(--esp-6) var(--esp-12);
+}
+
+.resultados-cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--esp-5);
+  flex-wrap: wrap;
+  gap: var(--esp-3);
+}
+
+.conteo-resultados {
+  font-size: var(--texto-sm);
+  color: var(--color-texto-suave);
+  font-weight: var(--peso-medio);
+}
+
+/* Estado de carga inline (no fullscreen) */
+.cargando-resultados {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--esp-3);
+  padding-block: var(--esp-16);
+  color: var(--color-texto-suave);
+  font-size: var(--texto-sm);
+}
+
+/* Grid de tarjetas */
+.grid-resultados {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--esp-4);
+}
+
+/* ── Card de abogado ───────────────────────────────────────── */
+.card-abogado {
+  background-color: var(--color-fondo-card);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-xl);
+  padding: var(--esp-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-4);
+  box-shadow: var(--sombra-sm);
+  transition: box-shadow var(--transicion), transform var(--transicion);
+}
+
+.card-abogado:hover {
+  box-shadow: var(--sombra-lg);
+  transform: translateY(-2px);
+}
+
+.card-abogado__header {
+  display: flex;
+  gap: var(--esp-4);
+  align-items: flex-start;
+}
+
+/* Avatar del abogado */
+.card-abogado__avatar {
+  flex-shrink: 0;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid var(--color-borde-suave);
+}
+
+.card-abogado__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Placeholder cuando no hay foto: iniciales sobre fondo navy */
+.avatar-placeholder {
+  width: 100%;
+  height: 100%;
+  background-color: var(--color-primario);
+  color: var(--color-texto-inverso);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--texto-sm);
+  font-weight: var(--peso-bold);
+  letter-spacing: 0.05em;
+  user-select: none;
+}
+
+.card-abogado__meta {
+  flex: 1;
+  min-width: 0; /* evita que el texto desborde el grid */
+}
+
+.card-abogado__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--esp-1);
+  margin-bottom: var(--esp-2);
+}
+
+.card-abogado__nombre {
+  font-size: var(--texto-base);
+  font-weight: var(--peso-semibold);
+  color: var(--color-primario);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: var(--esp-1);
+}
+
+.card-abogado__ubicacion {
+  font-size: var(--texto-xs);
+  color: var(--color-texto-suave);
+}
+
+/* Chips de especialidades dentro de la card */
+.card-abogado__especialidades {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--esp-2);
+}
+
+.chip {
+  display: inline-block;
+  padding: 0.2rem var(--esp-3);
+  background-color: var(--color-primario-suave);
+  color: var(--color-primario);
+  border-radius: var(--radio-completo);
+  font-size: var(--texto-xs);
+  font-weight: var(--peso-medio);
+  white-space: nowrap;
+}
+
+.chip--mas {
+  background-color: var(--color-borde-suave);
+  color: var(--color-texto-suave);
+}
+
+/* Footer de la card: rating + precio + CTA */
+.card-abogado__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--esp-3);
+  padding-top: var(--esp-3);
+  border-top: 1px solid var(--color-borde-suave);
+  margin-top: auto;
+}
+
+.card-abogado__info-footer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-1);
+}
+
+/* Rating de estrellas */
+.rating {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-2);
+}
+
+.rating__estrellas {
+  color: var(--color-acento);
+  font-size: var(--texto-base);
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+
+.rating__estrellas--vacio {
+  color: var(--color-borde);
+}
+
+.rating__count {
+  font-size: var(--texto-xs);
+  color: var(--color-texto-suave);
+}
+
+.card-abogado__precio {
+  font-size: var(--texto-xs);
+  color: var(--color-texto-suave);
+}
+
+/* ── Media queries para búsqueda ──────────────────────────── */
+@media (min-width: 640px) {
+  .nav-usuario__nombre {
+    display: block;
+  }
+
+  .form-busqueda__campos {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .grid-resultados {
+    grid-template-columns: 1fr 1fr;
+    gap: var(--esp-5);
+  }
+
+  .card-abogado__nombre {
+    font-size: var(--texto-lg);
+  }
+}
+
+@media (min-width: 1024px) {
+  .form-busqueda {
+    flex-direction: row;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: var(--esp-4);
+  }
+
+  .form-busqueda__campos {
+    flex: 1;
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+
+  .form-busqueda__acciones {
+    flex-shrink: 0;
+  }
+
+  .grid-resultados {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+}
+
+
+/* ============================================================
+   PÁGINA: PERFIL PÚBLICO DEL ABOGADO
+   Estilos específicos de perfil-abogado.html
+   ============================================================ */
+
+.perfil-abogado__contenido {
+  padding-block: var(--esp-6) var(--esp-12);
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-6);
+}
+
+/* ── Encabezado del perfil ─────────────────────────────────── */
+.perfil-header {
+  background-color: var(--color-fondo-card);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-xl);
+  padding: var(--esp-6);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--esp-4);
+  text-align: center;
+  box-shadow: var(--sombra-sm);
+}
+
+.perfil-header__avatar {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  border: 3px solid var(--color-borde-suave);
+}
+
+.perfil-header__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.perfil-header__avatar .avatar-placeholder {
+  font-size: var(--texto-2xl);
+}
+
+.perfil-header__info {
+  width: 100%;
+}
+
+.perfil-header__badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--esp-1);
+  margin-bottom: var(--esp-2);
+}
+
+.perfil-header__nombre {
+  font-size: var(--texto-2xl);
+  color: var(--color-primario);
+  margin-bottom: var(--esp-1);
+}
+
+.perfil-header__ubicacion {
+  font-size: var(--texto-sm);
+  color: var(--color-texto-suave);
+  margin-bottom: var(--esp-4);
+}
+
+.perfil-header__especialidades {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--esp-2);
+  margin-bottom: var(--esp-4);
+}
+
+.perfil-header__footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--esp-2);
+  padding-top: var(--esp-4);
+  border-top: 1px solid var(--color-borde-suave);
+  width: 100%;
+}
+
+.perfil-header__precio {
+  font-size: var(--texto-sm);
+  color: var(--color-texto-suave);
+}
+
+/* ── Descripción ───────────────────────────────────────────── */
+.perfil-descripcion {
+  background-color: var(--color-fondo-card);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-xl);
+  padding: var(--esp-6);
+  box-shadow: var(--sombra-sm);
+}
+
+.perfil-descripcion__titulo {
+  font-size: var(--texto-lg);
+  color: var(--color-primario);
+  margin-bottom: var(--esp-3);
+}
+
+/* ── Formulario de solicitud ───────────────────────────────── */
+.seccion-solicitud {
+  background-color: var(--color-fondo-card);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-xl);
+  padding: var(--esp-6);
+  box-shadow: var(--sombra-sm);
+}
+
+.seccion-solicitud__acciones {
+  display: flex;
+  gap: var(--esp-3);
+  flex-wrap: wrap;
+}
+
+.campo__contador {
+  font-size: var(--texto-xs);
+  color: var(--color-texto-muy-suave);
+  text-align: right;
+}
+
+/* Grupo de opciones tipo pill sobre radio inputs nativos */
+.radio-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--esp-2);
+}
+
+.radio-pills__opcion {
+  position: relative;
+}
+
+.radio-pills__opcion input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+
+.radio-pills__opcion span {
+  display: inline-block;
+  padding: var(--esp-2) var(--esp-4);
+  border-radius: var(--radio-completo);
+  font-size: var(--texto-sm);
+  font-weight: var(--peso-medio);
+  border: 1.5px solid var(--color-borde);
+  color: var(--color-texto-suave);
+  transition: border-color var(--transicion), color var(--transicion), background-color var(--transicion);
+  cursor: pointer;
+}
+
+.radio-pills__opcion input:checked + span {
+  background-color: var(--color-primario);
+  border-color: var(--color-primario);
+  color: var(--color-texto-inverso);
+}
+
+.radio-pills__opcion input:focus-visible + span {
+  outline: 2px solid var(--color-acento);
+  outline-offset: 2px;
+}
+
+/* ── Reseñas ───────────────────────────────────────────────── */
+.resenas__titulo {
+  font-size: var(--texto-lg);
+  color: var(--color-primario);
+  margin-bottom: var(--esp-4);
+}
+
+.resenas-lista {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-4);
+}
+
+.resena-item {
+  background-color: var(--color-fondo-card);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-lg);
+  padding: var(--esp-5);
+}
+
+.resena-item__header {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-3);
+  margin-bottom: var(--esp-3);
+}
+
+.resena-item__avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.resena-item__avatar .avatar-placeholder {
+  font-size: var(--texto-xs);
+}
+
+.resena-item__meta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-1);
+}
+
+.resena-item__fecha {
+  font-size: var(--texto-xs);
+  color: var(--color-texto-suave);
+}
+
+.resena-item__comentario {
+  color: var(--color-texto);
+}
+
+.resena-item__respuesta {
+  margin-top: var(--esp-3);
+  padding: var(--esp-3) var(--esp-4);
+  background-color: var(--color-primario-suave);
+  border-radius: var(--radio-md);
+}
+
+.resena-item__respuesta-titulo {
+  font-size: var(--texto-xs);
+  font-weight: var(--peso-semibold);
+  color: var(--color-primario);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: var(--esp-1);
+}
+
+/* ── Media queries para perfil-abogado ─────────────────────── */
+@media (min-width: 640px) {
+  .perfil-header {
+    flex-direction: row;
+    text-align: left;
+    padding: var(--esp-8);
+  }
+
+  .perfil-header__badges,
+  .perfil-header__especialidades {
+    justify-content: flex-start;
+  }
+
+  .perfil-header__footer {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}

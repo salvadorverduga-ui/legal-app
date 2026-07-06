@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Perfil público de abogado verificado en LegalEC.">
+  <title>Perfil de abogado — LegalEC</title>
+  <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+
+  <header class="encabezado">
+    <div class="contenedor encabezado__contenedor">
+      <a href="/pages/busqueda" class="logo" aria-label="LegalEC — Volver a la búsqueda">
+        <span class="logo__nombre">LegalEC</span>
+      </a>
+      <nav class="nav-usuario" aria-label="Menú de usuario">
+        <span class="nav-usuario__nombre" id="nombreUsuario" aria-live="polite"></span>
+        <button class="btn btn--secundario btn--sm" id="btnCerrarSesion" type="button"
+          style="border-color: rgba(255,255,255,0.4); color: rgba(255,255,255,0.85);">
+          Salir
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <div class="contenedor perfil-abogado__contenido">
+
+      <a href="/pages/busqueda" class="btn-volver">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" aria-hidden="true">
+          <path d="M19 12H5M12 5l-7 7 7 7"/>
+        </svg>
+        Volver a la búsqueda
+      </a>
+
+      <!-- Estado: cargando -->
+      <div class="pantalla-carga" id="estadoCargando">
+        <div class="spinner" aria-hidden="true"></div>
+        <p class="pantalla-carga__texto">Cargando perfil...</p>
+      </div>
+
+      <!-- Estado: error / no encontrado -->
+      <div class="estado-vacio" id="estadoError" hidden>
+        <p class="estado-vacio__titulo">No pudimos cargar este perfil</p>
+        <p>El abogado no existe o ya no está disponible.</p>
+      </div>
+
+      <!-- Contenido del perfil -->
+      <div id="contenidoPerfil" hidden>
+
+        <!-- Encabezado del perfil -->
+        <section class="perfil-header">
+          <div class="perfil-header__avatar" id="perfilAvatar"></div>
+
+          <div class="perfil-header__info">
+            <div class="perfil-header__badges" id="perfilBadges"></div>
+            <h1 class="perfil-header__nombre" id="perfilNombre"></h1>
+            <p class="perfil-header__ubicacion" id="perfilUbicacion"></p>
+
+            <div class="perfil-header__especialidades" id="perfilEspecialidades"></div>
+
+            <div class="perfil-header__footer">
+              <div class="rating" id="perfilRating"></div>
+              <p class="perfil-header__precio" id="perfilPrecio"></p>
+            </div>
+          </div>
+        </section>
+
+        <!-- Descripción -->
+        <section class="perfil-descripcion" id="perfilDescripcionSeccion" hidden>
+          <h2 class="perfil-descripcion__titulo">Acerca de</h2>
+          <p id="perfilDescripcion"></p>
+        </section>
+
+        <!-- Botón solicitar consulta (solo clientes autenticados) -->
+        <section id="seccionBotonSolicitar" hidden>
+          <button class="btn btn--primario btn--completo" id="btnSolicitar" type="button" aria-controls="seccionSolicitud">
+            Solicitar consulta
+          </button>
+        </section>
+
+        <!-- Formulario de solicitud -->
+        <section class="seccion-solicitud" id="seccionSolicitud" hidden aria-labelledby="tituloSolicitud">
+          <h2 class="auth__titulo" id="tituloSolicitud">Solicitar consulta</h2>
+
+          <form id="formSolicitud" class="formulario" novalidate>
+            <div class="campo">
+              <label for="descripcionCaso" class="campo__etiqueta">Descripción del caso (opcional)</label>
+              <textarea
+                id="descripcionCaso"
+                name="descripcion_caso"
+                class="campo__input"
+                rows="4"
+                maxlength="500"
+                placeholder="Describa brevemente su situación..."
+              ></textarea>
+              <p class="campo__contador" id="contadorDescripcion">0 / 500</p>
+            </div>
+
+            <div class="campo">
+              <span class="campo__etiqueta">Disponibilidad horaria</span>
+              <div class="radio-pills" role="radiogroup" aria-label="Disponibilidad horaria">
+                <label class="radio-pills__opcion">
+                  <input type="radio" name="disponibilidad_horaria" value="Mañana">
+                  <span>Mañana</span>
+                </label>
+                <label class="radio-pills__opcion">
+                  <input type="radio" name="disponibilidad_horaria" value="Tarde">
+                  <span>Tarde</span>
+                </label>
+                <label class="radio-pills__opcion">
+                  <input type="radio" name="disponibilidad_horaria" value="Indiferente" checked>
+                  <span>Indiferente</span>
+                </label>
+              </div>
+            </div>
+
+            <p class="campo__error" id="errorSolicitud" role="alert" aria-live="polite"></p>
+
+            <div class="seccion-solicitud__acciones">
+              <button type="submit" class="btn btn--primario" id="btnEnviarSolicitud">
+                Enviar solicitud
+              </button>
+              <button type="button" class="btn btn--secundario" id="btnCancelarSolicitud">
+                Cancelar
+              </button>
+            </div>
+          </form>
+
+          <!-- Confirmación tras enviar -->
+          <div class="mensaje-confirmacion" id="confirmacionSolicitud" hidden>
+            <p class="mensaje-confirmacion__titulo">Solicitud enviada</p>
+            <p>Le notificaremos cuando el abogado responda. Sus datos de contacto se comparten únicamente si acepta la solicitud.</p>
+          </div>
+        </section>
+
+        <!-- Reseñas -->
+        <section class="resenas" aria-labelledby="tituloResenas">
+          <h2 class="resenas__titulo" id="tituloResenas">Reseñas</h2>
+
+          <div class="resenas-lista" id="resenasLista"></div>
+
+          <div class="estado-vacio" id="estadoSinResenas" hidden>
+            <p>Aún no hay reseñas para este abogado.</p>
+          </div>
+        </section>
+
+      </div>
+
+    </div>
+  </main>
+
+  <script src="/js/vendors/supabase.min.js"></script>
+  <script type="module" src="/js/perfil-abogado.js"></script>
+
+</body>
+</html>

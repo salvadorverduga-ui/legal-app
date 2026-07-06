@@ -22,6 +22,7 @@ Una sola app, un solo repositorio, roles diferenciados por tipo de usuario (clie
 | Frontend | HTML + CSS + JS vanilla — sin frameworks, sin build steps |
 | Base de datos + Auth | Supabase (PostgreSQL) con Row Level Security |
 | Backend | Supabase Edge Functions (Deno/TypeScript) |
+| Config runtime | Vercel Serverless Function (`api/config.js`) — expone `SUPABASE_URL`/`SUPABASE_ANON_KEY` al frontend estático sin commitear credenciales (ver §10) |
 | Hosting | Vercel — auto-deploy en push a `main` |
 | Almacenamiento | Supabase Storage (carnets, logos, fotos) |
 | Email | Resend o SendGrid (a definir) |
@@ -42,13 +43,20 @@ legal-app/
 ├── PRD.md                     ← fuente de verdad del producto
 ├── docs/
 │   └── PRD_Plataforma_Legal_Ecuador.docx
+├── api/
+│   └── config.js              ← Vercel Function: expone SUPABASE_URL/ANON_KEY sin commitearlas
 ├── frontend/
 │   ├── index.html             ← landing / login
 │   ├── css/
 │   │   └── main.css
 │   ├── js/
+│   │   ├── vendors/
+│   │   │   └── supabase.min.js    ← UMD build; descargar de releases y commitear
 │   │   ├── app.js             ← inicialización, routing, auth, roles
 │   │   ├── api.js             ← todas las queries a Supabase
+│   │   ├── config.js          ← obtiene SUPABASE_URL/ANON_KEY desde /api/config
+│   │   ├── busqueda.js        ← lógica de busqueda.html
+│   │   ├── perfil-abogado.js  ← lógica de perfil-abogado.html
 │   │   └── utils.js           ← helpers globales
 │   └── pages/
 │       ├── busqueda.html
@@ -61,6 +69,7 @@ legal-app/
 ├── supabase/
 │   └── migrations/            ← archivos SQL en orden cronológico
 ├── vercel.json                ← security headers + routing
+├── .env.example                ← lista de variables de entorno; copiar como .env local
 └── .gitignore
 ```
 
@@ -180,6 +189,10 @@ Un perfil de abogado aparece en búsquedas SOLO si:
 - Sin librerías CSS externas (Bootstrap, Tailwind, etc.) sin discutirlo primero
 - Variables CSS para colores y tipografía en `:root`
 
+### Idioma y tono
+- Español neutro latinoamericano en toda la UI. Contexto profesional legal: usar "usted" en mensajes formales dirigidos al usuario ("Complete los campos", "Ingrese su correo"), "tú" solo en contextos informales. Prohibido el español rioplatense: nada de "vos", "Completá", "Ingresá", "Hacé", "Revisá", "Debés", "querés", "Intentá", "Gestioná", "Recibí", "dale", "genial", ni cualquier otra expresión argentina.
+- Sin emojis en el frontend. El diseño atractivo se consigue con tipografía, color, espaciado y jerarquía visual. Los badges y estados usan SVG inline o caracteres tipográficos. Las estrellas de rating usan entidades HTML (&#9733; / &#9734;). Excepción: solo si el usuario del proyecto lo solicita explícitamente para un caso puntual.
+
 ---
 
 ## 8. Flujo de desarrollo
@@ -200,6 +213,7 @@ Un perfil de abogado aparece en búsquedas SOLO si:
 - ❌ No hacer queries a Supabase fuera de `api.js`
 - ❌ No hardcodear URLs, keys o credenciales — usar variables de entorno
 - ❌ No aplicar migraciones en producción sin probar primero
+- ❌ No crear vistas, funciones RPC o tablas sin agregar el GRANT en el mismo PR (ver §12)
 
 ---
 
@@ -225,6 +239,65 @@ Nunca commitear `.env` — está en `.gitignore`.
 - [ ] Estrategia de cron para expiración de solicitudes (Supabase cron vs cron-job.org)
 - [ ] Flujo de pago PayPhone — integración específica
 - [ ] Estructura definitiva de tablas (diseñar antes de primera migración)
+
+---
+
+## 12. Grants y permisos — regla obligatoria
+
+### Regla general
+Cada vez que se crea una vista, función RPC o tabla nueva, el GRANT correspondiente debe ir en el **mismo PR**. No dejar GRANTs como pendiente para después.
+
+### Por qué ambas capas son necesarias
+En Supabase/PostgreSQL el acceso funciona en dos capas:
+
+| Capa | Controla |
+|---|---|
+| **GRANT** | Qué operaciones puede intentar el rol sobre el objeto (tabla, vista, función) |
+| **RLS** | Qué filas puede ver o modificar dentro de esa operación |
+
+- Sin GRANT: PostgREST devuelve `permission denied` antes de que RLS se evalúe.
+- Sin RLS: el rol ve todas las filas sin restricción.
+- Las dos capas son obligatorias y complementarias.
+
+### Dónde poner los GRANTs
+- Si el objeto se crea en una migration nueva → agregar el GRANT al final de **esa misma migration**.
+- Si se descubrió un GRANT faltante en un objeto ya existente → corregir en un archivo `NNN_grants.sql` con timestamp del día.
+
+### Plantilla por tipo de objeto
+
+**Tabla nueva:**
+```sql
+GRANT SELECT [, INSERT] [, UPDATE] ON TABLE nombre_tabla TO authenticated;
+-- anon: solo si hay acceso sin sesión sobre esa tabla (raro)
+```
+
+**Vista nueva:**
+```sql
+GRANT SELECT ON nombre_vista TO authenticated;
+-- anon: solo si es accesible sin sesión iniciada
+```
+
+**Función RPC nueva:**
+```sql
+GRANT EXECUTE ON FUNCTION nombre_funcion(tipos) TO authenticated;
+-- anon: si puede llamarse antes de login (ej: get_server_date)
+```
+
+**Función trigger:** no necesita GRANT. La invoca el motor de PostgreSQL, no el usuario.
+
+### Roles del sistema
+
+| Rol PostgreSQL | Quién es | Cuándo recibe GRANTs |
+|---|---|---|
+| `anon` | Usuario sin sesión | Funciones de utilidad pre-login y funciones llamadas por RLS (ej: `es_admin()`) |
+| `authenticated` | Usuario con sesión activa | Todas las operaciones normales de la app |
+| `service_role` | Edge Functions / admin | Bypass de RLS. Nunca exponer al frontend. No necesita GRANTs explícitos. |
+
+### Principio de mínimo privilegio
+- No usar `GRANT ALL ON TABLE` — otorga `TRUNCATE`, `REFERENCES` y `TRIGGER` que nunca necesitan los roles de la app.
+- No otorgar `DELETE` a `authenticated` salvo casos de uso explícitos confirmados en PRD.
+- No otorgar `INSERT` en tablas donde el dato lo crea un trigger (ej: `perfiles`, `abogados`).
+- El historial de pagos (`suscripciones`) no recibe INSERT/UPDATE desde el cliente; lo hace el admin con `service_role`.
 
 ---
 

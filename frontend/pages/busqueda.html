@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Busque abogados verificados por especialidad, caso o provincia en Ecuador.">
+  <title>Buscar abogados — LegalEC</title>
+  <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+
+  <header class="encabezado">
+    <div class="contenedor encabezado__contenedor">
+      <a href="/" class="logo" aria-label="LegalEC — Inicio">
+        <span class="logo__nombre">LegalEC</span>
+      </a>
+      <nav class="nav-usuario" aria-label="Menú de usuario">
+        <span class="nav-usuario__nombre" id="nombreUsuario" aria-live="polite"></span>
+        <button class="btn btn--secundario btn--sm" id="btnCerrarSesion" type="button"
+          style="border-color: rgba(255,255,255,0.4); color: rgba(255,255,255,0.85);">
+          Salir
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+
+    <!-- Barra de búsqueda sticky -->
+    <section class="barra-busqueda" aria-label="Filtros de búsqueda">
+      <div class="contenedor">
+        <form id="formBusqueda" class="form-busqueda" novalidate>
+          <div class="form-busqueda__campos">
+
+            <!-- Eje 1: Especialidad -->
+            <div class="campo">
+              <label for="filtroEspecialidad" class="campo__etiqueta">Especialidad</label>
+              <input
+                type="text"
+                id="filtroEspecialidad"
+                name="especialidad"
+                class="campo__input"
+                placeholder="Ej: Derecho de familia"
+                list="listaEspecialidades"
+                autocomplete="off"
+              >
+              <datalist id="listaEspecialidades">
+                <option value="Derecho de familia">
+                <option value="Derecho laboral">
+                <option value="Derecho penal">
+                <option value="Derecho civil">
+                <option value="Derecho mercantil">
+                <option value="Derecho administrativo">
+                <option value="Derecho tributario">
+                <option value="Derecho inmobiliario">
+                <option value="Derecho de tránsito">
+                <option value="Derecho constitucional">
+                <option value="Derecho ambiental">
+                <option value="Propiedad intelectual">
+                <option value="Derecho internacional">
+                <option value="Derecho migratorio">
+              </datalist>
+            </div>
+
+            <!-- Eje 2: Caso frecuente -->
+            <div class="campo">
+              <label for="filtroCaso" class="campo__etiqueta">Caso frecuente</label>
+              <input
+                type="text"
+                id="filtroCaso"
+                name="caso_frecuente"
+                class="campo__input"
+                placeholder="Ej: Divorcio, Herencia"
+                list="listaCasos"
+                autocomplete="off"
+              >
+              <datalist id="listaCasos">
+                <option value="Divorcio">
+                <option value="Herencia">
+                <option value="Pensión alimenticia">
+                <option value="Despido injustificado">
+                <option value="Accidente de tránsito">
+                <option value="Recuperación de deudas">
+                <option value="Contratos">
+                <option value="Custodia de hijos">
+                <option value="Defensa penal">
+                <option value="Trámites migratorios">
+                <option value="Compra-venta de bienes inmuebles">
+                <option value="Delitos informáticos">
+                <option value="Estafa">
+              </datalist>
+            </div>
+
+            <!-- Eje 3: Provincia -->
+            <div class="campo">
+              <label for="filtroProvincia" class="campo__etiqueta">Provincia</label>
+              <select id="filtroProvincia" name="provincia" class="campo__input">
+                <option value="">Todas las provincias</option>
+                <option value="Azuay">Azuay</option>
+                <option value="Bolívar">Bolívar</option>
+                <option value="Cañar">Cañar</option>
+                <option value="Carchi">Carchi</option>
+                <option value="Chimborazo">Chimborazo</option>
+                <option value="Cotopaxi">Cotopaxi</option>
+                <option value="El Oro">El Oro</option>
+                <option value="Esmeraldas">Esmeraldas</option>
+                <option value="Galápagos">Galápagos</option>
+                <option value="Guayas">Guayas</option>
+                <option value="Imbabura">Imbabura</option>
+                <option value="Loja">Loja</option>
+                <option value="Los Ríos">Los Ríos</option>
+                <option value="Manabí">Manabí</option>
+                <option value="Morona Santiago">Morona Santiago</option>
+                <option value="Napo">Napo</option>
+                <option value="Orellana">Orellana</option>
+                <option value="Pastaza">Pastaza</option>
+                <option value="Pichincha">Pichincha</option>
+                <option value="Santa Elena">Santa Elena</option>
+                <option value="Santo Domingo de los Tsáchilas">Santo Domingo de los Tsáchilas</option>
+                <option value="Sucumbíos">Sucumbíos</option>
+                <option value="Tungurahua">Tungurahua</option>
+                <option value="Zamora Chinchipe">Zamora Chinchipe</option>
+              </select>
+            </div>
+
+          </div><!-- /campos -->
+
+          <div class="form-busqueda__acciones">
+            <button type="submit" class="btn btn--primario">Buscar</button>
+            <button type="button" class="btn btn--secundario btn--sm" id="btnLimpiar">
+              Ver todos
+            </button>
+          </div>
+        </form>
+
+        <!-- Filtro por tipo de perfil -->
+        <div class="filtro-tipo" role="group" aria-label="Tipo de perfil">
+          <span class="filtro-tipo__label">Tipo:</span>
+          <button class="filtro-tipo__btn filtro-tipo__btn--activo" data-tipo="" type="button">
+            Todos
+          </button>
+          <button class="filtro-tipo__btn" data-tipo="individual" type="button">
+            Individual
+          </button>
+          <button class="filtro-tipo__btn" data-tipo="estudio" type="button">
+            Estudio
+          </button>
+          <button class="filtro-tipo__btn" data-tipo="red" type="button">
+            Red
+          </button>
+        </div>
+
+        <!-- Chips de filtros activos -->
+        <div class="filtros-activos" id="filtrosActivos" aria-label="Filtros aplicados" aria-live="polite"></div>
+
+      </div>
+    </section>
+
+    <!-- Resultados -->
+    <section class="seccion-resultados" aria-label="Resultados de búsqueda">
+      <div class="contenedor">
+
+        <div class="resultados-cabecera">
+          <p class="conteo-resultados" id="conteoResultados" aria-live="polite"></p>
+        </div>
+
+        <!-- Estado: cargando -->
+        <div class="cargando-resultados" id="estadoCargando" hidden aria-live="polite">
+          <div class="spinner" aria-hidden="true"></div>
+          <span>Buscando abogados...</span>
+        </div>
+
+        <!-- Estado: vacío -->
+        <div class="estado-vacio" id="estadoVacio" hidden>
+          <p class="estado-vacio__titulo">No encontramos resultados</p>
+          <p>Intente con otros filtros o <button class="btn btn--secundario btn--sm" id="btnVerTodos" type="button">vea todos los abogados disponibles</button>.</p>
+        </div>
+
+        <!-- Estado: error -->
+        <div class="estado-vacio" id="estadoError" hidden>
+          <p class="estado-vacio__titulo">Ocurrió un error al cargar los resultados</p>
+          <p>
+            <button class="btn btn--secundario btn--sm" id="btnReintentar" type="button">
+              Reintentar
+            </button>
+          </p>
+        </div>
+
+        <!-- Grid de tarjetas -->
+        <div class="grid-resultados" id="gridResultados" role="list" aria-label="Abogados disponibles"></div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <script src="/js/vendors/supabase.min.js"></script>
+  <script type="module" src="/js/busqueda.js"></script>
+
+</body>
+</html>

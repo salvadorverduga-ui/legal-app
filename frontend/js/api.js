@@ -1,0 +1,449 @@
+// api.js
+// Única capa de acceso a Supabase en el frontend.
+// Ninguna otra capa debe importar ni usar el cliente de Supabase directamente.
+//
+// Uso:
+//   import * as api from './api.js';
+//   api.inicializarCliente(supabaseClient);  // llamar una sola vez en app.js
+//   await api.auth.iniciarSesion(email, pass);
+
+let _cliente = null;
+
+/**
+ * Inicializa el módulo con el cliente Supabase creado en app.js.
+ * Debe llamarse antes de cualquier otra función de este módulo.
+ */
+export function inicializarCliente(cliente) {
+  _cliente = cliente;
+}
+
+
+// ════════════════════════════════════════════════════════════
+// AUTH
+// Autenticación de usuarios vía Supabase Auth.
+// ════════════════════════════════════════════════════════════
+export const auth = {
+
+  /**
+   * Inicia sesión con email y contraseña.
+   * Retorna { perfil, error } donde perfil incluye rol, nombre y ciudad
+   * (necesario para el routing inmediato en app.js).
+   * Si hay error de Supabase, retorna { perfil: null, error }.
+   */
+  async iniciarSesion(email, password) {
+    const { data, error } = await _cliente.auth.signInWithPassword({ email, password });
+    if (error) return { perfil: null, error };
+
+    const { data: perfil, error: errPerfil } = await _cliente
+      .from('perfiles')
+      .select('*')
+      .eq('id', data.user.id)
+      .single();
+
+    if (errPerfil) return { perfil: null, error: errPerfil };
+    return { perfil, error: null };
+  },
+
+  /**
+   * Registra un nuevo usuario con rol='cliente'.
+   * Pasa nombre_completo, cedula y rol en raw_user_meta_data
+   * para que el trigger fn_crear_perfil_en_registro los use al crear la fila en perfiles.
+   * El email de confirmación lo envía Supabase automáticamente.
+   * Retorna { data, error }.
+   */
+  async registrarCliente({ email, password, nombre_completo, cedula }) {},
+
+  /**
+   * Registra un nuevo usuario con rol='abogado'.
+   * El trigger fn_crear_fila_abogado crea automáticamente la fila en abogados
+   * con verificacion='PENDIENTE' y toggle_disponible=true.
+   * Retorna { data, error }.
+   */
+  async registrarAbogado({ email, password, nombre_completo, cedula }) {},
+
+  /**
+   * Cierra la sesión del usuario actual en todos los dispositivos.
+   * Retorna { error }.
+   */
+  async cerrarSesion() {
+    const { error } = await _cliente.auth.signOut();
+    if (error) console.error('[api.auth.cerrarSesion]', error.message);
+    return { error };
+  },
+
+  /**
+   * Retorna la sesión activa o null si no hay sesión.
+   * Usar siempre esta función; nunca leer localStorage directamente.
+   * Retorna el objeto session de Supabase o null.
+   */
+  async getSession() {
+    const { data, error } = await _cliente.auth.getSession();
+    if (error) {
+      console.error('[api.auth.getSession]', error.message);
+      return null;
+    }
+    return data.session ?? null;
+  },
+
+  /**
+   * Suscribe un callback a cambios de estado de autenticación.
+   * Eventos posibles: SIGNED_IN, SIGNED_OUT, TOKEN_REFRESHED, USER_UPDATED.
+   * Retorna la función para cancelar la suscripción (llamar al desmontar).
+   */
+  onAuthStateChange(callback) {},
+
+};
+
+
+// ════════════════════════════════════════════════════════════
+// PERFILES
+// Datos de perfil del usuario autenticado y de otros usuarios.
+// ════════════════════════════════════════════════════════════
+export const perfiles = {
+
+  /**
+   * Retorna el perfil completo del usuario autenticado desde la tabla perfiles.
+   * Incluye: id, rol, nombre_completo, cedula, telefono, ciudad, provincia, foto_url.
+   * Retorna null si no hay sesión activa.
+   */
+  async getPerfilActual() {
+    const { data: { user }, error: errUser } = await _cliente.auth.getUser();
+    if (errUser || !user) return null;
+
+    const { data, error } = await _cliente
+      .from('perfiles')
+      .select('*')
+      .eq('id', user.id)
+      .single();
+
+    if (error) {
+      console.error('[api.perfiles.getPerfilActual]', error.message);
+      return null;
+    }
+    return data;
+  },
+
+  /**
+   * Actualiza los datos editables del perfil del usuario autenticado.
+   * Campos permitidos: nombre_completo, telefono, ciudad, provincia.
+   * El campo rol está bloqueado por la política RLS WITH CHECK en perfiles.
+   * Retorna { data, error }.
+   */
+  async actualizarPerfil(datos) {},
+
+  /**
+   * Sube una foto de perfil a Supabase Storage (bucket: avatares)
+   * y actualiza perfiles.foto_url con el path resultante.
+   * El archivo debe ser image/jpeg, image/png o image/webp. Tamaño máximo: 2MB.
+   * Retorna { url, error } donde url es el path en Storage.
+   */
+  async subirFotoPerfil(archivo) {},
+
+};
+
+
+// ════════════════════════════════════════════════════════════
+// ABOGADOS
+// Datos profesionales y búsqueda de abogados.
+// Solo retorna abogados visibles (RLS filtra no verificados / sin suscripción).
+// ════════════════════════════════════════════════════════════
+export const abogados = {
+
+  /**
+   * Busca abogados visibles aplicando filtros opcionales sobre la vista busqueda_abogados.
+   * La vista ya excluye abogados no verificados, no disponibles y con suscripción vencida.
+   * filtros: {
+   *   especialidad?:     string,  // búsqueda en el array especialidades con operador @>
+   *   caso_frecuente?:   string,  // búsqueda en casos_frecuentes
+   *   ciudad?:           string,
+   *   provincia?:        string,
+   * }
+   * Retorna array con tipo_badge ('individual' | 'estudio' | 'red') y datos públicos.
+   */
+  async buscar(filtros = {}) {
+    // IMPORTANTE: no agregar condiciones de visibilidad aquí.
+    // La vista busqueda_abogados ya las tiene en su WHERE clause.
+    // El RLS sobre abogados es la fuente de verdad — no duplicar en el frontend.
+    // Prerequisito: GRANT SELECT ON busqueda_abogados TO authenticated;
+    // (agregar en supabase/migrations/20260625_011_grants.sql si aún no existe)
+    let query = _cliente
+      .from('busqueda_abogados')
+      .select('*')
+      .order('rating_promedio', { ascending: false })
+      .order('total_resenas',   { ascending: false })
+      .limit(100); // tope para MVP; paginación en V2
+
+    // El operador @> (contains) comprueba que el array de la BD contiene el elemento.
+    // Usa el GIN index de migration 004. Requiere coincidencia exacta con el valor del array.
+    if (filtros.especialidad?.trim()) {
+      query = query.contains('especialidades', [filtros.especialidad.trim()]);
+    }
+
+    if (filtros.caso_frecuente?.trim()) {
+      query = query.contains('casos_frecuentes', [filtros.caso_frecuente.trim()]);
+    }
+
+    if (filtros.provincia?.trim()) {
+      query = query.eq('provincia', filtros.provincia.trim());
+    }
+
+    // tipo_badge es columna calculada en la vista: 'individual' | 'estudio' | 'red'
+    if (filtros.tipo && ['individual', 'estudio', 'red'].includes(filtros.tipo)) {
+      query = query.eq('tipo_badge', filtros.tipo);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('[api.abogados.buscar]', error.message);
+      return { data: [], error };
+    }
+
+    return { data: data ?? [], error: null };
+  },
+
+  /**
+   * Retorna el perfil público de un abogado por su id desde la vista busqueda_abogados.
+   * Retorna null si el abogado no existe o no cumple las condiciones de visibilidad.
+   */
+  async getAbogado(id) {
+    const { data, error } = await _cliente
+      .from('busqueda_abogados')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      console.error('[api.abogados.getAbogado]', error.message);
+      return null;
+    }
+    return data;
+  },
+
+  /**
+   * Actualiza los datos profesionales del abogado autenticado en la tabla abogados.
+   * Campos permitidos: especialidades, casos_frecuentes, descripcion,
+   *                    precio_consulta, numero_registro.
+   * verificacion y suscripcion_vigente_hasta no se pueden modificar desde el cliente.
+   * Retorna { data, error }.
+   */
+  async actualizarPerfilAbogado(datos) {},
+
+  /**
+   * Alterna toggle_disponible del abogado autenticado (true → false o false → true).
+   * Un abogado con toggle_disponible=false no aparece en búsquedas ni recibe solicitudes,
+   * incluso si tiene verificación y suscripción vigente.
+   * Retorna { toggle_disponible: boolean, error }.
+   */
+  async toggleDisponible() {},
+
+  /**
+   * Sube los documentos de verificación a Supabase Storage (bucket: verificacion-docs)
+   * e inserta una fila en la tabla verificaciones con estado='PENDIENTE'.
+   * archivos: { carnet: File, cedula: File }
+   * El admin revisa manualmente desde el panel y aprueba o rechaza.
+   * Retorna { data, error }.
+   */
+  async enviarDocumentosVerificacion(archivos) {},
+
+  /**
+   * Retorna el estado actual de la verificación del abogado autenticado.
+   * Consulta la tabla verificaciones ordenada por created_at DESC (la más reciente).
+   * Retorna { estado, motivo_rechazo, created_at } o null si nunca envió documentos.
+   */
+  async getEstadoVerificacion() {},
+
+};
+
+
+// ════════════════════════════════════════════════════════════
+// SOLICITUDES
+// Flujo mediado de contacto entre cliente y abogado.
+// ════════════════════════════════════════════════════════════
+export const solicitudes = {
+
+  /**
+   * Crea una nueva solicitud de consulta.
+   * Antes de insertar, llama a abogado_es_visible() para validar que el abogado
+   * aún es visible según la fecha del servidor (nunca la del cliente).
+   * Solo pueden crearlas usuarios con rol='cliente' (política RLS de INSERT).
+   * datos: { descripcion_caso?: string, disponibilidad_horaria?: string }
+   * Retorna { data, error }.
+   */
+  async crearSolicitud(abogadoId, datos = {}) {
+    const { data: visible, error: errVisible } = await _cliente
+      .rpc('abogado_es_visible', { p_abogado_id: abogadoId });
+
+    if (errVisible) {
+      console.error('[api.solicitudes.crearSolicitud]', errVisible.message);
+      return { data: null, error: errVisible };
+    }
+
+    if (!visible) {
+      return { data: null, error: { message: 'Este abogado ya no está disponible.' } };
+    }
+
+    const { data: { user }, error: errUser } = await _cliente.auth.getUser();
+    if (errUser || !user) {
+      return { data: null, error: errUser ?? { message: 'No hay sesión activa.' } };
+    }
+
+    const { data, error } = await _cliente
+      .from('solicitudes')
+      .insert({
+        cliente_id: user.id,
+        abogado_id: abogadoId,
+        descripcion_caso: datos.descripcion_caso?.trim() || null,
+        disponibilidad_horaria: datos.disponibilidad_horaria || null,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[api.solicitudes.crearSolicitud]', error.message);
+      if (error.code === '23505') {
+        return { data: null, error: { message: 'Ya tiene una solicitud activa con este abogado.' } };
+      }
+      return { data: null, error };
+    }
+
+    return { data, error: null };
+  },
+
+  /**
+   * Retorna todas las solicitudes del cliente autenticado.
+   * Usa la vista panel_solicitudes_cliente para incluir datos públicos del abogado.
+   * Ordenadas por created_at DESC.
+   * Retorna array de solicitudes con estado, abogado_nombre, abogado_rating, tiene_resena.
+   */
+  async getSolicitudesCliente() {},
+
+  /**
+   * Retorna todas las solicitudes dirigidas al abogado autenticado.
+   * Usa la vista panel_solicitudes_abogado.
+   * cliente_telefono y cliente_email son null en estado PENDIENTE;
+   * el trigger fn_revelar_contacto_al_aceptar los completa al aceptar.
+   * Ordenadas por created_at DESC.
+   */
+  async getSolicitudesAbogado() {},
+
+  /**
+   * El abogado acepta una solicitud en estado PENDIENTE.
+   * El trigger fn_revelar_contacto_al_aceptar copia el teléfono y email del cliente
+   * en solicitudes.cliente_telefono / cliente_email.
+   * Notificación al cliente: pendiente de implementar con Edge Function.
+   * Retorna { data, error }.
+   */
+  async aceptarSolicitud(solicitudId) {},
+
+  /**
+   * El abogado rechaza una solicitud en estado PENDIENTE.
+   * motivo es interno; el cliente recibe "no disponible en este momento".
+   * Retorna { data, error }.
+   */
+  async rechazarSolicitud(solicitudId, motivo = '') {},
+
+  /**
+   * El cliente marca una solicitud ACEPTADA como COMPLETADA.
+   * Esta transición habilita la opción de dejar reseña.
+   * Solo es posible si el estado actual es ACEPTADA (validar antes de llamar).
+   * Retorna { data, error }.
+   */
+  async completarSolicitud(solicitudId) {},
+
+};
+
+
+// ════════════════════════════════════════════════════════════
+// SUSCRIPCIONES
+// Historial de suscripciones del usuario autenticado.
+// En MVP, el admin registra los pagos manualmente.
+// ════════════════════════════════════════════════════════════
+export const suscripciones = {
+
+  /**
+   * Retorna la suscripción ACTIVA más reciente del abogado o estudio autenticado.
+   * Incluye tipo, fecha_vencimiento y monto.
+   * Retorna null si no hay suscripción activa vigente.
+   */
+  async getSuscripcionActual() {},
+
+  /**
+   * Retorna el historial completo de suscripciones (activas, vencidas, canceladas).
+   * Ordenadas por fecha_inicio DESC.
+   * Útil para mostrar el historial de pagos en el panel del abogado.
+   */
+  async getHistorialSuscripciones() {},
+
+};
+
+
+// ════════════════════════════════════════════════════════════
+// RESEÑAS
+// Sistema de reseñas verificadas por solicitud completada.
+// ════════════════════════════════════════════════════════════
+export const resenas = {
+
+  /**
+   * Crea una reseña para una solicitud en estado COMPLETADA o RESEÑADA.
+   * La política RLS de INSERT verifica que solicitud_id pertenece al cliente
+   * autenticado y que está en un estado que permite reseña.
+   * Después de insertar, llamar a completarSolicitudComoReseñada(solicitudId)
+   * para transicionar el estado a RESEÑADA.
+   * datos: { calificacion: 1-5, comentario?: string }
+   * Retorna { data, error }.
+   */
+  async crearResena(solicitudId, datos) {},
+
+  /**
+   * Retorna las reseñas públicas (oculta=false) de un abogado desde la vista
+   * resenas_publicas. Incluye calificacion, comentario, created_at,
+   * respuesta_abogado y cliente_nombre (para mostrar iniciales del autor).
+   * Ordenadas por created_at DESC.
+   * Retorna array (puede estar vacío).
+   */
+  async getResenasAbogado(abogadoId) {
+    const { data, error } = await _cliente
+      .from('resenas_publicas')
+      .select('*')
+      .eq('abogado_id', abogadoId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('[api.resenas.getResenasAbogado]', error.message);
+      return [];
+    }
+    return data ?? [];
+  },
+
+  /**
+   * El abogado autenticado agrega o edita su respuesta pública a una reseña.
+   * La política RLS verifica que el abogado es el dueño de la reseña
+   * y que no puede modificar calificación ni comentario del cliente.
+   * Retorna { data, error }.
+   */
+  async responderResena(resenaId, respuesta) {},
+
+};
+
+
+// ════════════════════════════════════════════════════════════
+// STORAGE
+// Utilidades para Supabase Storage (URLs públicas de archivos).
+// El bucket debe ser público (configurado en Supabase Dashboard → Storage).
+// ════════════════════════════════════════════════════════════
+export const storage = {
+
+  /**
+   * Genera la URL pública de un archivo almacenado en Supabase Storage.
+   * path: valor de foto_url / logo_url / doc_*_url tal como está en la BD (path relativo).
+   * bucket: nombre del bucket ('avatares', 'logos', 'verificacion-docs').
+   * Retorna string con la URL completa o null si path es falsy.
+   */
+  getPublicUrl(bucket, path) {
+    if (!_cliente || !path) return null;
+    const { data } = _cliente.storage.from(bucket).getPublicUrl(path);
+    return data?.publicUrl ?? null;
+  },
+
+};
