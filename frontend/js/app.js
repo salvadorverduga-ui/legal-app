@@ -14,6 +14,7 @@ let clienteSupabase = null;
 // window.supabase (UMD) queda disponible por el script cargado antes de este módulo en HTML
 async function inicializarClienteSupabase() {
   const { SUPABASE_URL, SUPABASE_ANON_KEY } = await obtenerConfig();
+  console.log('[DEBUG] inicializarClienteSupabase() — después de obtenerConfig()', { SUPABASE_URL });
   clienteSupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   // Compartir el cliente inicializado con api.js
@@ -56,19 +57,26 @@ function esperarConTimeout(promesa, ms) {
 }
 
 async function inicializar() {
+  console.log('[DEBUG] inicializar() — inicio');
   mostrarCargando(true);
 
   try {
     await inicializarClienteSupabase();
+    console.log('[DEBUG] inicializar() — después de inicializarClienteSupabase()');
 
     const sesion = await esperarConTimeout(api.auth.getSession(), TIMEOUT_VERIFICACION_SESION_MS);
+    console.log('[DEBUG] inicializar() — después de esperarConTimeout(getSession()), sesion =', sesion);
 
     if (sesion) {
+      console.log('[DEBUG] inicializar() — sesion existe, pidiendo perfil');
       const perfil = await esperarConTimeout(api.perfiles.getPerfilActual(), TIMEOUT_VERIFICACION_SESION_MS);
       if (perfil?.rol) {
+        console.log('[DEBUG] inicializar() — perfil con rol, redirigiendo:', perfil.rol);
         redirigirSegunRol(perfil.rol);
         return; // detener ejecución mientras se redirige
       }
+    } else {
+      console.log('[DEBUG] inicializar() — sesion es null');
     }
 
     mostrarCargando(false);
@@ -76,6 +84,7 @@ async function inicializar() {
     configurarUI();
 
   } catch (err) {
+    console.log('[DEBUG] inicializar() — entró al catch');
     console.error('[app] Error al inicializar:', err);
     mostrarCargando(false);
     mostrarContenido(true);
