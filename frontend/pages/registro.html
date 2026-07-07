@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Cree su cuenta en LegalEC como cliente, abogado independiente o estudio jurídico.">
+  <title>Crear cuenta — LegalEC</title>
+  <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+
+  <header class="encabezado">
+    <div class="contenedor encabezado__contenedor">
+      <a href="/" class="logo" aria-label="LegalEC — Inicio">
+        <span class="logo__nombre">LegalEC</span>
+      </a>
+    </div>
+  </header>
+
+  <main>
+    <div class="contenedor seccion-registro">
+
+      <!-- Selector de tipo de cuenta: solo se muestra si no llega ?rol= válido en la URL -->
+      <section id="selectorCuenta" hidden aria-labelledby="tituloSelector">
+        <h1 class="seleccion-rol__titulo" id="tituloSelector">¿Qué tipo de cuenta desea crear?</h1>
+        <div class="tarjetas-rol">
+          <button class="tarjeta-rol" id="btnSelectorCliente" type="button" data-rol="cliente">
+            <h3 class="tarjeta-rol__nombre">Soy cliente</h3>
+            <p class="tarjeta-rol__descripcion">Busque abogados verificados y solicite consultas.</p>
+            <span class="tarjeta-rol__etiqueta tarjeta-rol__etiqueta--gratis">Siempre gratis</span>
+          </button>
+          <button class="tarjeta-rol" id="btnSelectorAbogado" type="button" data-rol="abogado">
+            <h3 class="tarjeta-rol__nombre">Soy abogado o estudio</h3>
+            <p class="tarjeta-rol__descripcion">Reciba solicitudes de clientes verificados.</p>
+            <span class="tarjeta-rol__etiqueta">Desde $11.99/mes</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════════════════
+           FLUJO CLIENTE
+           ═══════════════════════════════════════════════════════ -->
+      <section id="flujoCliente" hidden aria-labelledby="tituloCliente">
+        <div class="tarjeta-auth tarjeta-auth--registro">
+
+          <a href="/" class="btn-volver">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" aria-hidden="true">
+              <path d="M19 12H5M12 5l-7 7 7 7"/>
+            </svg>
+            Volver al inicio
+          </a>
+
+          <h1 class="auth__titulo" id="tituloCliente">Crear cuenta de cliente</h1>
+          <p class="auth__aviso auth__aviso--gratis">El registro es gratuito.</p>
+
+          <form id="formCliente" class="formulario" novalidate>
+            <div class="campo">
+              <label for="clienteNombre" class="campo__etiqueta">Nombre completo</label>
+              <input type="text" id="clienteNombre" name="nombre_completo" class="campo__input" autocomplete="name" required>
+            </div>
+            <div class="campo">
+              <label for="clienteCedula" class="campo__etiqueta">Cédula de identidad</label>
+              <input type="text" id="clienteCedula" name="cedula" class="campo__input" inputmode="numeric" maxlength="10" placeholder="10 dígitos" required>
+            </div>
+            <div class="campo">
+              <label for="clienteEmail" class="campo__etiqueta">Correo electrónico</label>
+              <input type="email" id="clienteEmail" name="email" class="campo__input" autocomplete="email" inputmode="email" required>
+            </div>
+            <div class="campo">
+              <label for="clientePassword" class="campo__etiqueta">Contraseña</label>
+              <input type="password" id="clientePassword" name="password" class="campo__input" autocomplete="new-password" minlength="8" required>
+              <span class="campo__ayuda">Mínimo 8 caracteres</span>
+            </div>
+            <p class="campo__error" id="errorCliente" role="alert" aria-live="polite"></p>
+            <button type="submit" class="btn btn--primario btn--completo" id="btnRegistrarCliente">Crear cuenta</button>
+          </form>
+
+          <div class="mensaje-confirmacion" id="confirmacionCliente" hidden></div>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════════════════
+           FLUJO ABOGADO / ESTUDIO
+           ═══════════════════════════════════════════════════════ -->
+      <section id="flujoProfesional" hidden aria-labelledby="tituloProfesional">
+        <div class="tarjeta-auth tarjeta-auth--registro">
+
+          <!-- Paso 1: tipo de cuenta profesional -->
+          <div id="pasoTipo">
+            <a href="/" class="btn-volver">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" aria-hidden="true">
+                <path d="M19 12H5M12 5l-7 7 7 7"/>
+              </svg>
+              Volver al inicio
+            </a>
+            <h1 class="auth__titulo" id="tituloProfesional">¿Cómo desea registrarse?</h1>
+
+            <div class="tarjetas-tipo">
+              <button type="button" class="tarjeta-tipo" id="btnTipoIndividual" data-tipo="individual">
+                <h3 class="tarjeta-tipo__nombre">Abogado individual</h3>
+                <p class="tarjeta-tipo__descripcion">Perfil propio. Reciba solicitudes y gestione su disponibilidad.</p>
+              </button>
+              <button type="button" class="tarjeta-tipo" id="btnTipoEstudio" data-tipo="estudio">
+                <h3 class="tarjeta-tipo__nombre">Estudio jurídico</h3>
+                <p class="tarjeta-tipo__descripcion">Cuenta paraguas para su firma, con abogados miembros.</p>
+              </button>
+              <button type="button" class="tarjeta-tipo" id="btnTipoRed" data-tipo="red">
+                <h3 class="tarjeta-tipo__nombre">Unirme a una red de colaboradores</h3>
+                <p class="tarjeta-tipo__descripcion">Regístrese como abogado independiente y vincúlese a una red desde su panel.</p>
+              </button>
+            </div>
+          </div>
+
+          <!-- Paso 2: abogado individual / red de colaboradores -->
+          <div id="pasoAbogado" hidden>
+            <button type="button" class="btn-volver" id="btnVolverPasoAbogado">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" aria-hidden="true">
+                <path d="M19 12H5M12 5l-7 7 7 7"/>
+              </svg>
+              Volver
+            </button>
+            <h2 class="auth__titulo" id="tituloPasoAbogado">Datos del abogado</h2>
+            <p class="auth__aviso" id="avisoRed" hidden>
+              Podrá vincularse a una red de colaboradores existente desde su panel una vez verificado su perfil.
+            </p>
+
+            <form id="formAbogado" class="formulario" novalidate>
+              <div class="campo">
+                <label for="abogadoNombre" class="campo__etiqueta">Nombre completo</label>
+                <input type="text" id="abogadoNombre" name="nombre_completo" class="campo__input" autocomplete="name" required>
+              </div>
+              <div class="campo">
+                <label for="abogadoCedula" class="campo__etiqueta">Cédula de identidad</label>
+                <input type="text" id="abogadoCedula" name="cedula" class="campo__input" inputmode="numeric" maxlength="10" placeholder="10 dígitos" required>
+              </div>
+              <div class="campo">
+                <label for="abogadoCarnet" class="campo__etiqueta">Número de carnet de abogado</label>
+                <input type="text" id="abogadoCarnet" name="numero_carnet" class="campo__input" required>
+              </div>
+              <div class="campo">
+                <label for="abogadoEmail" class="campo__etiqueta">Correo electrónico</label>
+                <input type="email" id="abogadoEmail" name="email" class="campo__input" autocomplete="email" inputmode="email" required>
+              </div>
+              <div class="campo">
+                <label for="abogadoPassword" class="campo__etiqueta">Contraseña</label>
+                <input type="password" id="abogadoPassword" name="password" class="campo__input" autocomplete="new-password" minlength="8" required>
+                <span class="campo__ayuda">Mínimo 8 caracteres</span>
+              </div>
+
+              <fieldset class="campo">
+                <legend class="campo__etiqueta">Especialidades</legend>
+                <div class="radio-pills radio-pills--multiple" id="especialidadesAbogado">
+                  <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho de familia"><span>Derecho de familia</span></label>
+                  <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho laboral"><span>Derecho laboral</span></label>
+                  <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho penal"><span>Derecho penal</span></label>
+                  <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho civil"><span>Derecho civil</span></label>
+                  <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho mercantil"><span>Derecho mercantil</span></label>
+                  <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho administrativo"><span>Derecho administrativo</span></label>
+                  <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho tributario"><span>Derecho tributario</span></label>
+                  <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho inmobiliario"><span>Derecho inmobiliario</span></label>
+                  <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho de tránsito"><span>Derecho de tránsito</span></label>
+                  <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho constitucional"><span>Derecho constitucional</span></label>
+                  <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho ambiental"><span>Derecho ambiental</span></label>
+                  <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Propiedad intelectual"><span>Propiedad intelectual</span></label>
+                  <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho internacional"><span>Derecho internacional</span></label>
+                  <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho migratorio"><span>Derecho migratorio</span></label>
+                </div>
+              </fieldset>
+
+              <div class="campo">
+                <label for="abogadoProvincia" class="campo__etiqueta">Provincia</label>
+                <select id="abogadoProvincia" name="provincia" class="campo__input" required>
+                  <option value="">Seleccione una provincia</option>
+                  <option value="Azuay">Azuay</option>
+                  <option value="Bolívar">Bolívar</option>
+                  <option value="Cañar">Cañar</option>
+                  <option value="Carchi">Carchi</option>
+                  <option value="Chimborazo">Chimborazo</option>
+                  <option value="Cotopaxi">Cotopaxi</option>
+                  <option value="El Oro">El Oro</option>
+                  <option value="Esmeraldas">Esmeraldas</option>
+                  <option value="Galápagos">Galápagos</option>
+                  <option value="Guayas">Guayas</option>
+                  <option value="Imbabura">Imbabura</option>
+                  <option value="Loja">Loja</option>
+                  <option value="Los Ríos">Los Ríos</option>
+                  <option value="Manabí">Manabí</option>
+                  <option value="Morona Santiago">Morona Santiago</option>
+                  <option value="Napo">Napo</option>
+                  <option value="Orellana">Orellana</option>
+                  <option value="Pastaza">Pastaza</option>
+                  <option value="Pichincha">Pichincha</option>
+                  <option value="Santa Elena">Santa Elena</option>
+                  <option value="Santo Domingo de los Tsáchilas">Santo Domingo de los Tsáchilas</option>
+                  <option value="Sucumbíos">Sucumbíos</option>
+                  <option value="Tungurahua">Tungurahua</option>
+                  <option value="Zamora Chinchipe">Zamora Chinchipe</option>
+                </select>
+              </div>
+
+              <div class="campo">
+                <label for="abogadoDocCarnet" class="campo__etiqueta">Foto del carné de abogado</label>
+                <input type="file" id="abogadoDocCarnet" name="doc_carnet" class="campo__input campo__input--archivo" accept="image/jpeg,image/png,application/pdf" required>
+                <span class="campo__ayuda">JPG, PNG o PDF. Máximo 5 MB.</span>
+              </div>
+              <div class="campo">
+                <label for="abogadoDocCedula" class="campo__etiqueta">Foto de la cédula de identidad</label>
+                <input type="file" id="abogadoDocCedula" name="doc_cedula" class="campo__input campo__input--archivo" accept="image/jpeg,image/png,application/pdf" required>
+                <span class="campo__ayuda">JPG, PNG o PDF. Máximo 5 MB.</span>
+              </div>
+
+              <p class="auth__aviso auth__aviso--verificacion">Su perfil será visible tras verificación en 24–48 horas hábiles.</p>
+
+              <p class="campo__error" id="errorAbogado" role="alert" aria-live="polite"></p>
+              <button type="submit" class="btn btn--primario btn--completo" id="btnRegistrarAbogado">Crear cuenta</button>
+            </form>
+
+            <div class="mensaje-confirmacion" id="confirmacionAbogado" hidden></div>
+          </div>
+
+          <!-- Paso 2: estudio jurídico -->
+          <div id="pasoEstudio" hidden>
+            <button type="button" class="btn-volver" id="btnVolverPasoEstudio">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" aria-hidden="true">
+                <path d="M19 12H5M12 5l-7 7 7 7"/>
+              </svg>
+              Volver
+            </button>
+            <h2 class="auth__titulo">Datos del estudio jurídico</h2>
+
+            <form id="formEstudio" class="formulario" novalidate>
+              <div class="campo">
+                <label for="estudioNombre" class="campo__etiqueta">Nombre del estudio</label>
+                <input type="text" id="estudioNombre" name="nombre_estudio" class="campo__input" required>
+              </div>
+              <div class="campo">
+                <label for="estudioRuc" class="campo__etiqueta">RUC</label>
+                <input type="text" id="estudioRuc" name="ruc" class="campo__input" inputmode="numeric" maxlength="13" placeholder="13 dígitos" required>
+              </div>
+              <div class="campo">
+                <label for="estudioRepresentante" class="campo__etiqueta">Nombre del representante legal</label>
+                <input type="text" id="estudioRepresentante" name="nombre_representante" class="campo__input" autocomplete="name" required>
+              </div>
+              <div class="campo">
+                <label for="estudioEmail" class="campo__etiqueta">Correo electrónico</label>
+                <input type="email" id="estudioEmail" name="email" class="campo__input" autocomplete="email" inputmode="email" required>
+              </div>
+              <div class="campo">
+                <label for="estudioPassword" class="campo__etiqueta">Contraseña</label>
+                <input type="password" id="estudioPassword" name="password" class="campo__input" autocomplete="new-password" minlength="8" required>
+                <span class="campo__ayuda">Mínimo 8 caracteres</span>
+              </div>
+
+              <fieldset class="campo">
+                <legend class="campo__etiqueta">Especialidades</legend>
+                <div class="radio-pills radio-pills--multiple" id="especialidadesEstudio">
+                  <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho de familia"><span>Derecho de familia</span></label>
+                  <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho laboral"><span>Derecho laboral</span></label>
+                  <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho penal"><span>Derecho penal</span></label>
+                  <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho civil"><span>Derecho civil</span></label>
+                  <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho mercantil"><span>Derecho mercantil</span></label>
+                  <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho administrativo"><span>Derecho administrativo</span></label>
+                  <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho tributario"><span>Derecho tributario</span></label>
+                  <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho inmobiliario"><span>Derecho inmobiliario</span></label>
+                  <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho de tránsito"><span>Derecho de tránsito</span></label>
+                  <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho constitucional"><span>Derecho constitucional</span></label>
+                  <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho ambiental"><span>Derecho ambiental</span></label>
+                  <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Propiedad intelectual"><span>Propiedad intelectual</span></label>
+                  <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho internacional"><span>Derecho internacional</span></label>
+                  <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho migratorio"><span>Derecho migratorio</span></label>
+                </div>
+              </fieldset>
+
+              <div class="campo">
+                <label for="estudioProvincia" class="campo__etiqueta">Provincia</label>
+                <select id="estudioProvincia" name="provincia" class="campo__input" required>
+                  <option value="">Seleccione una provincia</option>
+                  <option value="Azuay">Azuay</option>
+                  <option value="Bolívar">Bolívar</option>
+                  <option value="Cañar">Cañar</option>
+                  <option value="Carchi">Carchi</option>
+                  <option value="Chimborazo">Chimborazo</option>
+                  <option value="Cotopaxi">Cotopaxi</option>
+                  <option value="El Oro">El Oro</option>
+                  <option value="Esmeraldas">Esmeraldas</option>
+                  <option value="Galápagos">Galápagos</option>
+                  <option value="Guayas">Guayas</option>
+                  <option value="Imbabura">Imbabura</option>
+                  <option value="Loja">Loja</option>
+                  <option value="Los Ríos">Los Ríos</option>
+                  <option value="Manabí">Manabí</option>
+                  <option value="Morona Santiago">Morona Santiago</option>
+                  <option value="Napo">Napo</option>
+                  <option value="Orellana">Orellana</option>
+                  <option value="Pastaza">Pastaza</option>
+                  <option value="Pichincha">Pichincha</option>
+                  <option value="Santa Elena">Santa Elena</option>
+                  <option value="Santo Domingo de los Tsáchilas">Santo Domingo de los Tsáchilas</option>
+                  <option value="Sucumbíos">Sucumbíos</option>
+                  <option value="Tungurahua">Tungurahua</option>
+                  <option value="Zamora Chinchipe">Zamora Chinchipe</option>
+                </select>
+              </div>
+
+              <div class="campo">
+                <label for="estudioDocRuc" class="campo__etiqueta">Documento de RUC</label>
+                <input type="file" id="estudioDocRuc" name="doc_ruc" class="campo__input campo__input--archivo" accept="image/jpeg,image/png,application/pdf" required>
+                <span class="campo__ayuda">JPG, PNG o PDF. Máximo 5 MB.</span>
+              </div>
+              <div class="campo">
+                <label for="estudioDocNombramiento" class="campo__etiqueta">Nombramiento del representante legal</label>
+                <input type="file" id="estudioDocNombramiento" name="doc_nombramiento" class="campo__input campo__input--archivo" accept="image/jpeg,image/png,application/pdf" required>
+                <span class="campo__ayuda">JPG, PNG o PDF. Máximo 5 MB.</span>
+              </div>
+
+              <p class="auth__aviso auth__aviso--verificacion">Su perfil será visible tras verificación en 24–48 horas hábiles.</p>
+
+              <p class="campo__error" id="errorEstudio" role="alert" aria-live="polite"></p>
+              <button type="submit" class="btn btn--primario btn--completo" id="btnRegistrarEstudio">Crear cuenta</button>
+            </form>
+
+            <div class="mensaje-confirmacion" id="confirmacionEstudio" hidden></div>
+          </div>
+
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <footer class="pie">
+    <div class="contenedor pie__contenedor">
+      <p class="pie__aviso">
+        LegalEC es un servicio de conexión y no un proveedor de servicios jurídicos.
+      </p>
+      <nav class="pie__nav" aria-label="Páginas legales">
+        <a href="#" class="pie__enlace">Términos y condiciones</a>
+        <span class="pie__separador" aria-hidden="true">·</span>
+        <a href="#" class="pie__enlace">Política de privacidad (LOPDP)</a>
+      </nav>
+    </div>
+  </footer>
+
+  <script src="/js/vendors/supabase.min.js"></script>
+  <script type="module" src="/js/registro.js"></script>
+
+</body>
+</html>

@@ -166,6 +166,16 @@ input, textarea, select {
   font: inherit;
 }
 
+fieldset {
+  border: none;
+  min-width: 0;
+}
+
+legend {
+  padding: 0;
+  width: 100%;
+}
+
 
 /* ────────────────────────────────────────────────────────────
    3. BASE
@@ -1481,5 +1491,106 @@ p {
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
+  }
+}
+
+
+/* ============================================================
+   PÁGINA: REGISTRO
+   Estilos específicos de registro.html
+   ============================================================ */
+
+.seccion-registro {
+  padding-block: var(--esp-8) var(--esp-16);
+}
+
+/* Formularios de registro tienen más campos que el modal de index.html;
+   se les da más ancho que --ancho-formulario para que no se vean apretados. */
+.tarjeta-auth--registro {
+  max-width: 560px;
+}
+
+.tarjeta-auth--registro .btn-volver {
+  margin-bottom: var(--esp-5);
+}
+
+.auth__aviso {
+  font-size: var(--texto-sm);
+  padding: var(--esp-3) var(--esp-4);
+  border-radius: var(--radio-md);
+  margin-bottom: var(--esp-5);
+}
+
+.auth__aviso--gratis {
+  background-color: var(--badge-verificado-bg);
+  color: var(--badge-verificado-color);
+  border: 1px solid var(--badge-verificado-borde);
+}
+
+.auth__aviso--verificacion {
+  background-color: var(--badge-pendiente-bg);
+  color: var(--badge-pendiente-color);
+  border: 1px solid var(--badge-pendiente-borde);
+}
+
+/* Paso 1: tarjetas de tipo de cuenta profesional */
+.tarjetas-tipo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-3);
+}
+
+.tarjeta-tipo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-1);
+  padding: var(--esp-5);
+  background-color: var(--color-fondo-card);
+  border: 2px solid var(--color-borde);
+  border-radius: var(--radio-lg);
+  text-align: left;
+  transition: border-color var(--transicion), box-shadow var(--transicion);
+  cursor: pointer;
+  width: 100%;
+}
+
+.tarjeta-tipo:hover {
+  border-color: var(--color-primario);
+  box-shadow: var(--sombra-sm);
+}
+
+.tarjeta-tipo:focus-visible {
+  outline: 3px solid var(--color-acento);
+  outline-offset: 2px;
+}
+
+.tarjeta-tipo__nombre {
+  font-size: var(--texto-base);
+  font-weight: var(--peso-semibold);
+  color: var(--color-primario);
+}
+
+.tarjeta-tipo__descripcion {
+  font-size: var(--texto-sm);
+  color: var(--color-texto-suave);
+  line-height: var(--altura-linea-suelta);
+}
+
+/* Variante múltiple del componente radio-pills: mismas reglas visuales,
+   pero con inputs type=checkbox (varias opciones pueden quedar marcadas). */
+.radio-pills--multiple {
+  gap: var(--esp-2);
+}
+
+/* Campo de archivo: el input nativo se deja con la apariencia del navegador
+   (necesaria para el botón "Seleccionar archivo"), solo se ajusta el padding. */
+.campo__input--archivo {
+  padding: var(--esp-2) var(--esp-3);
+  cursor: pointer;
+}
+
+@media (min-width: 640px) {
+  .tarjetas-tipo {
+    gap: var(--esp-4);
   }
 }

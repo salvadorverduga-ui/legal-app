@@ -104,7 +104,6 @@ function configurarUI() {
   document.getElementById('tabIngresar').addEventListener('click', () => cambiarTab('ingresar'));
   document.getElementById('tabRegistro').addEventListener('click', () => cambiarTab('registro'));
   document.getElementById('formIngresar').addEventListener('submit', manejarIngresar);
-  document.getElementById('formRegistro').addEventListener('submit', manejarRegistro);
 }
 
 function seleccionarRol(rol) {
@@ -121,6 +120,7 @@ function seleccionarRol(rol) {
     abogado: 'Accediendo como abogado / estudio',
   };
   document.getElementById('rolSeleccionado').textContent = etiquetas[rol] ?? '';
+  document.getElementById('enlaceRegistro').href = `/pages/registro?rol=${rol}`;
 
   const seccionAuth = document.getElementById('seccionAuth');
   seccionAuth.hidden = false;
@@ -156,7 +156,6 @@ function cambiarTab(tab) {
 
 function limpiarErrores() {
   document.getElementById('errorIngresar').textContent = '';
-  document.getElementById('errorRegistro').textContent = '';
 }
 
 
@@ -195,74 +194,6 @@ async function manejarIngresar(evento) {
     btnEl.disabled = false;
     btnEl.textContent = 'Ingresar';
   }
-}
-
-
-// ─── Handler: registrarse ─────────────────────────────────────────────────────
-async function manejarRegistro(evento) {
-  evento.preventDefault();
-
-  const nombre   = document.getElementById('regNombre').value.trim();
-  const cedula   = document.getElementById('regCedula').value.trim();
-  const email    = document.getElementById('regEmail').value.trim();
-  const password = document.getElementById('regPassword').value;
-  const errorEl  = document.getElementById('errorRegistro');
-  const btnEl    = document.getElementById('btnRegistrarse');
-
-  if (!nombre || !cedula || !email || !password) {
-    errorEl.textContent = 'Complete todos los campos.';
-    return;
-  }
-
-  // Validación básica de cédula ecuatoriana: 10 dígitos numéricos
-  if (!/^\d{10}$/.test(cedula)) {
-    errorEl.textContent = 'La cédula debe tener exactamente 10 dígitos numéricos.';
-    return;
-  }
-
-  if (password.length < 8) {
-    errorEl.textContent = 'La contraseña debe tener al menos 8 caracteres.';
-    return;
-  }
-
-  btnEl.disabled = true;
-  btnEl.textContent = 'Creando cuenta...';
-  errorEl.textContent = '';
-
-  const datos = { email, password, nombre_completo: nombre, cedula };
-
-  try {
-    const fn = rolActivo === 'cliente'
-      ? api.auth.registrarCliente
-      : api.auth.registrarAbogado;
-
-    const { error } = await fn(datos);
-
-    if (error) {
-      errorEl.textContent = traducirErrorAuth(error);
-      return;
-    }
-
-    mostrarConfirmacionEmail();
-
-  } catch (err) {
-    console.error('[app] Error inesperado al registrarse:', err);
-    errorEl.textContent = 'Ocurrió un error. Intente de nuevo.';
-  } finally {
-    btnEl.disabled = false;
-    btnEl.textContent = 'Crear cuenta';
-  }
-}
-
-
-// ─── Post-registro: confirmación de email ─────────────────────────────────────
-function mostrarConfirmacionEmail() {
-  document.getElementById('panelRegistro').innerHTML = `
-    <div class="mensaje-confirmacion">
-      <p class="mensaje-confirmacion__titulo">Revise su correo</p>
-      <p>Le enviamos un enlace de confirmación. Haga clic en ese enlace para activar su cuenta e ingresar.</p>
-    </div>
-  `;
 }
 
 

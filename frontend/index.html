@@ -166,61 +166,13 @@
 
             <!-- Panel: Crear cuenta -->
             <div id="panelRegistro" role="tabpanel" aria-labelledby="tabRegistro" hidden>
-              <form id="formRegistro" class="formulario" novalidate>
-                <div class="campo">
-                  <label for="regNombre" class="campo__etiqueta">Nombre completo</label>
-                  <input
-                    type="text"
-                    id="regNombre"
-                    name="nombre_completo"
-                    class="campo__input"
-                    autocomplete="name"
-                    required
-                  >
-                </div>
-                <div class="campo">
-                  <label for="regCedula" class="campo__etiqueta">Cédula de identidad</label>
-                  <input
-                    type="text"
-                    id="regCedula"
-                    name="cedula"
-                    class="campo__input"
-                    inputmode="numeric"
-                    maxlength="10"
-                    placeholder="10 dígitos"
-                    required
-                  >
-                </div>
-                <div class="campo">
-                  <label for="regEmail" class="campo__etiqueta">Correo electrónico</label>
-                  <input
-                    type="email"
-                    id="regEmail"
-                    name="email"
-                    class="campo__input"
-                    autocomplete="email"
-                    inputmode="email"
-                    required
-                  >
-                </div>
-                <div class="campo">
-                  <label for="regPassword" class="campo__etiqueta">Contraseña</label>
-                  <input
-                    type="password"
-                    id="regPassword"
-                    name="password"
-                    class="campo__input"
-                    autocomplete="new-password"
-                    minlength="8"
-                    required
-                  >
-                  <span class="campo__ayuda">Mínimo 8 caracteres</span>
-                </div>
-                <p class="campo__error" id="errorRegistro" role="alert" aria-live="polite"></p>
-                <button type="submit" class="btn btn--primario btn--completo" id="btnRegistrarse">
-                  Crear cuenta
-                </button>
-              </form>
+              <div class="mensaje-confirmacion">
+                <p class="mensaje-confirmacion__titulo">Continúe en el formulario de registro</p>
+                <p>Complete sus datos en un formulario dedicado según el tipo de cuenta que eligió.</p>
+                <a href="/pages/registro" class="btn btn--primario btn--completo" id="enlaceRegistro">
+                  Continuar con el registro
+                </a>
+              </div>
             </div>
 
           </div>

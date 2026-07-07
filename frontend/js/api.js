@@ -17,6 +17,22 @@ export function inicializarCliente(cliente) {
   _cliente = cliente;
 }
 
+/**
+ * Sube un archivo al bucket verificacion-docs bajo `${carpetaId}/${prefijo}-timestamp.ext`
+ * y retorna el path relativo guardado en verificaciones.doc_*_url.
+ * Lanza el error de Storage si la subida falla (el llamador lo captura).
+ */
+async function _subirDocumento(carpetaId, archivo, prefijo) {
+  const extension = archivo.name.split('.').pop();
+  const path = `${carpetaId}/${prefijo}-${Date.now()}.${extension}`;
+  const { error } = await _cliente.storage
+    .from('verificacion-docs')
+    .upload(path, archivo, { upsert: true });
+
+  if (error) throw error;
+  return path;
+}
+
 
 // ════════════════════════════════════════════════════════════
 // AUTH
@@ -51,15 +67,79 @@ export const auth = {
    * El email de confirmación lo envía Supabase automáticamente.
    * Retorna { data, error }.
    */
-  async registrarCliente({ email, password, nombre_completo, cedula }) {},
+  async registrarCliente({ email, password, nombre_completo, cedula }) {
+    const { data, error } = await _cliente.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { rol: 'cliente', nombre_completo, cedula },
+      },
+    });
+
+    if (error) {
+      console.error('[api.auth.registrarCliente]', error.message);
+      return { data: null, error };
+    }
+    return { data, error: null };
+  },
 
   /**
-   * Registra un nuevo usuario con rol='abogado'.
+   * Registra un nuevo usuario con rol='abogado' (incluye abogado individual
+   * y quienes se unen a una red de colaboradores: la cuenta es idéntica,
+   * la vinculación a la red se hace después desde el panel del abogado).
    * El trigger fn_crear_fila_abogado crea automáticamente la fila en abogados
-   * con verificacion='PENDIENTE' y toggle_disponible=true.
+   * con verificacion='PENDIENTE', toggle_disponible=true, y copia
+   * numero_carnet/especialidades desde raw_user_meta_data.
+   * datos: { email, password, nombre_completo, cedula, numero_carnet, especialidades: string[], provincia }
    * Retorna { data, error }.
    */
-  async registrarAbogado({ email, password, nombre_completo, cedula }) {},
+  async registrarAbogado({ email, password, nombre_completo, cedula, numero_carnet, especialidades, provincia }) {
+    const { data, error } = await _cliente.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { rol: 'abogado', nombre_completo, cedula, numero_carnet, especialidades, provincia },
+      },
+    });
+
+    if (error) {
+      console.error('[api.auth.registrarAbogado]', error.message);
+      return { data: null, error };
+    }
+    return { data, error: null };
+  },
+
+  /**
+   * Registra un nuevo usuario con rol='estudio'. nombre_completo del perfil
+   * corresponde al representante legal (quien inicia sesión), no al estudio.
+   * El trigger fn_crear_fila_estudio crea automáticamente la fila en estudios
+   * (plan='PEQUENO' por defecto) copiando nombre_estudio/ruc/especialidades/
+   * provincia desde raw_user_meta_data.
+   * datos: { email, password, nombre_representante, nombre_estudio, ruc, especialidades: string[], provincia }
+   * Retorna { data, error }.
+   */
+  async registrarEstudio({ email, password, nombre_representante, nombre_estudio, ruc, especialidades, provincia }) {
+    const { data, error } = await _cliente.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          rol: 'estudio',
+          nombre_completo: nombre_representante,
+          nombre_estudio,
+          ruc,
+          especialidades,
+          provincia,
+        },
+      },
+    });
+
+    if (error) {
+      console.error('[api.auth.registrarEstudio]', error.message);
+      return { data: null, error };
+    }
+    return { data, error: null };
+  },
 
   /**
    * Cierra la sesión del usuario actual en todos los dispositivos.
@@ -244,7 +324,33 @@ export const abogados = {
    * El admin revisa manualmente desde el panel y aprueba o rechaza.
    * Retorna { data, error }.
    */
-  async enviarDocumentosVerificacion(archivos) {},
+  async enviarDocumentosVerificacion(archivos) {
+    const { data: { user }, error: errUser } = await _cliente.auth.getUser();
+    if (errUser || !user) {
+      return { data: null, error: errUser ?? { message: 'No hay sesión activa.' } };
+    }
+
+    try {
+      const doc_carnet_url = await _subirDocumento(user.id, archivos.carnet, 'carnet');
+      const doc_cedula_url = await _subirDocumento(user.id, archivos.cedula, 'cedula');
+
+      const { data, error } = await _cliente
+        .from('verificaciones')
+        .insert({ abogado_id: user.id, doc_carnet_url, doc_cedula_url })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('[api.abogados.enviarDocumentosVerificacion]', error.message);
+        return { data: null, error };
+      }
+      return { data, error: null };
+
+    } catch (err) {
+      console.error('[api.abogados.enviarDocumentosVerificacion]', err.message);
+      return { data: null, error: err };
+    }
+  },
 
   /**
    * Retorna el estado actual de la verificación del abogado autenticado.
@@ -252,6 +358,71 @@ export const abogados = {
    * Retorna { estado, motivo_rechazo, created_at } o null si nunca envió documentos.
    */
   async getEstadoVerificacion() {},
+
+};
+
+
+// ════════════════════════════════════════════════════════════
+// ESTUDIOS
+// Datos organizacionales del estudio jurídico del representante legal.
+// ════════════════════════════════════════════════════════════
+export const estudios = {
+
+  /**
+   * Retorna el estudio del representante legal autenticado.
+   * Retorna null si el usuario no representa ningún estudio.
+   */
+  async getEstudioPropio() {
+    const { data: { user }, error: errUser } = await _cliente.auth.getUser();
+    if (errUser || !user) return null;
+
+    const { data, error } = await _cliente
+      .from('estudios')
+      .select('*')
+      .eq('representante_legal_id', user.id)
+      .single();
+
+    if (error) {
+      console.error('[api.estudios.getEstudioPropio]', error.message);
+      return null;
+    }
+    return data;
+  },
+
+  /**
+   * Sube los documentos de verificación del estudio (RUC y nombramiento del
+   * representante legal) a Supabase Storage (bucket: verificacion-docs)
+   * e inserta una fila en verificaciones con estado='PENDIENTE'.
+   * archivos: { ruc: File, nombramiento: File }
+   * Retorna { data, error }.
+   */
+  async enviarDocumentosVerificacion(archivos) {
+    const estudio = await this.getEstudioPropio();
+    if (!estudio) {
+      return { data: null, error: { message: 'No se encontró el estudio del representante.' } };
+    }
+
+    try {
+      const doc_ruc_url = await _subirDocumento(estudio.id, archivos.ruc, 'ruc');
+      const doc_nombramiento_url = await _subirDocumento(estudio.id, archivos.nombramiento, 'nombramiento');
+
+      const { data, error } = await _cliente
+        .from('verificaciones')
+        .insert({ estudio_id: estudio.id, doc_ruc_url, doc_nombramiento_url })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('[api.estudios.enviarDocumentosVerificacion]', error.message);
+        return { data: null, error };
+      }
+      return { data, error: null };
+
+    } catch (err) {
+      console.error('[api.estudios.enviarDocumentosVerificacion]', err.message);
+      return { data: null, error: err };
+    }
+  },
 
 };
 
