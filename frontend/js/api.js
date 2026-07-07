@@ -629,7 +629,18 @@ export const solicitudes = {
    * Ordenadas por created_at DESC.
    * Retorna array de solicitudes con estado, abogado_nombre, abogado_rating, tiene_resena.
    */
-  async getSolicitudesCliente() {},
+  async getSolicitudesCliente() {
+    const { data, error } = await _cliente
+      .from('panel_solicitudes_cliente')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('[api.solicitudes.getSolicitudesCliente]', error.message);
+      return [];
+    }
+    return data ?? [];
+  },
 
   /**
    * Retorna todas las solicitudes dirigidas al abogado autenticado.
@@ -758,12 +769,81 @@ export const resenas = {
    * Crea una reseña para una solicitud en estado COMPLETADA o RESEÑADA.
    * La política RLS de INSERT verifica que solicitud_id pertenece al cliente
    * autenticado y que está en un estado que permite reseña.
-   * Después de insertar, llamar a completarSolicitudComoReseñada(solicitudId)
-   * para transicionar el estado a RESEÑADA.
+   * abogado_id se obtiene de la propia solicitud (no lo decide el llamador)
+   * para que coincida siempre con el abogado_id que exige la política RLS.
+   * Después de insertar, transiciona la solicitud a RESEÑADA; el cliente
+   * puede hacerlo por la política RLS "cliente_completa_solicitud".
    * datos: { calificacion: 1-5, comentario?: string }
    * Retorna { data, error }.
    */
-  async crearResena(solicitudId, datos) {},
+  async crearResena(solicitudId, datos) {
+    const { data: { user }, error: errUser } = await _cliente.auth.getUser();
+    if (errUser || !user) {
+      return { data: null, error: errUser ?? { message: 'No hay sesión activa.' } };
+    }
+
+    const { data: solicitud, error: errSolicitud } = await _cliente
+      .from('solicitudes')
+      .select('id, abogado_id')
+      .eq('id', solicitudId)
+      .single();
+
+    if (errSolicitud || !solicitud) {
+      console.error('[api.resenas.crearResena]', errSolicitud?.message);
+      return { data: null, error: errSolicitud ?? { message: 'No se encontró la solicitud.' } };
+    }
+
+    const { data, error } = await _cliente
+      .from('resenas')
+      .insert({
+        solicitud_id: solicitudId,
+        cliente_id: user.id,
+        abogado_id: solicitud.abogado_id,
+        calificacion: datos.calificacion,
+        comentario: datos.comentario?.trim() || null,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[api.resenas.crearResena]', error.message);
+      if (error.code === '23505') {
+        return { data: null, error: { message: 'Ya dejó una reseña para esta solicitud.' } };
+      }
+      return { data: null, error };
+    }
+
+    const { error: errEstado } = await _cliente
+      .from('solicitudes')
+      .update({ estado: 'RESEÑADA' })
+      .eq('id', solicitudId)
+      .eq('estado', 'COMPLETADA');
+
+    if (errEstado) {
+      console.error('[api.resenas.crearResena] No se pudo marcar la solicitud como RESEÑADA:', errEstado.message);
+    }
+
+    return { data, error: null };
+  },
+
+  /**
+   * Retorna las reseñas dejadas por el cliente autenticado, con los datos
+   * públicos del abogado reseñado, desde la vista panel_resenas_cliente.
+   * Ordenadas por created_at DESC.
+   * Retorna array (puede estar vacío).
+   */
+  async getMisResenas() {
+    const { data, error } = await _cliente
+      .from('panel_resenas_cliente')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('[api.resenas.getMisResenas]', error.message);
+      return [];
+    }
+    return data ?? [];
+  },
 
   /**
    * Retorna las reseñas públicas (oculta=false) de un abogado desde la vista

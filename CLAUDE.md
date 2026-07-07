@@ -57,12 +57,15 @@ legal-app/
 │   │   ├── config.js          ← obtiene SUPABASE_URL/ANON_KEY desde /api/config
 │   │   ├── busqueda.js        ← lógica de busqueda.html
 │   │   ├── perfil-abogado.js  ← lógica de perfil-abogado.html
+│   │   ├── panel-abogado.js   ← lógica de panel-abogado.html
+│   │   ├── panel-cliente.js   ← lógica de panel-cliente.html
 │   │   ├── registro.js        ← lógica de registro.html
 │   │   └── utils.js           ← helpers globales
 │   └── pages/
 │       ├── busqueda.html
 │       ├── perfil-abogado.html
 │       ├── solicitud.html
+│       ├── panel-cliente.html
 │       ├── panel-abogado.html
 │       ├── panel-estudio.html
 │       ├── panel-admin.html

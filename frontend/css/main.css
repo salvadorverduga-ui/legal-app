@@ -1959,3 +1959,108 @@ p {
     flex-wrap: nowrap;
   }
 }
+
+
+/* ============================================================
+   PÁGINA: PANEL DEL CLIENTE
+   Estilos específicos de panel-cliente.html
+   ============================================================ */
+
+.panel-cliente__contenido {
+  padding-block: var(--esp-6) var(--esp-16);
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-6);
+}
+
+.panel-cabecera__subtitulo {
+  font-size: var(--texto-sm);
+  color: var(--color-texto-suave);
+}
+
+/* ── Formulario inline de reseña ───────────────────────────── */
+.formulario-resena {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-4);
+  padding-top: var(--esp-3);
+  border-top: 1px solid var(--color-borde-suave);
+}
+
+.formulario-resena[hidden] {
+  display: none;
+}
+
+/* Selector de calificación por estrellas (input radio + label), sin JS.
+   Orden 5→1 en el DOM + row-reverse: resalta hasta la estrella elegida. */
+.rating-input {
+  display: flex;
+  flex-direction: row-reverse;
+  justify-content: flex-end;
+  gap: var(--esp-1);
+  width: fit-content;
+}
+
+.rating-input__radio {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+
+.rating-input__estrella {
+  font-size: var(--texto-2xl);
+  line-height: 1;
+  color: var(--color-borde);
+  cursor: pointer;
+  transition: color var(--transicion);
+}
+
+.rating-input__radio:checked ~ .rating-input__estrella,
+.rating-input__estrella:hover,
+.rating-input__estrella:hover ~ .rating-input__estrella {
+  color: var(--color-acento);
+}
+
+.rating-input__radio:focus-visible + .rating-input__estrella {
+  outline: 2px solid var(--color-acento);
+  outline-offset: 2px;
+  border-radius: var(--radio-sm);
+}
+
+/* ── Botón flotante: buscar abogado ────────────────────────── */
+.boton-flotante {
+  position: fixed;
+  bottom: var(--esp-6);
+  right: var(--esp-6);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--esp-2);
+  padding: var(--esp-4) var(--esp-6);
+  background-color: var(--color-acento);
+  color: var(--color-texto-inverso);
+  font-weight: var(--peso-semibold);
+  font-size: var(--texto-sm);
+  border-radius: var(--radio-completo);
+  box-shadow: var(--sombra-lg);
+  transition: background-color var(--transicion), box-shadow var(--transicion), transform var(--transicion);
+  z-index: 80;
+}
+
+.boton-flotante:hover {
+  background-color: var(--color-acento-hover);
+  box-shadow: var(--sombra-xl);
+  transform: translateY(-2px);
+}
+
+.boton-flotante:focus-visible {
+  outline: 3px solid var(--color-primario);
+  outline-offset: 3px;
+}
+
+@media (min-width: 640px) {
+  .boton-flotante {
+    bottom: var(--esp-8);
+    right: var(--esp-8);
+  }
+}

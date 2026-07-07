@@ -30,7 +30,7 @@ async function inicializarClienteSupabase() {
 
 // ─── Rutas por rol ────────────────────────────────────────────────────────────
 const RUTAS = {
-  cliente: '/pages/busqueda',
+  cliente: '/pages/panel-cliente',
   abogado: '/pages/panel-abogado',
   estudio: '/pages/panel-estudio',
   admin:   '/pages/panel-admin',

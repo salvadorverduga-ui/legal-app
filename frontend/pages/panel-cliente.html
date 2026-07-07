@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Panel del cliente — revise sus solicitudes y reseñas en LegalEC.">
+  <title>Mi panel — LegalEC</title>
+  <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+
+  <header class="encabezado">
+    <div class="contenedor encabezado__contenedor">
+      <a href="/pages/panel-cliente" class="logo" aria-label="LegalEC — Mi panel">
+        <span class="logo__nombre">LegalEC</span>
+      </a>
+      <nav class="nav-usuario" aria-label="Menú de usuario">
+        <span class="nav-usuario__nombre" id="nombreUsuario" aria-live="polite"></span>
+        <button class="btn btn--secundario btn--sm" id="btnCerrarSesion" type="button"
+          style="border-color: rgba(255,255,255,0.4); color: rgba(255,255,255,0.85);">
+          Salir
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <div class="contenedor panel-cliente__contenido">
+
+      <!-- Estado: cargando -->
+      <div class="pantalla-carga" id="estadoCargando">
+        <div class="spinner" aria-hidden="true"></div>
+        <p class="pantalla-carga__texto">Cargando panel...</p>
+      </div>
+
+      <!-- Estado: error -->
+      <div class="estado-vacio" id="estadoError" hidden>
+        <p class="estado-vacio__titulo">No pudimos cargar su panel</p>
+        <p>Intente recargar la página. Si el problema continúa, contacte a soporte.</p>
+      </div>
+
+      <!-- Contenido del panel -->
+      <div id="contenidoPanel" hidden>
+
+        <!-- Cabecera: identidad -->
+        <section class="panel-cabecera">
+          <div class="panel-cabecera__identidad">
+            <div class="panel-cabecera__avatar" id="cabeceraAvatar"></div>
+            <div>
+              <h1 class="panel-cabecera__nombre" id="cabeceraNombre"></h1>
+              <p class="panel-cabecera__subtitulo">Bienvenido a su panel de cliente</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- Navegación por secciones -->
+        <nav class="panel-tabs" role="tablist" aria-label="Secciones del panel">
+          <button class="panel-tab panel-tab--activo" id="tabSolicitudes" type="button"
+            role="tab" aria-selected="true" aria-controls="seccionSolicitudes">
+            Mis solicitudes
+          </button>
+          <button class="panel-tab" id="tabResenas" type="button"
+            role="tab" aria-selected="false" aria-controls="seccionResenas">
+            Mis reseñas
+          </button>
+        </nav>
+
+        <!-- ═══════════════ SECCIÓN: MIS SOLICITUDES ═══════════════ -->
+        <section class="panel-seccion" id="seccionSolicitudes" role="tabpanel" aria-labelledby="tabSolicitudes">
+
+          <div class="filtro-tipo" role="group" aria-label="Filtrar solicitudes por estado">
+            <span class="filtro-tipo__label">Estado:</span>
+            <button class="filtro-tipo__btn filtro-tipo__btn--activo" data-estado="" type="button">Todas</button>
+            <button class="filtro-tipo__btn" data-estado="PENDIENTE" type="button">Pendientes</button>
+            <button class="filtro-tipo__btn" data-estado="ACEPTADA" type="button">Aceptadas</button>
+            <button class="filtro-tipo__btn" data-estado="COMPLETADA" type="button">Completadas</button>
+            <button class="filtro-tipo__btn" data-estado="RESEÑADA" type="button">Reseñadas</button>
+            <button class="filtro-tipo__btn" data-estado="RECHAZADA" type="button">Rechazadas</button>
+            <button class="filtro-tipo__btn" data-estado="EXPIRADA" type="button">Expiradas</button>
+          </div>
+
+          <p class="campo__error" id="errorSolicitudes" role="alert" aria-live="polite"></p>
+
+          <div class="solicitudes-lista" id="solicitudesLista"></div>
+
+          <div class="estado-vacio" id="estadoSinSolicitudes" hidden>
+            <p class="estado-vacio__titulo">Aún no ha enviado solicitudes</p>
+            <p>Busque un abogado y envíe su primera solicitud de consulta.</p>
+          </div>
+        </section>
+
+        <!-- ═══════════════ SECCIÓN: MIS RESEÑAS ═══════════════ -->
+        <section class="panel-seccion" id="seccionResenas" role="tabpanel" aria-labelledby="tabResenas" hidden>
+          <div class="resenas-lista" id="resenasLista"></div>
+
+          <div class="estado-vacio" id="estadoSinResenas" hidden>
+            <p>Aún no ha dejado ninguna reseña.</p>
+          </div>
+        </section>
+
+      </div>
+
+    </div>
+
+    <!-- Botón flotante: buscar abogado -->
+    <a href="/pages/busqueda" class="boton-flotante" id="btnBuscarAbogado" aria-label="Buscar abogado">
+      Buscar abogado
+    </a>
+  </main>
+
+  <script src="/js/vendors/supabase.min.js"></script>
+  <script type="module" src="/js/panel-cliente.js"></script>
+
+</body>
+</html>
