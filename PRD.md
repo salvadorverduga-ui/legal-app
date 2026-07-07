@@ -1,5 +1,5 @@
 # PRD — Plataforma Legal Ecuador
-**Versión:** 0.2 | **Última actualización:** Junio 2026
+**Versión:** 0.3 | **Última actualización:** Julio 2026
 **Estado:** Documento vivo — actualizar con cada decisión de diseño o arquitectura
 
 ---
@@ -20,13 +20,14 @@ Plataforma digital que conecta abogados con clientes en Ecuador mediante un mode
 ## 2. Actores del Sistema
 
 ### 2.1 Cliente (gratuito)
-- Registro con cédula (persona natural en MVP)
+- Registro simple: nombre completo, correo y contraseña — **sin cédula** (persona natural en MVP)
 - Acceso completo a búsqueda y solicitudes sin costo
 - Puede dejar reseñas solo después de una solicitud COMPLETADA
 - Perfil empresa/negocio: V2
 
 ### 2.2 Abogado independiente
 - Suscripción mensual: **$11,99/mes**
+- Registro con cédula (identificador único de persona natural) + número de carnet de abogado
 - Perfil con foto, especialidades, ciudad, descripción, precio de consulta
 - Requiere verificación de carnet antes de ser visible
 - Toggle: Disponible / No disponible
@@ -40,6 +41,7 @@ Plataforma digital que conecta abogados con clientes en Ecuador mediante un mode
 | Estudio Mediano | Hasta 8 | $59,99 |
 | Estudio Grande | Ilimitados | $99,99 |
 
+- Registro con RUC (identificador único de la entidad) — el representante legal no da cédula en este formulario
 - Perfil propio (logo, nombre, descripción, especialidades)
 - Verificación como entidad + verificación individual de cada miembro
 - Solo visible cuando el estudio está verificado Y tiene al menos un miembro verificado

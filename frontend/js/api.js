@@ -61,18 +61,20 @@ export const auth = {
   },
 
   /**
-   * Registra un nuevo usuario con rol='cliente'.
-   * Pasa nombre_completo, cedula y rol en raw_user_meta_data
-   * para que el trigger fn_crear_perfil_en_registro los use al crear la fila en perfiles.
+   * Registra un nuevo usuario con rol='cliente'. El cliente no tiene cédula
+   * (a diferencia de abogados/estudios, que sí necesitan un identificador
+   * para verificación) — perfiles.cedula queda NULL para estos usuarios.
+   * Pasa nombre_completo y rol en raw_user_meta_data para que el trigger
+   * fn_crear_perfil_en_registro los use al crear la fila en perfiles.
    * El email de confirmación lo envía Supabase automáticamente.
    * Retorna { data, error }.
    */
-  async registrarCliente({ email, password, nombre_completo, cedula }) {
+  async registrarCliente({ email, password, nombre_completo }) {
     const { data, error } = await _cliente.auth.signUp({
       email,
       password,
       options: {
-        data: { rol: 'cliente', nombre_completo, cedula },
+        data: { rol: 'cliente', nombre_completo },
       },
     });
 

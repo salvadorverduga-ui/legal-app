@@ -108,18 +108,13 @@ async function manejarRegistroCliente(evento) {
   evento.preventDefault();
 
   const nombre_completo = document.getElementById('clienteNombre').value.trim();
-  const cedula = document.getElementById('clienteCedula').value.trim();
   const email = document.getElementById('clienteEmail').value.trim();
   const password = document.getElementById('clientePassword').value;
   const errorEl = document.getElementById('errorCliente');
   const btnEl = document.getElementById('btnRegistrarCliente');
 
-  if (!nombre_completo || !cedula || !email || !password) {
+  if (!nombre_completo || !email || !password) {
     errorEl.textContent = 'Complete todos los campos.';
-    return;
-  }
-  if (!validarCedula(cedula)) {
-    errorEl.textContent = 'La cédula debe tener exactamente 10 dígitos numéricos.';
     return;
   }
   if (password.length < 8) {
@@ -132,7 +127,7 @@ async function manejarRegistroCliente(evento) {
   btnEl.textContent = 'Creando cuenta...';
 
   try {
-    const { error } = await api.auth.registrarCliente({ email, password, nombre_completo, cedula });
+    const { error } = await api.auth.registrarCliente({ email, password, nombre_completo });
 
     if (error) {
       errorEl.textContent = traducirErrorAuth(error);
