@@ -41,6 +41,28 @@ function redirigirSegunRol(rol) {
   if (destino) window.location.href = destino;
 }
 
+// ─── Validación de rol contra el flujo de ingreso seleccionado ───────────────
+// Las tarjetas de index.html son "Soy cliente" y "Soy abogado o estudio":
+// el flujo 'abogado' acepta tanto rol='abogado' como rol='estudio'.
+const ROLES_POR_FLUJO = {
+  cliente: ['cliente'],
+  abogado: ['abogado', 'estudio'],
+};
+
+function rolCoincideConFlujo(rol, flujo) {
+  return ROLES_POR_FLUJO[flujo]?.includes(rol) ?? false;
+}
+
+function mensajeRolIncorrecto(rol) {
+  if (rol === 'cliente') {
+    return 'Esta cuenta está registrada como cliente. Use el acceso correspondiente.';
+  }
+  if (rol === 'abogado' || rol === 'estudio') {
+    return 'Esta cuenta está registrada como abogado o estudio. Use el acceso correspondiente.';
+  }
+  return 'Esta cuenta no coincide con el tipo de acceso seleccionado.';
+}
+
 
 // ─── Inicialización ───────────────────────────────────────────────────────────
 // Tiempo máximo de espera para la verificación de sesión. Si getSession() se
@@ -182,6 +204,12 @@ async function manejarIngresar(evento) {
 
     if (error) {
       errorEl.textContent = traducirErrorAuth(error);
+      return;
+    }
+
+    if (!rolCoincideConFlujo(perfil.rol, rolActivo)) {
+      await api.auth.cerrarSesion();
+      errorEl.textContent = mensajeRolIncorrecto(perfil.rol);
       return;
     }
 

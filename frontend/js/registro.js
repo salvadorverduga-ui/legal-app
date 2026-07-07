@@ -143,6 +143,7 @@ async function manejarRegistroCliente(evento) {
       'Le enviamos un enlace de confirmación. Al confirmarlo podrá ingresar y buscar abogados.');
 
   } catch (err) {
+    console.error('[registro] ERROR COMPLETO (debug temporal, cliente):', err);
     console.error('[registro] Error inesperado al registrar cliente:', err);
     errorEl.textContent = 'Ocurrió un error. Intente de nuevo.';
   } finally {
@@ -222,6 +223,7 @@ async function manejarRegistroAbogado(evento) {
       `Le enviamos un enlace de confirmación. ${notaDocumentos} Su perfil será visible tras verificación en 24–48 horas hábiles.${notaRed}`);
 
   } catch (err) {
+    console.error('[registro] ERROR COMPLETO (debug temporal, abogado):', err);
     console.error('[registro] Error inesperado al registrar abogado:', err);
     errorEl.textContent = 'Ocurrió un error. Intente de nuevo.';
   } finally {
@@ -297,6 +299,7 @@ async function manejarRegistroEstudio(evento) {
       `Le enviamos un enlace de confirmación. ${notaDocumentos} Su perfil será visible tras verificación en 24–48 horas hábiles.`);
 
   } catch (err) {
+    console.error('[registro] ERROR COMPLETO (debug temporal, estudio):', err);
     console.error('[registro] Error inesperado al registrar estudio:', err);
     errorEl.textContent = 'Ocurrió un error. Intente de nuevo.';
   } finally {
