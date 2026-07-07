@@ -1,6 +1,6 @@
 // supabase/functions/notificar-solicitud/index.ts
 //
-// Envía notificaciones por email vía Resend cuando:
+// Envía notificaciones por email vía SMTP de Zoho Mail cuando:
 //   - se crea una solicitud nueva (INSERT, estado=PENDIENTE)   -> avisa al abogado.
 //   - una solicitud pasa de PENDIENTE a ACEPTADA (UPDATE)      -> avisa al cliente.
 //
@@ -15,19 +15,23 @@
 // EXPIRADA) no generan email en esta fase — no lo pidió el alcance actual.
 //
 // Variables de entorno (configurar con `supabase secrets set`):
-//   RESEND_API_KEY  — obligatoria. Sin ella no se envía ningún correo.
-//   EMAIL_FROM      — remitente. Debe ser una dirección de un dominio
-//                      verificado en Resend; si no hay dominio verificado,
-//                      Resend solo permite enviar desde onboarding@resend.dev
-//                      y únicamente al email del dueño de la cuenta Resend.
-//   APP_URL         — URL pública de la app, para armar los links del email.
+//   ZOHO_SMTP_USER      — obligatoria. Email de Zoho Mail usado para autenticar.
+//   ZOHO_SMTP_PASSWORD  — obligatoria. Contraseña de aplicación de Zoho (no la
+//                          contraseña principal de la cuenta — se genera en
+//                          Zoho Mail > Configuración > Seguridad > Contraseñas
+//                          de aplicación).
+//   EMAIL_FROM          — remitente que se muestra en el correo. Si no se
+//                          configura, se usa ZOHO_SMTP_USER.
+//   APP_URL             — URL pública de la app, para armar los links del email.
 // SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY los inyecta Supabase automáticamente
 // en toda Edge Function; no hace falta configurarlas.
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { SMTPClient } from 'https://deno.land/x/denomailer@1.6.0/mod.ts';
 
-const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
-const EMAIL_FROM = Deno.env.get('EMAIL_FROM') ?? 'LegalEC <onboarding@resend.dev>';
+const ZOHO_SMTP_USER = Deno.env.get('ZOHO_SMTP_USER');
+const ZOHO_SMTP_PASSWORD = Deno.env.get('ZOHO_SMTP_PASSWORD');
+const EMAIL_FROM = Deno.env.get('EMAIL_FROM') ?? ZOHO_SMTP_USER ?? '';
 const APP_URL = Deno.env.get('APP_URL') ?? 'https://legal-app-two.vercel.app';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -126,22 +130,35 @@ async function notificarSolicitudAceptada(solicitud: Record<string, any>) {
 }
 
 async function enviarEmail({ to, subject, html }: { to: string; subject: string; html: string }) {
-  if (!RESEND_API_KEY) {
-    console.error('[notificar-solicitud] RESEND_API_KEY no configurada; email no enviado.');
+  if (!ZOHO_SMTP_USER || !ZOHO_SMTP_PASSWORD) {
+    console.error('[notificar-solicitud] ZOHO_SMTP_USER/ZOHO_SMTP_PASSWORD no configuradas; email no enviado.');
     return;
   }
 
-  const res = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${RESEND_API_KEY}`,
-      'Content-Type': 'application/json',
+  const client = new SMTPClient({
+    connection: {
+      hostname: 'smtp.zoho.com',
+      port: 465,
+      tls: true,
+      auth: {
+        username: ZOHO_SMTP_USER,
+        password: ZOHO_SMTP_PASSWORD,
+      },
     },
-    body: JSON.stringify({ from: EMAIL_FROM, to, subject, html }),
   });
 
-  if (!res.ok) {
-    console.error('[notificar-solicitud] Resend respondió con error:', res.status, await res.text());
+  try {
+    await client.send({
+      from: EMAIL_FROM,
+      to,
+      subject,
+      content: 'auto',
+      html,
+    });
+  } catch (err) {
+    console.error('[notificar-solicitud] Zoho SMTP respondió con error:', err);
+  } finally {
+    await client.close();
   }
 }
 

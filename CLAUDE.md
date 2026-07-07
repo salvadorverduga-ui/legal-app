@@ -325,28 +325,34 @@ Por qué Database Webhook y no un trigger SQL con `pg_net` directo: evita commit
 
 Por qué una Edge Function y no lógica en `api/` (Vercel): el envío de email depende de datos que requieren `service_role` (email del abogado en `auth.users`, revelado solo tras el match) — nunca debe ejecutarse con las credenciales del frontend. Las Edge Functions son el único lugar con acceso a `service_role` (§4.4).
 
+El envío de correo usa SMTP de Zoho Mail (librería `denomailer`), no una API de terceros como Resend.
+
 ### Variables de entorno de la Edge Function
 Se configuran con `supabase secrets set`, **no** en Vercel:
 
 ```
-RESEND_API_KEY   # obligatoria — sin ella no se envía ningún correo (falla en silencio, solo log)
-EMAIL_FROM       # remitente; debe ser de un dominio verificado en Resend.
-                 # Sin dominio verificado, Resend solo permite enviar desde
-                 # onboarding@resend.dev y únicamente al email dueño de la cuenta Resend.
-                 # Default en el código: "LegalEC <onboarding@resend.dev>"
-APP_URL          # URL pública de la app para armar los links del email.
-                 # Default en el código: "https://legal-app-two.vercel.app"
+ZOHO_SMTP_USER      # obligatoria — email de Zoho Mail usado para autenticar por SMTP
+ZOHO_SMTP_PASSWORD  # obligatoria — contraseña de aplicación de Zoho, NUNCA la contraseña
+                    # principal de la cuenta. Se genera en Zoho Mail > Configuración >
+                    # Seguridad > Contraseñas de aplicación.
+EMAIL_FROM          # remitente que se muestra en el correo ("Nombre <email@dominio.com>").
+                    # Si no se configura, se usa ZOHO_SMTP_USER como remitente.
+APP_URL             # URL pública de la app para armar los links del email.
+                    # Default en el código: "https://legal-app-two.vercel.app"
 ```
+
+Conexión SMTP fija en el código: `smtp.zoho.com`, puerto `465` (SSL). Sin ambas credenciales configuradas, el envío falla en silencio (solo log).
 
 `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY` los inyecta Supabase automáticamente en toda Edge Function — no hace falta configurarlos.
 
 ### Pasos de despliegue (manual, una sola vez)
 1. `supabase login`
 2. Desde la raíz del repo: `supabase link --project-ref gxhildriufvesohyfwcb`
-3. `supabase secrets set RESEND_API_KEY=<tu_api_key_de_resend>`
-4. (Opcional hasta tener dominio verificado) `supabase secrets set EMAIL_FROM="LegalEC <onboarding@resend.dev>"`
-5. `supabase functions deploy notificar-solicitud`
-6. En el Dashboard de Supabase → Database → Webhooks → Create a new hook:
+3. `supabase secrets set ZOHO_SMTP_USER=<tu_email_de_zoho>`
+4. `supabase secrets set ZOHO_SMTP_PASSWORD=<tu_contraseña_de_aplicacion_de_zoho>`
+5. (Opcional) `supabase secrets set EMAIL_FROM="LegalEC <tu_email_de_zoho>"`
+6. `supabase functions deploy notificar-solicitud`
+7. En el Dashboard de Supabase → Database → Webhooks → Create a new hook:
    - Table: `solicitudes`
    - Events: `INSERT`, `UPDATE`
    - Type: HTTP Request → `POST` a `https://gxhildriufvesohyfwcb.supabase.co/functions/v1/notificar-solicitud`
