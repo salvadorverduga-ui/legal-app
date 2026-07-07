@@ -244,6 +244,7 @@ Nunca commitear `.env` — está en `.gitignore`.
 - [ ] Estrategia de cron para expiración de solicitudes (Supabase cron vs cron-job.org)
 - [ ] Flujo de pago PayPhone — integración específica
 - [ ] Estructura definitiva de tablas (diseñar antes de primera migración)
+- [ ] Activación automática de suscripcion_vigente_hasta al recibir pago (PayPhone) — por ahora manual desde Supabase
 
 ---
 

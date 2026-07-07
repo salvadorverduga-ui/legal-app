@@ -174,6 +174,8 @@ AND (
 ### 6.4 Fase de lanzamiento — Beta gratuita
 Los primeros abogados entran gratis. El cobro se activa con aviso previo de 15 días. La gratuidad se comunica como privilegio de los primeros en entrar.
 
+Durante la fase Beta, el administrador activa manualmente la suscripción desde Supabase ejecutando: `UPDATE abogados SET suscripcion_vigente_hasta = CURRENT_DATE + INTERVAL '30 days' WHERE id = '[id]'`. La automatización vía PayPhone se implementa en V2.
+
 ### 6.5 Métodos de pago
 - MVP: transferencia bancaria manual o PayPhone
 - V2: Stripe
