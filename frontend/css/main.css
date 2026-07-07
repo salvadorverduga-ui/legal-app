@@ -891,6 +891,40 @@ p {
   display: none;
 }
 
+/* ── Menú desplegable "Ver como" ──────────────────────────── */
+.menu-desplegable {
+  position: relative;
+}
+
+.menu-desplegable__lista {
+  position: absolute;
+  top: calc(100% + var(--esp-2));
+  right: 0;
+  min-width: 180px;
+  background-color: var(--color-fondo-card);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-md);
+  box-shadow: var(--sombra-md);
+  padding: var(--esp-2);
+  list-style: none;
+  z-index: 100;
+}
+
+.menu-desplegable__item {
+  display: block;
+  padding: var(--esp-2) var(--esp-3);
+  border-radius: var(--radio-sm);
+  color: var(--color-texto);
+  text-decoration: none;
+  font-size: var(--texto-sm);
+  white-space: nowrap;
+}
+
+.menu-desplegable__item:hover,
+.menu-desplegable__item:focus-visible {
+  background-color: var(--color-primario-suave);
+}
+
 /* ── Barra de búsqueda / filtros ──────────────────────────── */
 .barra-busqueda {
   background-color: var(--color-fondo-card);

@@ -101,6 +101,39 @@ function configurarEventos() {
   });
 
   document.getElementById('verificacionesLista').addEventListener('click', manejarClickVerificaciones);
+
+  configurarMenuVerComo();
+}
+
+// ─── Menú "Ver como" ────────────────────────────────────────────────────────
+// Solo navegación en pestañas nuevas; no cambia el rol ni la sesión del admin.
+function configurarMenuVerComo() {
+  const contenedor = document.getElementById('menuVerComo');
+  const boton = document.getElementById('btnVerComo');
+  const lista = document.getElementById('listaVerComo');
+
+  function cerrarMenu() {
+    lista.hidden = true;
+    boton.setAttribute('aria-expanded', 'false');
+  }
+
+  function abrirMenu() {
+    lista.hidden = false;
+    boton.setAttribute('aria-expanded', 'true');
+  }
+
+  boton.addEventListener('click', () => {
+    if (lista.hidden) abrirMenu();
+    else cerrarMenu();
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!contenedor.contains(e.target)) cerrarMenu();
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') cerrarMenu();
+  });
 }
 
 // ─── Navegación por secciones ───────────────────────────────────────────────
