@@ -2,6 +2,9 @@
   "outputDirectory": "frontend",
   "cleanUrls": true,
   "trailingSlash": false,
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/pages/404" }
+  ],
   "headers": [
     {
       "source": "/(.*)",

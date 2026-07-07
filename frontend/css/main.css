@@ -2250,3 +2250,78 @@ p {
     grid-template-columns: repeat(4, 1fr);
   }
 }
+
+
+/* ────────────────────────────────────────────────────────────
+   TOASTS — feedback visual no bloqueante (toast.exito/error/info en utils.js)
+   ──────────────────────────────────────────────────────────── */
+.toast-contenedor {
+  position: fixed;
+  z-index: 1000;
+  left: 50%;
+  bottom: var(--esp-6);
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-2);
+  width: calc(100% - var(--esp-8));
+  max-width: 380px;
+  pointer-events: none;
+}
+
+.toast {
+  pointer-events: auto;
+  cursor: pointer;
+  padding: var(--esp-3) var(--esp-4);
+  border-radius: var(--radio-md);
+  box-shadow: var(--sombra-lg);
+  font-size: var(--texto-sm);
+  font-weight: var(--peso-medio);
+  line-height: var(--altura-linea-normal);
+  color: var(--color-texto-inverso);
+  background-color: var(--color-texto);
+  opacity: 0;
+  transform: translateY(0.5rem);
+  transition: opacity var(--transicion-lenta), transform var(--transicion-lenta);
+}
+
+.toast--visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.toast--exito { background-color: var(--color-exito); }
+.toast--error { background-color: var(--color-error); }
+.toast--info  { background-color: var(--color-info); }
+
+@media (min-width: 640px) {
+  .toast-contenedor {
+    left: auto;
+    right: var(--esp-6);
+    transform: none;
+  }
+}
+
+
+/* ────────────────────────────────────────────────────────────
+   PÁGINA 404
+   ──────────────────────────────────────────────────────────── */
+.estado-404 {
+  padding-block: var(--esp-20);
+  text-align: center;
+}
+
+.estado-404__codigo {
+  font-size: var(--texto-4xl);
+  font-weight: var(--peso-bold);
+  color: var(--color-texto-muy-suave);
+}
+
+.estado-404__texto {
+  color: var(--color-texto-suave);
+  margin-bottom: var(--esp-6);
+}
+
+.estado-404__boton {
+  display: inline-flex;
+}

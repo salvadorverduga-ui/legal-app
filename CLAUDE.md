@@ -385,7 +385,7 @@ La migración crea el bucket si no existe y fuerza `public = false` aunque ya ex
 
 ## 15. Mejoras UI/UX en curso
 
-- [ ] MÓDULO 1 — General: favicon, página 404, toasts de feedback, mensajes de error amigables
+- [x] MÓDULO 1 — General: favicon, página 404, toasts de feedback, mensajes de error amigables
 - [ ] MÓDULO 2 — Cliente: confirmación post-solicitud, CTA después de rechazo/expiración, cancelar solicitud pendiente
 - [ ] MÓDULO 3 — Abogado: preview del perfil público, alerta de vencimiento de suscripción, onboarding para abogado nuevo, formulario de perfil con progreso visual
 - [ ] MÓDULO 4 — Admin: búsqueda/filtro en verificaciones, log de acciones del admin

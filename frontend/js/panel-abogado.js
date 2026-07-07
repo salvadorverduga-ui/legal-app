@@ -4,6 +4,7 @@
 
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
+import { toast, mensajeAmigable } from './utils.js';
 
 // ─── Etiquetas y estilos por estado ───────────────────────────────────────────
 const ETIQUETAS_ESTADO_SOLICITUD = {
@@ -179,11 +180,14 @@ async function manejarToggleDisponible() {
 
   if (error) {
     toggle.checked = abogadoActual.toggle_disponible;
-    estadoEl.textContent = 'No se pudo actualizar la disponibilidad. Intente de nuevo.';
+    const mensaje = mensajeAmigable(error, 'No se pudo actualizar la disponibilidad. Intente de nuevo.');
+    estadoEl.textContent = mensaje;
+    toast.error(mensaje);
   } else {
     abogadoActual.toggle_disponible = toggle_disponible;
     toggle.checked = toggle_disponible;
     actualizarEtiquetaDisponible(toggle_disponible);
+    toast.info(toggle_disponible ? 'Ahora está disponible.' : 'Ahora no está disponible.');
   }
 
   toggle.disabled = false;
@@ -200,7 +204,9 @@ async function manejarCambioFoto(e) {
   const { url, error } = await api.perfiles.subirFotoPerfil(archivo);
 
   if (error) {
-    estadoEl.textContent = error.message ?? 'No se pudo subir la foto. Intente de nuevo.';
+    const mensaje = mensajeAmigable(error, 'No se pudo subir la foto. Intente de nuevo.');
+    estadoEl.textContent = mensaje;
+    toast.error(mensaje);
     e.target.value = '';
     return;
   }
@@ -208,6 +214,7 @@ async function manejarCambioFoto(e) {
   perfilActual.foto_url = url;
   renderizarCabecera();
   estadoEl.textContent = 'Foto actualizada.';
+  toast.exito('Foto actualizada.');
   e.target.value = '';
 }
 
@@ -254,18 +261,21 @@ async function manejarGuardarPerfil() {
     ]);
 
     if (resultadoAbogado.error || resultadoPerfil.error) {
-      errorEl.textContent = (resultadoAbogado.error ?? resultadoPerfil.error).message
-        ?? 'Ocurrió un error. Intente de nuevo.';
+      const mensaje = mensajeAmigable(resultadoAbogado.error ?? resultadoPerfil.error, 'Ocurrió un error. Intente de nuevo.');
+      errorEl.textContent = mensaje;
+      toast.error(mensaje);
       return;
     }
 
     abogadoActual = resultadoAbogado.data;
     perfilActual.provincia = resultadoPerfil.data.provincia;
     exitoEl.hidden = false;
+    toast.exito('Perfil guardado.');
 
   } catch (err) {
     console.error('[panel-abogado] Error inesperado al guardar el perfil:', err);
     errorEl.textContent = 'Ocurrió un error. Intente de nuevo.';
+    toast.error('Ocurrió un error. Intente de nuevo.');
   } finally {
     btn.disabled = false;
     btn.textContent = 'Guardar cambios';
@@ -395,12 +405,15 @@ async function manejarAceptarSolicitud(id) {
 
   const { data, error } = await api.solicitudes.aceptarSolicitud(id);
   if (error) {
-    errorEl.textContent = error.message ?? 'No se pudo aceptar la solicitud. Intente de nuevo.';
+    const mensaje = mensajeAmigable(error, 'No se pudo aceptar la solicitud. Intente de nuevo.');
+    errorEl.textContent = mensaje;
+    toast.error(mensaje);
     return;
   }
 
   actualizarSolicitudLocal(id, data);
   renderizarSolicitudes();
+  toast.exito('Solicitud aceptada.');
 }
 
 async function manejarRechazarSolicitud(id, motivo) {
@@ -409,12 +422,15 @@ async function manejarRechazarSolicitud(id, motivo) {
 
   const { data, error } = await api.solicitudes.rechazarSolicitud(id, motivo);
   if (error) {
-    errorEl.textContent = error.message ?? 'No se pudo rechazar la solicitud. Intente de nuevo.';
+    const mensaje = mensajeAmigable(error, 'No se pudo rechazar la solicitud. Intente de nuevo.');
+    errorEl.textContent = mensaje;
+    toast.error(mensaje);
     return;
   }
 
   actualizarSolicitudLocal(id, data);
   renderizarSolicitudes();
+  toast.info('Solicitud rechazada.');
 }
 
 function actualizarSolicitudLocal(id, datosActualizados) {

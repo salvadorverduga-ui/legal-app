@@ -5,6 +5,7 @@
 
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
+import { toast } from './utils.js';
 
 const TAMANO_MAXIMO_ARCHIVO = 5 * 1024 * 1024; // 5 MB
 const TIPOS_ARCHIVO_PERMITIDOS = ['image/jpeg', 'image/png', 'application/pdf'];
@@ -130,7 +131,9 @@ async function manejarRegistroCliente(evento) {
     const { error } = await api.auth.registrarCliente({ email, password, nombre_completo });
 
     if (error) {
-      errorEl.textContent = traducirErrorAuth(error);
+      const mensaje = traducirErrorAuth(error);
+      errorEl.textContent = mensaje;
+      toast.error(mensaje);
       return;
     }
 
@@ -141,6 +144,7 @@ async function manejarRegistroCliente(evento) {
     console.error('[registro] ERROR COMPLETO (debug temporal, cliente):', err);
     console.error('[registro] Error inesperado al registrar cliente:', err);
     errorEl.textContent = 'Ocurrió un error. Intente de nuevo.';
+    toast.error('No se pudo crear la cuenta. Intente de nuevo.');
   } finally {
     btnEl.disabled = false;
     btnEl.textContent = 'Crear cuenta';
@@ -200,7 +204,9 @@ async function manejarRegistroAbogado(evento) {
     });
 
     if (error) {
-      errorEl.textContent = traducirErrorAuth(error);
+      const mensaje = traducirErrorAuth(error);
+      errorEl.textContent = mensaje;
+      toast.error(mensaje);
       return;
     }
 
@@ -221,6 +227,7 @@ async function manejarRegistroAbogado(evento) {
     console.error('[registro] ERROR COMPLETO (debug temporal, abogado):', err);
     console.error('[registro] Error inesperado al registrar abogado:', err);
     errorEl.textContent = 'Ocurrió un error. Intente de nuevo.';
+    toast.error('No se pudo crear la cuenta. Intente de nuevo.');
   } finally {
     btnEl.disabled = false;
     btnEl.textContent = 'Crear cuenta';
@@ -280,7 +287,9 @@ async function manejarRegistroEstudio(evento) {
     });
 
     if (error) {
-      errorEl.textContent = traducirErrorAuth(error);
+      const mensaje = traducirErrorAuth(error);
+      errorEl.textContent = mensaje;
+      toast.error(mensaje);
       return;
     }
 
@@ -297,6 +306,7 @@ async function manejarRegistroEstudio(evento) {
     console.error('[registro] ERROR COMPLETO (debug temporal, estudio):', err);
     console.error('[registro] Error inesperado al registrar estudio:', err);
     errorEl.textContent = 'Ocurrió un error. Intente de nuevo.';
+    toast.error('No se pudo crear la cuenta. Intente de nuevo.');
   } finally {
     btnEl.disabled = false;
     btnEl.textContent = 'Crear cuenta';
@@ -312,6 +322,7 @@ function mostrarConfirmacion(idFormulario, idConfirmacion, mensaje) {
     <p class="mensaje-confirmacion__titulo">Revise su correo</p>
     <p>${mensaje}</p>
   `;
+  toast.exito('Cuenta creada. Revise su correo para confirmar.');
 }
 
 // ─── Traducción de errores de Supabase Auth ───────────────────────────────────

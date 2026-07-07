@@ -4,6 +4,7 @@
 
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
+import { toast, mensajeAmigable } from './utils.js';
 
 // ─── Etiquetas y estilos por estado ───────────────────────────────────────────
 const ETIQUETAS_ESTADO_SOLICITUD = {
@@ -269,13 +270,16 @@ async function manejarMarcarCompletada(id) {
 
   const { data, error } = await api.solicitudes.completarSolicitud(id);
   if (error) {
-    errorEl.textContent = error.message ?? 'No se pudo marcar la consulta como completada. Intente de nuevo.';
+    const mensaje = mensajeAmigable(error, 'No se pudo marcar la consulta como completada. Intente de nuevo.');
+    errorEl.textContent = mensaje;
+    toast.error(mensaje);
     return;
   }
 
   const entrada = solicitudesActuales.find(s => s.id === id);
   if (entrada) Object.assign(entrada, data);
   renderizarSolicitudes();
+  toast.exito('Consulta marcada como completada.');
 }
 
 async function manejarSubmitResena(e) {
@@ -303,7 +307,9 @@ async function manejarSubmitResena(e) {
   const { data, error } = await api.resenas.crearResena(id, { calificacion, comentario });
 
   if (error) {
-    errorEl.textContent = error.message ?? 'No se pudo enviar la reseña. Intente de nuevo.';
+    const mensaje = mensajeAmigable(error, 'No se pudo enviar la reseña. Intente de nuevo.');
+    errorEl.textContent = mensaje;
+    toast.error(mensaje);
     btnEnviar.disabled = false;
     btnEnviar.textContent = 'Enviar reseña';
     return;
@@ -316,6 +322,7 @@ async function manejarSubmitResena(e) {
   }
   solicitudConFormularioAbierto = null;
   renderizarSolicitudes();
+  toast.exito('Reseña enviada.');
 
   const resenas = await api.resenas.getMisResenas();
   renderizarResenas(resenas);

@@ -4,6 +4,7 @@
 
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
+import { toast, mensajeAmigable } from './utils.js';
 
 // ─── Etiquetas visibles para tipo_badge ───────────────────────────────────────
 const ETIQUETAS_TIPO = {
@@ -226,16 +227,20 @@ async function manejarEnvioSolicitud(abogadoId) {
     });
 
     if (error) {
-      errorEl.textContent = error.message ?? 'Ocurrió un error. Intente de nuevo.';
+      const mensaje = mensajeAmigable(error, 'Ocurrió un error. Intente de nuevo.');
+      errorEl.textContent = mensaje;
+      toast.error(mensaje);
       return;
     }
 
     document.getElementById('formSolicitud').hidden = true;
     document.getElementById('confirmacionSolicitud').hidden = false;
+    toast.exito('Solicitud enviada.');
 
   } catch (err) {
     console.error('[perfil-abogado] Error inesperado al enviar solicitud:', err);
     errorEl.textContent = 'Ocurrió un error. Intente de nuevo.';
+    toast.error('Ocurrió un error. Intente de nuevo.');
   } finally {
     btnEl.disabled = false;
     btnEl.textContent = 'Enviar solicitud';
