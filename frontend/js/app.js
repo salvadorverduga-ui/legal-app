@@ -50,6 +50,9 @@ const ROLES_POR_FLUJO = {
 };
 
 function rolCoincideConFlujo(rol, flujo) {
+  // El admin no tiene tarjeta propia en index.html; puede ingresar
+  // seleccionando cualquiera de los dos flujos y se redirige a su panel igual.
+  if (rol === 'admin') return true;
   return ROLES_POR_FLUJO[flujo]?.includes(rol) ?? false;
 }
 
