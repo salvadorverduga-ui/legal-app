@@ -307,7 +307,7 @@ GRANT EXECUTE ON FUNCTION nombre_funcion(tipos) TO authenticated;
 
 ---
 
-## 13. Notificaciones por email (Resend)
+## 13. Notificaciones por email (Zoho SMTP)
 
 ### Arquitectura
 Una sola Edge Function, `supabase/functions/notificar-solicitud/index.ts`, maneja los dos correos del flujo de solicitud:
@@ -359,7 +359,7 @@ Conexión SMTP fija en el código: `smtp.zoho.com`, puerto `465` (SSL). Sin amba
    - HTTP Headers: `Authorization: Bearer <SUPABASE_SERVICE_ROLE_KEY>` (el mismo valor que está en `.env`, nunca commitear)
 
 ### Verificación
-Después de desplegar: crear una solicitud de prueba desde `perfil-abogado.html` y revisar `supabase functions logs notificar-solicitud` para confirmar que se ejecutó y qué devolvió Resend.
+Después de desplegar: crear una solicitud de prueba desde `perfil-abogado.html` y revisar `supabase functions logs notificar-solicitud` para confirmar que se ejecutó y qué devolvió Zoho SMTP.
 
 ---
 
@@ -380,6 +380,18 @@ Un bucket privado no sirve archivos por URL pública aunque se conozca el path �
 
 ### Aplicar la migración
 La migración crea el bucket si no existe y fuerza `public = false` aunque ya existiera (por si se había creado como público desde el Dashboard). No requiere pasos manuales adicionales — a diferencia de §13, esto es 100% SQL.
+
+---
+
+## 15. Mejoras UI/UX en curso
+
+- [ ] MÓDULO 1 — General: favicon, página 404, toasts de feedback, mensajes de error amigables
+- [ ] MÓDULO 2 — Cliente: confirmación post-solicitud, CTA después de rechazo/expiración, cancelar solicitud pendiente
+- [ ] MÓDULO 3 — Abogado: preview del perfil público, alerta de vencimiento de suscripción, onboarding para abogado nuevo, formulario de perfil con progreso visual
+- [ ] MÓDULO 4 — Admin: búsqueda/filtro en verificaciones, log de acciones del admin
+- [ ] MÓDULO 5 — Notificaciones internas: sistema de notificaciones en la interfaz para cada tipo de usuario (nueva solicitud, solicitud aceptada/rechazada, verificación aprobada/rechazada, suscripción próxima a vencer)
+
+Marcar cada ítem como `[x]` a medida que se completa el módulo correspondiente.
 
 ---
 
