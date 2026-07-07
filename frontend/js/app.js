@@ -43,16 +43,28 @@ function redirigirSegunRol(rol) {
 
 
 // ─── Inicialización ───────────────────────────────────────────────────────────
+// Tiempo máximo de espera para la verificación de sesión. Si getSession() se
+// cuelga (p.ej. lock de sesión corrupto en el navegador), no dejamos el
+// spinner girando para siempre: se asume "sin sesión" y se muestra el login.
+const TIMEOUT_VERIFICACION_SESION_MS = 5000;
+
+function esperarConTimeout(promesa, ms) {
+  return Promise.race([
+    promesa,
+    new Promise((resolve) => setTimeout(() => resolve(null), ms)),
+  ]);
+}
+
 async function inicializar() {
   mostrarCargando(true);
 
   try {
     await inicializarClienteSupabase();
 
-    const sesion = await api.auth.getSession();
+    const sesion = await esperarConTimeout(api.auth.getSession(), TIMEOUT_VERIFICACION_SESION_MS);
 
     if (sesion) {
-      const perfil = await api.perfiles.getPerfilActual();
+      const perfil = await esperarConTimeout(api.perfiles.getPerfilActual(), TIMEOUT_VERIFICACION_SESION_MS);
       if (perfil?.rol) {
         redirigirSegunRol(perfil.rol);
         return; // detener ejecución mientras se redirige
