@@ -211,7 +211,31 @@ export const perfiles = {
    * El campo rol está bloqueado por la política RLS WITH CHECK en perfiles.
    * Retorna { data, error }.
    */
-  async actualizarPerfil(datos) {},
+  async actualizarPerfil(datos) {
+    const { data: { user }, error: errUser } = await _cliente.auth.getUser();
+    if (errUser || !user) {
+      return { data: null, error: errUser ?? { message: 'No hay sesión activa.' } };
+    }
+
+    const CAMPOS_PERMITIDOS = ['nombre_completo', 'telefono', 'ciudad', 'provincia'];
+    const actualizacion = {};
+    for (const campo of CAMPOS_PERMITIDOS) {
+      if (datos[campo] !== undefined) actualizacion[campo] = datos[campo];
+    }
+
+    const { data, error } = await _cliente
+      .from('perfiles')
+      .update(actualizacion)
+      .eq('id', user.id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[api.perfiles.actualizarPerfil]', error.message);
+      return { data: null, error };
+    }
+    return { data, error: null };
+  },
 
   /**
    * Sube una foto de perfil a Supabase Storage (bucket: avatares)
@@ -219,7 +243,46 @@ export const perfiles = {
    * El archivo debe ser image/jpeg, image/png o image/webp. Tamaño máximo: 2MB.
    * Retorna { url, error } donde url es el path en Storage.
    */
-  async subirFotoPerfil(archivo) {},
+  async subirFotoPerfil(archivo) {
+    const TIPOS_PERMITIDOS = ['image/jpeg', 'image/png', 'image/webp'];
+    const TAMANO_MAXIMO_BYTES = 2 * 1024 * 1024;
+
+    if (!TIPOS_PERMITIDOS.includes(archivo.type)) {
+      return { url: null, error: { message: 'El archivo debe ser JPG, PNG o WEBP.' } };
+    }
+    if (archivo.size > TAMANO_MAXIMO_BYTES) {
+      return { url: null, error: { message: 'El archivo no debe superar los 2MB.' } };
+    }
+
+    const { data: { user }, error: errUser } = await _cliente.auth.getUser();
+    if (errUser || !user) {
+      return { url: null, error: errUser ?? { message: 'No hay sesión activa.' } };
+    }
+
+    const extension = archivo.name.split('.').pop();
+    const path = `${user.id}/foto-${Date.now()}.${extension}`;
+
+    const { error: errUpload } = await _cliente.storage
+      .from('avatares')
+      .upload(path, archivo, { upsert: true });
+
+    if (errUpload) {
+      console.error('[api.perfiles.subirFotoPerfil]', errUpload.message);
+      return { url: null, error: errUpload };
+    }
+
+    const { error: errUpdate } = await _cliente
+      .from('perfiles')
+      .update({ foto_url: path })
+      .eq('id', user.id);
+
+    if (errUpdate) {
+      console.error('[api.perfiles.subirFotoPerfil]', errUpdate.message);
+      return { url: null, error: errUpdate };
+    }
+
+    return { url: path, error: null };
+  },
 
 };
 
@@ -303,13 +366,61 @@ export const abogados = {
   },
 
   /**
+   * Retorna la fila propia del abogado autenticado desde la tabla abogados
+   * (no desde la vista busqueda_abogados, que oculta perfiles no visibles).
+   * Incluye verificacion, toggle_disponible, suscripcion_vigente_hasta y los
+   * datos profesionales, sin importar el estado de verificación o suscripción.
+   * Retorna null si no hay sesión activa o falla la consulta.
+   */
+  async getPerfilPropio() {
+    const { data: { user }, error: errUser } = await _cliente.auth.getUser();
+    if (errUser || !user) return null;
+
+    const { data, error } = await _cliente
+      .from('abogados')
+      .select('*')
+      .eq('id', user.id)
+      .single();
+
+    if (error) {
+      console.error('[api.abogados.getPerfilPropio]', error.message);
+      return null;
+    }
+    return data;
+  },
+
+  /**
    * Actualiza los datos profesionales del abogado autenticado en la tabla abogados.
    * Campos permitidos: especialidades, casos_frecuentes, descripcion,
    *                    precio_consulta, numero_registro.
    * verificacion y suscripcion_vigente_hasta no se pueden modificar desde el cliente.
    * Retorna { data, error }.
    */
-  async actualizarPerfilAbogado(datos) {},
+  async actualizarPerfilAbogado(datos) {
+    const { data: { user }, error: errUser } = await _cliente.auth.getUser();
+    if (errUser || !user) {
+      return { data: null, error: errUser ?? { message: 'No hay sesión activa.' } };
+    }
+
+    const CAMPOS_PERMITIDOS = ['especialidades', 'casos_frecuentes', 'descripcion', 'precio_consulta', 'numero_registro'];
+    const actualizacion = {};
+    for (const campo of CAMPOS_PERMITIDOS) {
+      if (datos[campo] !== undefined) actualizacion[campo] = datos[campo];
+    }
+
+    const { data, error } = await _cliente
+      .from('abogados')
+      .update(actualizacion)
+      .eq('id', user.id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[api.abogados.actualizarPerfilAbogado]', error.message);
+      return { data: null, error };
+    }
+    return { data, error: null };
+  },
 
   /**
    * Alterna toggle_disponible del abogado autenticado (true → false o false → true).
@@ -317,7 +428,36 @@ export const abogados = {
    * incluso si tiene verificación y suscripción vigente.
    * Retorna { toggle_disponible: boolean, error }.
    */
-  async toggleDisponible() {},
+  async toggleDisponible() {
+    const { data: { user }, error: errUser } = await _cliente.auth.getUser();
+    if (errUser || !user) {
+      return { toggle_disponible: null, error: errUser ?? { message: 'No hay sesión activa.' } };
+    }
+
+    const { data: actual, error: errActual } = await _cliente
+      .from('abogados')
+      .select('toggle_disponible')
+      .eq('id', user.id)
+      .single();
+
+    if (errActual) {
+      console.error('[api.abogados.toggleDisponible]', errActual.message);
+      return { toggle_disponible: null, error: errActual };
+    }
+
+    const { data, error } = await _cliente
+      .from('abogados')
+      .update({ toggle_disponible: !actual.toggle_disponible })
+      .eq('id', user.id)
+      .select('toggle_disponible')
+      .single();
+
+    if (error) {
+      console.error('[api.abogados.toggleDisponible]', error.message);
+      return { toggle_disponible: null, error };
+    }
+    return { toggle_disponible: data.toggle_disponible, error: null };
+  },
 
   /**
    * Sube los documentos de verificación a Supabase Storage (bucket: verificacion-docs)
@@ -498,7 +638,18 @@ export const solicitudes = {
    * el trigger fn_revelar_contacto_al_aceptar los completa al aceptar.
    * Ordenadas por created_at DESC.
    */
-  async getSolicitudesAbogado() {},
+  async getSolicitudesAbogado() {
+    const { data, error } = await _cliente
+      .from('panel_solicitudes_abogado')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('[api.solicitudes.getSolicitudesAbogado]', error.message);
+      return [];
+    }
+    return data ?? [];
+  },
 
   /**
    * El abogado acepta una solicitud en estado PENDIENTE.
@@ -507,14 +658,42 @@ export const solicitudes = {
    * Notificación al cliente: pendiente de implementar con Edge Function.
    * Retorna { data, error }.
    */
-  async aceptarSolicitud(solicitudId) {},
+  async aceptarSolicitud(solicitudId) {
+    const { data, error } = await _cliente
+      .from('solicitudes')
+      .update({ estado: 'ACEPTADA' })
+      .eq('id', solicitudId)
+      .eq('estado', 'PENDIENTE')
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[api.solicitudes.aceptarSolicitud]', error.message);
+      return { data: null, error };
+    }
+    return { data, error: null };
+  },
 
   /**
    * El abogado rechaza una solicitud en estado PENDIENTE.
    * motivo es interno; el cliente recibe "no disponible en este momento".
    * Retorna { data, error }.
    */
-  async rechazarSolicitud(solicitudId, motivo = '') {},
+  async rechazarSolicitud(solicitudId, motivo = '') {
+    const { data, error } = await _cliente
+      .from('solicitudes')
+      .update({ estado: 'RECHAZADA', motivo_rechazo: motivo.trim() || null })
+      .eq('id', solicitudId)
+      .eq('estado', 'PENDIENTE')
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[api.solicitudes.rechazarSolicitud]', error.message);
+      return { data: null, error };
+    }
+    return { data, error: null };
+  },
 
   /**
    * El cliente marca una solicitud ACEPTADA como COMPLETADA.
@@ -539,7 +718,25 @@ export const suscripciones = {
    * Incluye tipo, fecha_vencimiento y monto.
    * Retorna null si no hay suscripción activa vigente.
    */
-  async getSuscripcionActual() {},
+  async getSuscripcionActual() {
+    const { data: { user }, error: errUser } = await _cliente.auth.getUser();
+    if (errUser || !user) return null;
+
+    const { data, error } = await _cliente
+      .from('suscripciones')
+      .select('*')
+      .eq('abogado_id', user.id)
+      .eq('estado', 'ACTIVA')
+      .order('fecha_vencimiento', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      console.error('[api.suscripciones.getSuscripcionActual]', error.message);
+      return null;
+    }
+    return data;
+  },
 
   /**
    * Retorna el historial completo de suscripciones (activas, vencidas, canceladas).

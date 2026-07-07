@@ -684,12 +684,20 @@ p {
   border-color: var(--badge-pendiente-borde);
 }
 
+/* Verificación rechazada */
+.badge--rechazado {
+  background-color: var(--color-error-bg);
+  color: var(--color-error);
+  border-color: #FECACA;
+}
+
 /* Estado de solicitud */
 .badge--estado-pendiente    { background-color: #FFF7ED; color: #9A3412; border-color: #FED7AA; }
 .badge--estado-aceptada     { background-color: var(--badge-verificado-bg); color: var(--badge-verificado-color); border-color: var(--badge-verificado-borde); }
 .badge--estado-completada   { background-color: var(--badge-individual-bg); color: var(--badge-individual-color); border-color: var(--badge-individual-borde); }
 .badge--estado-rechazada    { background-color: var(--color-error-bg); color: var(--color-error); border-color: #FECACA; }
 .badge--estado-expirada     { background-color: #F8FAFC; color: var(--color-texto-suave); border-color: var(--color-borde); }
+.badge--estado-resenada     { background-color: var(--badge-individual-bg); color: var(--badge-individual-color); border-color: var(--badge-individual-borde); }
 
 
 /* ────────────────────────────────────────────────────────────
@@ -1592,5 +1600,358 @@ p {
 @media (min-width: 640px) {
   .tarjetas-tipo {
     gap: var(--esp-4);
+  }
+}
+
+
+/* ============================================================
+   PÁGINA: PANEL DEL ABOGADO
+   Estilos específicos de panel-abogado.html
+   ============================================================ */
+
+.panel-abogado__contenido {
+  padding-block: var(--esp-6) var(--esp-12);
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-6);
+}
+
+/* ── Cabecera: identidad + disponibilidad ─────────────────── */
+.panel-cabecera {
+  background-color: var(--color-fondo-card);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-xl);
+  padding: var(--esp-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-4);
+  box-shadow: var(--sombra-sm);
+}
+
+.panel-cabecera__identidad {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-4);
+  min-width: 0;
+}
+
+.panel-cabecera__avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  border: 2px solid var(--color-borde-suave);
+}
+
+.panel-cabecera__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.panel-cabecera__avatar .avatar-placeholder {
+  font-size: var(--texto-lg);
+}
+
+.panel-cabecera__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--esp-1);
+  margin-bottom: var(--esp-1);
+}
+
+.panel-cabecera__nombre {
+  font-size: var(--texto-lg);
+  color: var(--color-primario);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.panel-cabecera__disponibilidad {
+  padding-top: var(--esp-4);
+  border-top: 1px solid var(--color-borde-suave);
+}
+
+/* Interruptor Disponible / No disponible */
+.toggle-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--esp-3);
+  cursor: pointer;
+}
+
+.toggle-switch input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+
+.toggle-switch__pista {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  flex-shrink: 0;
+  background-color: var(--color-borde);
+  border-radius: var(--radio-completo);
+  transition: background-color var(--transicion);
+}
+
+.toggle-switch__pista::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  background-color: var(--color-fondo-card);
+  border-radius: 50%;
+  box-shadow: var(--sombra-xs);
+  transition: transform var(--transicion);
+}
+
+.toggle-switch input:checked + .toggle-switch__pista {
+  background-color: var(--color-exito);
+}
+
+.toggle-switch input:checked + .toggle-switch__pista::before {
+  transform: translateX(20px);
+}
+
+.toggle-switch input:focus-visible + .toggle-switch__pista {
+  outline: 2px solid var(--color-acento);
+  outline-offset: 2px;
+}
+
+.toggle-switch input:disabled + .toggle-switch__pista {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.toggle-switch__etiqueta {
+  font-size: var(--texto-sm);
+  font-weight: var(--peso-medio);
+  color: var(--color-texto);
+}
+
+/* ── Navegación por secciones ──────────────────────────────── */
+.panel-tabs {
+  display: flex;
+  gap: var(--esp-1);
+  overflow-x: auto;
+  background-color: var(--color-borde-suave);
+  border-radius: var(--radio-lg);
+  padding: var(--esp-1);
+}
+
+.panel-tab {
+  flex-shrink: 0;
+  padding: var(--esp-2) var(--esp-4);
+  border-radius: var(--radio-md);
+  font-size: var(--texto-sm);
+  font-weight: var(--peso-medio);
+  color: var(--color-texto-suave);
+  white-space: nowrap;
+  transition: background-color var(--transicion), color var(--transicion), box-shadow var(--transicion);
+}
+
+.panel-tab--activo {
+  background-color: var(--color-fondo-card);
+  color: var(--color-primario);
+  font-weight: var(--peso-semibold);
+  box-shadow: var(--sombra-sm);
+}
+
+.panel-tab:focus-visible {
+  outline: 2px solid var(--color-acento);
+  outline-offset: 2px;
+}
+
+.panel-seccion {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-5);
+}
+
+/* ── Mi perfil: foto ───────────────────────────────────────── */
+.panel-perfil-foto {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-4);
+  background-color: var(--color-fondo-card);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-xl);
+  padding: var(--esp-5);
+  box-shadow: var(--sombra-sm);
+}
+
+.panel-perfil-foto__avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  border: 2px solid var(--color-borde-suave);
+}
+
+.panel-perfil-foto__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.panel-perfil-foto__avatar .avatar-placeholder {
+  font-size: var(--texto-lg);
+}
+
+.panel-perfil-foto__acciones {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--esp-2);
+}
+
+.mensaje-exito {
+  font-size: var(--texto-sm);
+  color: var(--color-exito);
+  font-weight: var(--peso-medio);
+}
+
+/* ── Solicitudes ───────────────────────────────────────────── */
+.solicitudes-lista {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-4);
+}
+
+.solicitud-item {
+  background-color: var(--color-fondo-card);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-lg);
+  padding: var(--esp-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-3);
+}
+
+.solicitud-item__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--esp-3);
+  flex-wrap: wrap;
+}
+
+.solicitud-item__cliente {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-3);
+  min-width: 0;
+}
+
+.solicitud-item__avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.solicitud-item__avatar .avatar-placeholder {
+  font-size: var(--texto-xs);
+}
+
+.solicitud-item__nombre {
+  font-size: var(--texto-base);
+  font-weight: var(--peso-semibold);
+  color: var(--color-primario);
+}
+
+.solicitud-item__fecha {
+  font-size: var(--texto-xs);
+  color: var(--color-texto-suave);
+}
+
+.solicitud-item__detalle {
+  font-size: var(--texto-sm);
+  color: var(--color-texto);
+}
+
+.solicitud-item__detalle-etiqueta {
+  font-weight: var(--peso-semibold);
+  color: var(--color-texto-suave);
+}
+
+.solicitud-item__acciones {
+  display: flex;
+  gap: var(--esp-3);
+  flex-wrap: wrap;
+}
+
+.solicitud-item__contacto {
+  padding: var(--esp-3) var(--esp-4);
+  background-color: var(--badge-verificado-bg);
+  border: 1px solid var(--badge-verificado-borde);
+  border-radius: var(--radio-md);
+  font-size: var(--texto-sm);
+  color: var(--color-texto);
+}
+
+.solicitud-item__contacto strong {
+  color: var(--badge-verificado-color);
+}
+
+.solicitud-item__rechazo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-3);
+  padding-top: var(--esp-3);
+  border-top: 1px solid var(--color-borde-suave);
+}
+
+.solicitud-item__rechazo[hidden] {
+  display: none;
+}
+
+/* ── Mi suscripción ────────────────────────────────────────── */
+.tarjeta-suscripcion {
+  background-color: var(--color-fondo-card);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-xl);
+  padding: var(--esp-6);
+  box-shadow: var(--sombra-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-2);
+}
+
+.tarjeta-suscripcion__plan {
+  font-size: var(--texto-lg);
+  font-weight: var(--peso-semibold);
+  color: var(--color-primario);
+}
+
+.tarjeta-suscripcion__dato {
+  font-size: var(--texto-sm);
+  color: var(--color-texto-suave);
+}
+
+/* ── Media queries para panel-abogado ─────────────────────── */
+@media (min-width: 640px) {
+  .panel-cabecera {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .panel-cabecera__disponibilidad {
+    padding-top: 0;
+    border-top: none;
+  }
+
+  .solicitud-item__header {
+    flex-wrap: nowrap;
   }
 }

@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Panel del abogado — gestione su perfil, solicitudes, reseñas y suscripción en LegalEC.">
+  <title>Panel del abogado — LegalEC</title>
+  <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+
+  <header class="encabezado">
+    <div class="contenedor encabezado__contenedor">
+      <a href="/pages/panel-abogado" class="logo" aria-label="LegalEC — Panel del abogado">
+        <span class="logo__nombre">LegalEC</span>
+      </a>
+      <nav class="nav-usuario" aria-label="Menú de usuario">
+        <span class="nav-usuario__nombre" id="nombreUsuario" aria-live="polite"></span>
+        <button class="btn btn--secundario btn--sm" id="btnCerrarSesion" type="button"
+          style="border-color: rgba(255,255,255,0.4); color: rgba(255,255,255,0.85);">
+          Salir
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <div class="contenedor panel-abogado__contenido">
+
+      <!-- Estado: cargando -->
+      <div class="pantalla-carga" id="estadoCargando">
+        <div class="spinner" aria-hidden="true"></div>
+        <p class="pantalla-carga__texto">Cargando panel...</p>
+      </div>
+
+      <!-- Estado: error -->
+      <div class="estado-vacio" id="estadoError" hidden>
+        <p class="estado-vacio__titulo">No pudimos cargar su panel</p>
+        <p>Intente recargar la página. Si el problema continúa, contacte a soporte.</p>
+      </div>
+
+      <!-- Contenido del panel -->
+      <div id="contenidoPanel" hidden>
+
+        <!-- Cabecera: identidad, verificación y disponibilidad -->
+        <section class="panel-cabecera">
+          <div class="panel-cabecera__identidad">
+            <div class="panel-cabecera__avatar" id="cabeceraAvatar"></div>
+            <div>
+              <div class="panel-cabecera__badges" id="cabeceraBadges"></div>
+              <h1 class="panel-cabecera__nombre" id="cabeceraNombre"></h1>
+            </div>
+          </div>
+
+          <div class="panel-cabecera__disponibilidad">
+            <label class="toggle-switch">
+              <input type="checkbox" id="toggleDisponible">
+              <span class="toggle-switch__pista" aria-hidden="true"></span>
+              <span class="toggle-switch__etiqueta" id="toggleDisponibleEtiqueta">Disponible</span>
+            </label>
+            <p class="campo__error" id="toggleDisponibleEstado" role="alert" aria-live="polite"></p>
+          </div>
+        </section>
+
+        <!-- Navegación por secciones -->
+        <nav class="panel-tabs" role="tablist" aria-label="Secciones del panel">
+          <button class="panel-tab panel-tab--activo" id="tabPerfil" type="button"
+            role="tab" aria-selected="true" aria-controls="seccionPerfil">
+            Mi perfil
+          </button>
+          <button class="panel-tab" id="tabSolicitudes" type="button"
+            role="tab" aria-selected="false" aria-controls="seccionSolicitudes">
+            Solicitudes
+          </button>
+          <button class="panel-tab" id="tabResenas" type="button"
+            role="tab" aria-selected="false" aria-controls="seccionResenas">
+            Reseñas
+          </button>
+          <button class="panel-tab" id="tabSuscripcion" type="button"
+            role="tab" aria-selected="false" aria-controls="seccionSuscripcion">
+            Mi suscripción
+          </button>
+        </nav>
+
+        <!-- ═══════════════ SECCIÓN: MI PERFIL ═══════════════ -->
+        <section class="panel-seccion" id="seccionPerfil" role="tabpanel" aria-labelledby="tabPerfil">
+
+          <div class="panel-perfil-foto">
+            <div class="panel-perfil-foto__avatar" id="perfilFotoAvatar"></div>
+            <div class="panel-perfil-foto__acciones">
+              <button class="btn btn--secundario btn--sm" id="btnCambiarFoto" type="button">
+                Cambiar foto
+              </button>
+              <input type="file" id="inputFoto" class="sr-only" accept="image/jpeg,image/png,image/webp">
+              <p class="campo__ayuda" id="fotoEstado" role="status" aria-live="polite"></p>
+            </div>
+          </div>
+
+          <form class="formulario" id="formPerfil" novalidate>
+            <div class="campo">
+              <label for="perfilDescripcion" class="campo__etiqueta">Descripción profesional</label>
+              <textarea
+                id="perfilDescripcion"
+                class="campo__input"
+                rows="4"
+                maxlength="600"
+                placeholder="Describa su experiencia y áreas de práctica..."
+              ></textarea>
+              <p class="campo__contador" id="contadorDescripcionPerfil">0 / 600</p>
+            </div>
+
+            <div class="campo">
+              <span class="campo__etiqueta">Especialidades</span>
+              <div class="radio-pills radio-pills--multiple" id="especialidadesPerfil">
+                <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho de familia"><span>Derecho de familia</span></label>
+                <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho laboral"><span>Derecho laboral</span></label>
+                <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho penal"><span>Derecho penal</span></label>
+                <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho civil"><span>Derecho civil</span></label>
+                <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho mercantil"><span>Derecho mercantil</span></label>
+                <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho administrativo"><span>Derecho administrativo</span></label>
+                <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho tributario"><span>Derecho tributario</span></label>
+                <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho inmobiliario"><span>Derecho inmobiliario</span></label>
+                <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho de tránsito"><span>Derecho de tránsito</span></label>
+                <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho constitucional"><span>Derecho constitucional</span></label>
+                <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho ambiental"><span>Derecho ambiental</span></label>
+                <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Propiedad intelectual"><span>Propiedad intelectual</span></label>
+                <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho internacional"><span>Derecho internacional</span></label>
+                <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho migratorio"><span>Derecho migratorio</span></label>
+              </div>
+            </div>
+
+            <div class="campo">
+              <label for="perfilPrecio" class="campo__etiqueta">Precio de consulta (USD, referencial)</label>
+              <input type="number" id="perfilPrecio" class="campo__input" min="0" step="0.01" placeholder="Ej: 25.00">
+              <p class="campo__ayuda">La tarifa real se pacta directamente con el cliente.</p>
+            </div>
+
+            <div class="campo">
+              <label for="perfilProvincia" class="campo__etiqueta">Provincia</label>
+              <select id="perfilProvincia" class="campo__input">
+                <option value="">Seleccione su provincia</option>
+                <option value="Azuay">Azuay</option>
+                <option value="Bolívar">Bolívar</option>
+                <option value="Cañar">Cañar</option>
+                <option value="Carchi">Carchi</option>
+                <option value="Chimborazo">Chimborazo</option>
+                <option value="Cotopaxi">Cotopaxi</option>
+                <option value="El Oro">El Oro</option>
+                <option value="Esmeraldas">Esmeraldas</option>
+                <option value="Galápagos">Galápagos</option>
+                <option value="Guayas">Guayas</option>
+                <option value="Imbabura">Imbabura</option>
+                <option value="Loja">Loja</option>
+                <option value="Los Ríos">Los Ríos</option>
+                <option value="Manabí">Manabí</option>
+                <option value="Morona Santiago">Morona Santiago</option>
+                <option value="Napo">Napo</option>
+                <option value="Orellana">Orellana</option>
+                <option value="Pastaza">Pastaza</option>
+                <option value="Pichincha">Pichincha</option>
+                <option value="Santa Elena">Santa Elena</option>
+                <option value="Santo Domingo de los Tsáchilas">Santo Domingo de los Tsáchilas</option>
+                <option value="Sucumbíos">Sucumbíos</option>
+                <option value="Tungurahua">Tungurahua</option>
+                <option value="Zamora Chinchipe">Zamora Chinchipe</option>
+              </select>
+            </div>
+
+            <p class="campo__error" id="errorPerfil" role="alert" aria-live="polite"></p>
+            <p class="mensaje-exito" id="exitoPerfil" role="status" aria-live="polite" hidden>
+              Perfil actualizado correctamente.
+            </p>
+
+            <button type="submit" class="btn btn--primario" id="btnGuardarPerfil">
+              Guardar cambios
+            </button>
+          </form>
+        </section>
+
+        <!-- ═══════════════ SECCIÓN: SOLICITUDES ═══════════════ -->
+        <section class="panel-seccion" id="seccionSolicitudes" role="tabpanel" aria-labelledby="tabSolicitudes" hidden>
+
+          <div class="filtro-tipo" role="group" aria-label="Filtrar solicitudes por estado">
+            <span class="filtro-tipo__label">Estado:</span>
+            <button class="filtro-tipo__btn filtro-tipo__btn--activo" data-estado="" type="button">Todas</button>
+            <button class="filtro-tipo__btn" data-estado="PENDIENTE" type="button">Pendientes</button>
+            <button class="filtro-tipo__btn" data-estado="ACEPTADA" type="button">Aceptadas</button>
+            <button class="filtro-tipo__btn" data-estado="COMPLETADA" type="button">Completadas</button>
+            <button class="filtro-tipo__btn" data-estado="RECHAZADA" type="button">Rechazadas</button>
+            <button class="filtro-tipo__btn" data-estado="EXPIRADA" type="button">Expiradas</button>
+          </div>
+
+          <p class="campo__error" id="errorSolicitudes" role="alert" aria-live="polite"></p>
+
+          <div class="solicitudes-lista" id="solicitudesLista"></div>
+
+          <div class="estado-vacio" id="estadoSinSolicitudes" hidden>
+            <p>No hay solicitudes en este estado.</p>
+          </div>
+        </section>
+
+        <!-- ═══════════════ SECCIÓN: RESEÑAS ═══════════════ -->
+        <section class="panel-seccion" id="seccionResenas" role="tabpanel" aria-labelledby="tabResenas" hidden>
+          <div class="resenas-lista" id="resenasLista"></div>
+
+          <div class="estado-vacio" id="estadoSinResenas" hidden>
+            <p>Aún no ha recibido reseñas.</p>
+          </div>
+        </section>
+
+        <!-- ═══════════════ SECCIÓN: MI SUSCRIPCIÓN ═══════════════ -->
+        <section class="panel-seccion" id="seccionSuscripcion" role="tabpanel" aria-labelledby="tabSuscripcion" hidden>
+          <div class="tarjeta-suscripcion" id="tarjetaSuscripcion"></div>
+        </section>
+
+      </div>
+
+    </div>
+  </main>
+
+  <script src="/js/vendors/supabase.min.js"></script>
+  <script type="module" src="/js/panel-abogado.js"></script>
+
+</body>
+</html>
