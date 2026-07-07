@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Panel de administración — verificaciones, suscripciones y métricas de LegalEC.">
+  <title>Panel de administración — LegalEC</title>
+  <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+
+  <header class="encabezado">
+    <div class="contenedor encabezado__contenedor">
+      <a href="/pages/panel-admin" class="logo" aria-label="LegalEC — Panel de administración">
+        <span class="logo__nombre">LegalEC</span>
+      </a>
+      <nav class="nav-usuario" aria-label="Menú de usuario">
+        <span class="nav-usuario__nombre" id="nombreUsuario" aria-live="polite"></span>
+        <button class="btn btn--secundario btn--sm" id="btnCerrarSesion" type="button"
+          style="border-color: rgba(255,255,255,0.4); color: rgba(255,255,255,0.85);">
+          Salir
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <div class="contenedor panel-abogado__contenido">
+
+      <!-- Estado: cargando -->
+      <div class="pantalla-carga" id="estadoCargando">
+        <div class="spinner" aria-hidden="true"></div>
+        <p class="pantalla-carga__texto">Cargando panel...</p>
+      </div>
+
+      <!-- Estado: error -->
+      <div class="estado-vacio" id="estadoError" hidden>
+        <p class="estado-vacio__titulo">No pudimos cargar el panel</p>
+        <p>Intente recargar la página. Si el problema continúa, contacte a soporte técnico.</p>
+      </div>
+
+      <!-- Contenido del panel -->
+      <div id="contenidoPanel" hidden>
+
+        <section class="panel-cabecera">
+          <div class="panel-cabecera__identidad">
+            <div>
+              <h1 class="panel-cabecera__nombre">Panel de administración</h1>
+            </div>
+          </div>
+        </section>
+
+        <!-- Navegación por secciones -->
+        <nav class="panel-tabs" role="tablist" aria-label="Secciones del panel">
+          <button class="panel-tab panel-tab--activo" id="tabVerificaciones" type="button"
+            role="tab" aria-selected="true" aria-controls="seccionVerificaciones">
+            Verificaciones pendientes
+          </button>
+          <button class="panel-tab" id="tabSuscripciones" type="button"
+            role="tab" aria-selected="false" aria-controls="seccionSuscripciones">
+            Suscripciones
+          </button>
+          <button class="panel-tab" id="tabMetricas" type="button"
+            role="tab" aria-selected="false" aria-controls="seccionMetricas">
+            Métricas
+          </button>
+        </nav>
+
+        <!-- ═══════════════ SECCIÓN: VERIFICACIONES PENDIENTES ═══════════════ -->
+        <section class="panel-seccion" id="seccionVerificaciones" role="tabpanel" aria-labelledby="tabVerificaciones">
+
+          <p class="campo__error" id="errorVerificaciones" role="alert" aria-live="polite"></p>
+
+          <div class="verificaciones-lista" id="verificacionesLista"></div>
+
+          <div class="estado-vacio" id="estadoSinVerificaciones" hidden>
+            <p class="estado-vacio__titulo">Sin verificaciones pendientes</p>
+            <p>No hay solicitudes de verificación esperando revisión.</p>
+          </div>
+        </section>
+
+        <!-- ═══════════════ SECCIÓN: SUSCRIPCIONES ═══════════════ -->
+        <section class="panel-seccion" id="seccionSuscripciones" role="tabpanel" aria-labelledby="tabSuscripciones" hidden>
+
+          <p class="campo__error" id="errorSuscripciones" role="alert" aria-live="polite"></p>
+
+          <div class="suscripciones-lista" id="suscripcionesLista"></div>
+
+          <div class="estado-vacio" id="estadoSinSuscripciones" hidden>
+            <p>No hay suscripciones registradas.</p>
+          </div>
+        </section>
+
+        <!-- ═══════════════ SECCIÓN: MÉTRICAS ═══════════════ -->
+        <section class="panel-seccion" id="seccionMetricas" role="tabpanel" aria-labelledby="tabMetricas" hidden>
+
+          <p class="campo__error" id="errorMetricas" role="alert" aria-live="polite"></p>
+
+          <div class="metricas-grid" id="metricasGrid"></div>
+        </section>
+
+      </div>
+
+    </div>
+  </main>
+
+  <script src="/js/vendors/supabase.min.js"></script>
+  <script type="module" src="/js/panel-admin.js"></script>
+
+</body>
+</html>

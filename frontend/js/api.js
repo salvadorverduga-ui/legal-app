@@ -878,6 +878,116 @@ export const resenas = {
 
 
 // ════════════════════════════════════════════════════════════
+// ADMIN
+// Verificaciones, suscripciones y métricas del panel de administración.
+// Toda función aquí depende de es_admin() en la vista/función de la BD;
+// un usuario sin rol='admin' recibe una lista vacía o un error de RPC.
+// ════════════════════════════════════════════════════════════
+export const admin = {
+
+  /**
+   * Retorna la cola de verificaciones pendientes desde la vista
+   * admin_verificaciones_pendientes, ordenadas por antigüedad (más antigua primero).
+   * Incluye tipo ('abogado' | 'estudio'), nombre_solicitante, nombre_estudio
+   * y los paths de los documentos subidos.
+   * Retorna array (puede estar vacío).
+   */
+  async getVerificacionesPendientes() {
+    const { data, error } = await _cliente
+      .from('admin_verificaciones_pendientes')
+      .select('*')
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.error('[api.admin.getVerificacionesPendientes]', error.message);
+      return [];
+    }
+    return data ?? [];
+  },
+
+  /**
+   * Aprueba una verificación en estado PENDIENTE.
+   * El trigger fn_propagar_estado_verificacion copia el nuevo estado
+   * a abogados.verificacion o estudios.verificacion.
+   * Retorna { data, error }.
+   */
+  async aprobarVerificacion(verificacionId) {
+    const { data, error } = await _cliente
+      .from('verificaciones')
+      .update({ estado: 'VERIFICADO' })
+      .eq('id', verificacionId)
+      .eq('estado', 'PENDIENTE')
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[api.admin.aprobarVerificacion]', error.message);
+      return { data: null, error };
+    }
+    return { data, error: null };
+  },
+
+  /**
+   * Rechaza una verificación en estado PENDIENTE con un motivo visible
+   * para el solicitante.
+   * Retorna { data, error }.
+   */
+  async rechazarVerificacion(verificacionId, motivo) {
+    const { data, error } = await _cliente
+      .from('verificaciones')
+      .update({ estado: 'RECHAZADO', motivo_rechazo: motivo.trim() || null })
+      .eq('id', verificacionId)
+      .eq('estado', 'PENDIENTE')
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[api.admin.rechazarVerificacion]', error.message);
+      return { data: null, error };
+    }
+    return { data, error: null };
+  },
+
+  /**
+   * Retorna todas las suscripciones desde la vista admin_suscripciones,
+   * con el nombre del abogado/estudio ya resuelto, ordenadas por
+   * fecha de vencimiento descendente (las más recientes primero).
+   * Retorna array (puede estar vacío).
+   */
+  async getSuscripciones() {
+    const { data, error } = await _cliente
+      .from('admin_suscripciones')
+      .select('*')
+      .order('fecha_vencimiento', { ascending: false });
+
+    if (error) {
+      console.error('[api.admin.getSuscripciones]', error.message);
+      return [];
+    }
+    return data ?? [];
+  },
+
+  /**
+   * Retorna las métricas agregadas del panel: total_abogados_verificados,
+   * total_clientes, total_solicitudes_mes y tasa_aceptacion.
+   * Llama a la función RPC admin_obtener_metricas(), que lanza un error
+   * si quien la ejecuta no tiene rol='admin'.
+   * Retorna null si falla la consulta.
+   */
+  async getMetricas() {
+    const { data, error } = await _cliente.rpc('admin_obtener_metricas');
+
+    if (error) {
+      console.error('[api.admin.getMetricas]', error.message);
+      return null;
+    }
+    return data?.[0] ?? null;
+  },
+
+};
+
+
+// ════════════════════════════════════════════════════════════
 // STORAGE
 // Utilidades para Supabase Storage (URLs públicas de archivos).
 // El bucket debe ser público (configurado en Supabase Dashboard → Storage).

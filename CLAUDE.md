@@ -59,6 +59,7 @@ legal-app/
 │   │   ├── perfil-abogado.js  ← lógica de perfil-abogado.html
 │   │   ├── panel-abogado.js   ← lógica de panel-abogado.html
 │   │   ├── panel-cliente.js   ← lógica de panel-cliente.html
+│   │   ├── panel-admin.js     ← lógica de panel-admin.html
 │   │   ├── registro.js        ← lógica de registro.html
 │   │   └── utils.js           ← helpers globales
 │   └── pages/

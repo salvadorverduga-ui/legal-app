@@ -2068,3 +2068,151 @@ p {
     right: var(--esp-8);
   }
 }
+
+
+/* ============================================================
+   PÁGINA: PANEL DE ADMINISTRACIÓN
+   Estilos específicos de panel-admin.html
+   ============================================================ */
+
+/* ── Verificaciones pendientes ────────────────────────────── */
+.verificaciones-lista {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-4);
+}
+
+.verificacion-item {
+  background-color: var(--color-fondo-card);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-lg);
+  padding: var(--esp-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-3);
+}
+
+.verificacion-item__nombre {
+  margin-top: var(--esp-2);
+  font-size: var(--texto-base);
+  font-weight: var(--peso-semibold);
+  color: var(--color-primario);
+}
+
+.verificacion-item__fecha {
+  font-size: var(--texto-xs);
+  color: var(--color-texto-suave);
+}
+
+.verificacion-item__detalle-etiqueta {
+  font-size: var(--texto-sm);
+  font-weight: var(--peso-medio);
+  color: var(--color-texto-suave);
+}
+
+.verificacion-item__documentos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--esp-3);
+}
+
+.enlace-documento {
+  font-size: var(--texto-sm);
+  font-weight: var(--peso-medio);
+  color: var(--color-info);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.enlace-documento:hover {
+  color: var(--color-primario);
+}
+
+.verificacion-item__acciones {
+  display: flex;
+  gap: var(--esp-3);
+  flex-wrap: wrap;
+}
+
+.verificacion-item__rechazo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-3);
+  padding-top: var(--esp-3);
+  border-top: 1px solid var(--color-borde-suave);
+}
+
+.verificacion-item__rechazo[hidden] {
+  display: none;
+}
+
+/* ── Suscripciones ─────────────────────────────────────────── */
+.suscripciones-lista {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-4);
+}
+
+.suscripcion-item {
+  background-color: var(--color-fondo-card);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-lg);
+  padding: var(--esp-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-1);
+}
+
+.suscripcion-item__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--esp-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--esp-2);
+}
+
+.suscripcion-item__nombre {
+  font-size: var(--texto-base);
+  font-weight: var(--peso-semibold);
+  color: var(--color-primario);
+}
+
+.suscripcion-item__detalle {
+  font-size: var(--texto-sm);
+  color: var(--color-texto-suave);
+}
+
+/* ── Métricas ──────────────────────────────────────────────── */
+.metricas-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--esp-4);
+}
+
+.metrica-tarjeta {
+  background-color: var(--color-fondo-card);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-lg);
+  padding: var(--esp-5);
+  box-shadow: var(--sombra-sm);
+  text-align: center;
+}
+
+.metrica-tarjeta__valor {
+  font-size: var(--texto-3xl);
+  font-weight: var(--peso-semibold);
+  color: var(--color-primario);
+}
+
+.metrica-tarjeta__etiqueta {
+  margin-top: var(--esp-2);
+  font-size: var(--texto-sm);
+  color: var(--color-texto-suave);
+}
+
+@media (min-width: 640px) {
+  .metricas-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
