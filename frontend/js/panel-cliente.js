@@ -168,8 +168,17 @@ function generarSolicitudCard(s) {
     ? `<p class="solicitud-item__detalle"><span class="solicitud-item__detalle-etiqueta">Motivo:</span> ${escaparHtml(s.motivo_rechazo)}</p>`
     : '';
 
+  const puedeCompletar = s.estado === 'ACEPTADA';
   const puedeReseñar = s.estado === 'COMPLETADA' && !s.tiene_resena;
   const formularioAbierto = solicitudConFormularioAbierto === s.id;
+
+  const completarHtml = puedeCompletar ? `
+    <div class="solicitud-item__acciones">
+      <button class="btn btn--primario btn--sm" type="button" data-accion="marcar-completada" data-id="${idSeguro}">
+        Marcar consulta como completada
+      </button>
+    </div>
+  ` : '';
 
   const accionesHtml = puedeReseñar ? `
     <div class="solicitud-item__acciones">
@@ -213,6 +222,7 @@ function generarSolicitudCard(s) {
       </div>
       ${detalleHtml}
       ${motivoRechazoHtml}
+      ${completarHtml}
       ${accionesHtml}
     </article>
   `;
@@ -242,6 +252,7 @@ function manejarClickSolicitudes(e) {
 
   const { accion, id } = btn.dataset;
 
+  if (accion === 'marcar-completada') manejarMarcarCompletada(id);
   if (accion === 'mostrar-resena') {
     solicitudConFormularioAbierto = id;
     renderizarSolicitudes();
@@ -250,6 +261,21 @@ function manejarClickSolicitudes(e) {
     solicitudConFormularioAbierto = null;
     renderizarSolicitudes();
   }
+}
+
+async function manejarMarcarCompletada(id) {
+  const errorEl = document.getElementById('errorSolicitudes');
+  errorEl.textContent = '';
+
+  const { data, error } = await api.solicitudes.completarSolicitud(id);
+  if (error) {
+    errorEl.textContent = error.message ?? 'No se pudo marcar la consulta como completada. Intente de nuevo.';
+    return;
+  }
+
+  const entrada = solicitudesActuales.find(s => s.id === id);
+  if (entrada) Object.assign(entrada, data);
+  renderizarSolicitudes();
 }
 
 async function manejarSubmitResena(e) {

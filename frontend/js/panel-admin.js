@@ -149,10 +149,10 @@ function cambiarTab(seccion) {
 // ─── Verificaciones pendientes ──────────────────────────────────────────────
 async function cargarVerificaciones() {
   verificacionesActuales = await api.admin.getVerificacionesPendientes();
-  renderizarVerificaciones();
+  await renderizarVerificaciones();
 }
 
-function renderizarVerificaciones() {
+async function renderizarVerificaciones() {
   const contenedor = document.getElementById('verificacionesLista');
   const vacio = document.getElementById('estadoSinVerificaciones');
 
@@ -163,10 +163,11 @@ function renderizarVerificaciones() {
   }
 
   vacio.hidden = true;
-  contenedor.innerHTML = verificacionesActuales.map(generarVerificacionCard).join('');
+  const tarjetas = await Promise.all(verificacionesActuales.map(generarVerificacionCard));
+  contenedor.innerHTML = tarjetas.join('');
 }
 
-function generarVerificacionCard(v) {
+async function generarVerificacionCard(v) {
   const idSeguro = escaparAtrib(v.id);
   const etiquetaTipo = ETIQUETAS_TIPO_SOLICITANTE[v.tipo] ?? v.tipo;
 
@@ -174,7 +175,7 @@ function generarVerificacionCard(v) {
     ? `${escaparHtml(v.nombre_estudio)} <span class="verificacion-item__detalle-etiqueta">(representante: ${escaparHtml(v.nombre_solicitante)})</span>`
     : escaparHtml(v.nombre_solicitante);
 
-  const documentosHtml = generarEnlacesDocumentos(v);
+  const documentosHtml = await generarEnlacesDocumentos(v);
   const rechazoAbierto = verificacionConRechazoAbierto === v.id;
 
   return `
@@ -214,7 +215,7 @@ function generarVerificacionCard(v) {
   `;
 }
 
-function generarEnlacesDocumentos(v) {
+async function generarEnlacesDocumentos(v) {
   const DOCUMENTOS = [
     { path: v.doc_carnet_url,       etiqueta: 'Carné de abogado' },
     { path: v.doc_cedula_url,       etiqueta: 'Cédula de identidad' },
@@ -224,13 +225,15 @@ function generarEnlacesDocumentos(v) {
 
   if (DOCUMENTOS.length === 0) return '';
 
-  const enlaces = DOCUMENTOS.map(doc => {
-    const url = api.storage.getPublicUrl('verificacion-docs', doc.path);
+  // verificacion-docs es un bucket privado (documentos de identidad) — se accede
+  // con URLs firmadas de corta duración, no con getPublicUrl (ver frontend/js/api.js).
+  const enlacesHtml = await Promise.all(DOCUMENTOS.map(async doc => {
+    const url = await api.storage.getUrlFirmada('verificacion-docs', doc.path);
     if (!url) return '';
     return `<a class="enlace-documento" href="${escaparAtrib(url)}" target="_blank" rel="noopener noreferrer">${escaparHtml(doc.etiqueta)}</a>`;
-  }).join('');
+  }));
 
-  return `<div class="verificacion-item__documentos">${enlaces}</div>`;
+  return `<div class="verificacion-item__documentos">${enlacesHtml.join('')}</div>`;
 }
 
 function manejarClickVerificaciones(e) {
@@ -264,7 +267,7 @@ async function manejarAprobarVerificacion(id) {
     return;
   }
 
-  eliminarVerificacionLocal(id);
+  await eliminarVerificacionLocal(id);
 }
 
 async function manejarRechazarVerificacion(id, motivo) {
@@ -284,12 +287,12 @@ async function manejarRechazarVerificacion(id, motivo) {
   }
 
   verificacionConRechazoAbierto = null;
-  eliminarVerificacionLocal(id);
+  await eliminarVerificacionLocal(id);
 }
 
-function eliminarVerificacionLocal(id) {
+async function eliminarVerificacionLocal(id) {
   verificacionesActuales = verificacionesActuales.filter(v => v.id !== id);
-  renderizarVerificaciones();
+  await renderizarVerificaciones();
 }
 
 // ─── Suscripciones ──────────────────────────────────────────────────────────

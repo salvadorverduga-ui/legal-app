@@ -712,7 +712,21 @@ export const solicitudes = {
    * Solo es posible si el estado actual es ACEPTADA (validar antes de llamar).
    * Retorna { data, error }.
    */
-  async completarSolicitud(solicitudId) {},
+  async completarSolicitud(solicitudId) {
+    const { data, error } = await _cliente
+      .from('solicitudes')
+      .update({ estado: 'COMPLETADA' })
+      .eq('id', solicitudId)
+      .eq('estado', 'ACEPTADA')
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[api.solicitudes.completarSolicitud]', error.message);
+      return { data: null, error };
+    }
+    return { data, error: null };
+  },
 
 };
 
@@ -996,14 +1010,34 @@ export const storage = {
 
   /**
    * Genera la URL pública de un archivo almacenado en Supabase Storage.
-   * path: valor de foto_url / logo_url / doc_*_url tal como está en la BD (path relativo).
-   * bucket: nombre del bucket ('avatares', 'logos', 'verificacion-docs').
+   * path: valor de foto_url / logo_url tal como está en la BD (path relativo).
+   * bucket: nombre de un bucket público ('avatares', 'logos').
+   * NO usar con 'verificacion-docs' — ese bucket es privado (ver getUrlFirmada).
    * Retorna string con la URL completa o null si path es falsy.
    */
   getPublicUrl(bucket, path) {
     if (!_cliente || !path) return null;
     const { data } = _cliente.storage.from(bucket).getPublicUrl(path);
     return data?.publicUrl ?? null;
+  },
+
+  /**
+   * Genera una URL firmada de corta duración para un archivo en un bucket
+   * privado ('verificacion-docs'). Solo funciona si la política RLS de
+   * Storage autoriza al usuario autenticado a leer ese path (el propio
+   * abogado/estudio dueño del documento, o el admin).
+   * expiraEnSegundos: vigencia del link (default 5 minutos).
+   * Retorna string con la URL firmada o null si falla o path es falsy.
+   */
+  async getUrlFirmada(bucket, path, expiraEnSegundos = 300) {
+    if (!_cliente || !path) return null;
+    const { data, error } = await _cliente.storage.from(bucket).createSignedUrl(path, expiraEnSegundos);
+
+    if (error) {
+      console.error('[api.storage.getUrlFirmada]', error.message);
+      return null;
+    }
+    return data?.signedUrl ?? null;
   },
 
 };

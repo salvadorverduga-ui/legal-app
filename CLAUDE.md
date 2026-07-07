@@ -25,7 +25,7 @@ Una sola app, un solo repositorio, roles diferenciados por tipo de usuario (clie
 | Config runtime | Vercel Serverless Function (`api/config.js`) — expone `SUPABASE_URL`/`SUPABASE_ANON_KEY` al frontend estático sin commitear credenciales (ver §10) |
 | Hosting | Vercel — auto-deploy en push a `main` |
 | Almacenamiento | Supabase Storage (carnets, logos, fotos) |
-| Email | Resend o SendGrid (a definir) |
+| Email | Resend — vía Supabase Edge Function `notificar-solicitud` (ver §13) |
 | Notificaciones push | Web Push API / OneSignal (a definir) |
 | Pagos MVP | PayPhone o transferencia manual |
 | Mobile V2 | Capacitor |
@@ -60,19 +60,20 @@ legal-app/
 │   │   ├── panel-abogado.js   ← lógica de panel-abogado.html
 │   │   ├── panel-cliente.js   ← lógica de panel-cliente.html
 │   │   ├── panel-admin.js     ← lógica de panel-admin.html
-│   │   ├── registro.js        ← lógica de registro.html
-│   │   └── utils.js           ← helpers globales
+│   │   └── registro.js        ← lógica de registro.html
 │   └── pages/
 │       ├── busqueda.html
 │       ├── perfil-abogado.html
-│       ├── solicitud.html
 │       ├── panel-cliente.html
 │       ├── panel-abogado.html
-│       ├── panel-estudio.html
 │       ├── panel-admin.html
 │       └── registro.html
 ├── supabase/
-│   └── migrations/            ← archivos SQL en orden cronológico
+│   ├── config.toml            ← project_id para el Supabase CLI (link/deploy)
+│   ├── migrations/            ← archivos SQL en orden cronológico
+│   └── functions/
+│       └── notificar-solicitud/
+│           └── index.ts       ← Edge Function: emails de solicitud vía Resend (ver §13)
 ├── vercel.json                ← security headers + routing
 ├── .env.example                ← lista de variables de entorno; copiar como .env local
 └── .gitignore
@@ -228,7 +229,7 @@ Un perfil de abogado aparece en búsquedas SOLO si:
 SUPABASE_URL=
 SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=     # solo en Edge Functions, nunca en frontend
-RESEND_API_KEY=                # o SendGrid
+RESEND_API_KEY=                # solo en la Edge Function notificar-solicitud (ver §13), no en Vercel
 PAYPHONE_API_KEY=
 ```
 
@@ -238,9 +239,8 @@ Nunca commitear `.env` — está en `.gitignore`.
 
 ## 11. Pendientes técnicos por definir
 
-- [ ] Nombre del proyecto y dominio definitivo
+- [ ] Nombre del proyecto y dominio definitivo — mientras tanto, `EMAIL_FROM` de la Edge Function de notificaciones usa `onboarding@resend.dev` (ver §13)
 - [ ] Proveedor de notificaciones push (Web Push API nativo vs OneSignal)
-- [ ] Proveedor de email transaccional (Resend vs SendGrid)
 - [ ] Estrategia de cron para expiración de solicitudes (Supabase cron vs cron-job.org)
 - [ ] Flujo de pago PayPhone — integración específica
 - [ ] Estructura definitiva de tablas (diseñar antes de primera migración)
@@ -304,6 +304,76 @@ GRANT EXECUTE ON FUNCTION nombre_funcion(tipos) TO authenticated;
 - No otorgar `DELETE` a `authenticated` salvo casos de uso explícitos confirmados en PRD.
 - No otorgar `INSERT` en tablas donde el dato lo crea un trigger (ej: `perfiles`, `abogados`).
 - El historial de pagos (`suscripciones`) no recibe INSERT/UPDATE desde el cliente; lo hace el admin con `service_role`.
+
+---
+
+## 13. Notificaciones por email (Resend)
+
+### Arquitectura
+Una sola Edge Function, `supabase/functions/notificar-solicitud/index.ts`, maneja los dos correos del flujo de solicitud:
+
+| Evento en `solicitudes` | Destinatario | Email |
+|---|---|---|
+| `INSERT` (estado `PENDIENTE`) | Abogado | "Nueva solicitud de consulta" |
+| `UPDATE`: `PENDIENTE → ACEPTADA` | Cliente | "Su solicitud fue aceptada" |
+
+El resto de transiciones (`RECHAZADA`, `COMPLETADA`, `RESEÑADA`, `EXPIRADA`) no generan email por ahora — no está en el alcance actual.
+
+La función se invoca desde un **Database Webhook** de Supabase (Dashboard → Database → Webhooks) configurado sobre la tabla `solicitudes` para los eventos `INSERT` y `UPDATE`. El webhook envía el header `Authorization: Bearer <SUPABASE_SERVICE_ROLE_KEY>`; Supabase valida ese JWT automáticamente antes de invocar la función (verificación por defecto), así que la función no necesita lógica de autenticación propia.
+
+Por qué Database Webhook y no un trigger SQL con `pg_net` directo: evita commitear o siquiera pegar el `service_role_key` en un archivo de migración versionado. El Dashboard almacena el header de forma segura de su lado.
+
+Por qué una Edge Function y no lógica en `api/` (Vercel): el envío de email depende de datos que requieren `service_role` (email del abogado en `auth.users`, revelado solo tras el match) — nunca debe ejecutarse con las credenciales del frontend. Las Edge Functions son el único lugar con acceso a `service_role` (§4.4).
+
+### Variables de entorno de la Edge Function
+Se configuran con `supabase secrets set`, **no** en Vercel:
+
+```
+RESEND_API_KEY   # obligatoria — sin ella no se envía ningún correo (falla en silencio, solo log)
+EMAIL_FROM       # remitente; debe ser de un dominio verificado en Resend.
+                 # Sin dominio verificado, Resend solo permite enviar desde
+                 # onboarding@resend.dev y únicamente al email dueño de la cuenta Resend.
+                 # Default en el código: "LegalEC <onboarding@resend.dev>"
+APP_URL          # URL pública de la app para armar los links del email.
+                 # Default en el código: "https://legal-app-two.vercel.app"
+```
+
+`SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY` los inyecta Supabase automáticamente en toda Edge Function — no hace falta configurarlos.
+
+### Pasos de despliegue (manual, una sola vez)
+1. `supabase login`
+2. Desde la raíz del repo: `supabase link --project-ref gxhildriufvesohyfwcb`
+3. `supabase secrets set RESEND_API_KEY=<tu_api_key_de_resend>`
+4. (Opcional hasta tener dominio verificado) `supabase secrets set EMAIL_FROM="LegalEC <onboarding@resend.dev>"`
+5. `supabase functions deploy notificar-solicitud`
+6. En el Dashboard de Supabase → Database → Webhooks → Create a new hook:
+   - Table: `solicitudes`
+   - Events: `INSERT`, `UPDATE`
+   - Type: HTTP Request → `POST` a `https://gxhildriufvesohyfwcb.supabase.co/functions/v1/notificar-solicitud`
+   - HTTP Headers: `Authorization: Bearer <SUPABASE_SERVICE_ROLE_KEY>` (el mismo valor que está en `.env`, nunca commitear)
+
+### Verificación
+Después de desplegar: crear una solicitud de prueba desde `perfil-abogado.html` y revisar `supabase functions logs notificar-solicitud` para confirmar que se ejecutó y qué devolvió Resend.
+
+---
+
+## 14. Storage: bucket `verificacion-docs`
+
+Contiene carnets de abogado, cédulas, RUC y nombramientos — documentos de identidad (PRD §11: "datos de verificación profesional bajo resguardo especial"). A diferencia de `avatares`/`logos` (públicos), **este bucket es privado**: la migración `20260707_021_storage_verificacion_docs.sql` lo crea con `public = false` y agrega las políticas RLS de `storage.objects`.
+
+### Quién puede ver qué
+| Rol | Acceso |
+|---|---|
+| Abogado individual | Solo sus propios documentos (carpeta = su `auth.uid()`) |
+| Representante de estudio | Solo los documentos de su propio estudio (carpeta = `estudios.id`, resuelto vía `representante_legal_id = auth.uid()`) |
+| Admin | Todos los documentos (`es_admin()`) |
+| Cualquier otro | Ninguno |
+
+### Por qué URLs firmadas y no `getPublicUrl`
+Un bucket privado no sirve archivos por URL pública aunque se conozca el path — Supabase devuelve 400/403. El panel de administración (`panel-admin.js`) genera enlaces a los documentos con `api.storage.getUrlFirmada(bucket, path)` (`frontend/js/api.js`), que llama a `createSignedUrl` y produce un link que expira a los 5 minutos. Nunca usar `getPublicUrl` con `verificacion-docs`.
+
+### Aplicar la migración
+La migración crea el bucket si no existe y fuerza `public = false` aunque ya existiera (por si se había creado como público desde el Dashboard). No requiere pasos manuales adicionales — a diferencia de §13, esto es 100% SQL.
 
 ---
 
