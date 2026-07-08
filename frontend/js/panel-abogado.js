@@ -14,6 +14,7 @@ const ETIQUETAS_ESTADO_SOLICITUD = {
   'RESEÑADA': 'Reseñada',
   RECHAZADA:  'Rechazada',
   EXPIRADA:   'Expirada',
+  CANCELADA:  'Cancelada por el cliente',
 };
 
 const CLASE_ESTADO_SOLICITUD = {
@@ -23,6 +24,7 @@ const CLASE_ESTADO_SOLICITUD = {
   'RESEÑADA': 'badge--estado-resenada',
   RECHAZADA:  'badge--estado-rechazada',
   EXPIRADA:   'badge--estado-expirada',
+  CANCELADA:  'badge--estado-cancelada',
 };
 
 const ETIQUETAS_VERIFICACION = {
@@ -85,6 +87,7 @@ async function inicializar() {
 
   renderizarCabecera();
   rellenarFormularioPerfil();
+  actualizarBanners();
 
   const [resenas] = await Promise.all([
     api.resenas.getResenasAbogado(abogadoActual.id),
@@ -120,6 +123,11 @@ function configurarEventos() {
   });
 
   document.getElementById('toggleDisponible').addEventListener('change', manejarToggleDisponible);
+
+  document.getElementById('btnCompletarPerfil').addEventListener('click', () => {
+    cambiarTab('Perfil');
+    document.getElementById('formPerfil').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
 
   document.getElementById('btnCambiarFoto').addEventListener('click', () => {
     document.getElementById('inputFoto').click();
@@ -163,10 +171,51 @@ function renderizarCabecera() {
 
   document.getElementById('toggleDisponible').checked = abogadoActual.toggle_disponible;
   actualizarEtiquetaDisponible(abogadoActual.toggle_disponible);
+
+  const btnVerPerfilPublico = document.getElementById('btnVerPerfilPublico');
+  btnVerPerfilPublico.href = `/pages/perfil-abogado?id=${abogadoActual.id}`;
+  btnVerPerfilPublico.hidden = false;
 }
 
 function actualizarEtiquetaDisponible(disponible) {
   document.getElementById('toggleDisponibleEtiqueta').textContent = disponible ? 'Disponible' : 'No disponible';
+}
+
+// ─── Banners: vencimiento de suscripción y onboarding ────────────────────────
+function actualizarBanners() {
+  actualizarBannerSuscripcion();
+  actualizarBannerOnboarding();
+}
+
+function actualizarBannerSuscripcion() {
+  const banner = document.getElementById('bannerSuscripcion');
+  const vigenteHasta = abogadoActual.suscripcion_vigente_hasta;
+
+  if (!vigenteHasta) {
+    banner.hidden = true;
+    return;
+  }
+
+  const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
+  const fechaVencimiento = new Date(`${vigenteHasta}T00:00:00`);
+  const diasRestantes = Math.round((fechaVencimiento - hoy) / (1000 * 60 * 60 * 24));
+
+  if (diasRestantes < 0 || diasRestantes > 7) {
+    banner.hidden = true;
+    return;
+  }
+
+  document.getElementById('bannerSuscripcionTexto').textContent =
+    `Su suscripción vence el ${formatearFecha(vigenteHasta)}. Renueve para mantener su perfil visible.`;
+  banner.hidden = false;
+}
+
+function actualizarBannerOnboarding() {
+  const banner = document.getElementById('bannerOnboarding');
+  const perfilIncompleto = !abogadoActual.descripcion?.trim()
+    && (abogadoActual.especialidades ?? []).length === 0;
+  banner.hidden = !perfilIncompleto;
 }
 
 async function manejarToggleDisponible() {
@@ -213,6 +262,7 @@ async function manejarCambioFoto(e) {
 
   perfilActual.foto_url = url;
   renderizarCabecera();
+  actualizarProgresoPerfil();
   estadoEl.textContent = 'Foto actualizada.';
   toast.exito('Foto actualizada.');
   e.target.value = '';
@@ -229,6 +279,23 @@ function rellenarFormularioPerfil() {
 
   document.getElementById('perfilPrecio').value = abogadoActual.precio_consulta ?? '';
   document.getElementById('perfilProvincia').value = perfilActual.provincia ?? '';
+
+  actualizarProgresoPerfil();
+}
+
+// 5 campos = 20% cada uno: foto, descripción, especialidades, precio, provincia
+function actualizarProgresoPerfil() {
+  const campos = [
+    Boolean(perfilActual.foto_url),
+    Boolean(abogadoActual.descripcion?.trim()),
+    (abogadoActual.especialidades ?? []).length > 0,
+    abogadoActual.precio_consulta != null,
+    Boolean(perfilActual.provincia),
+  ];
+  const porcentaje = campos.filter(Boolean).length * 20;
+
+  document.getElementById('progresoPerfilPorcentaje').textContent = `${porcentaje}%`;
+  document.getElementById('progresoPerfilRelleno').style.width = `${porcentaje}%`;
 }
 
 function actualizarContadorDescripcion() {
@@ -270,6 +337,8 @@ async function manejarGuardarPerfil() {
     abogadoActual = resultadoAbogado.data;
     perfilActual.provincia = resultadoPerfil.data.provincia;
     exitoEl.hidden = false;
+    actualizarBannerOnboarding();
+    actualizarProgresoPerfil();
     toast.exito('Perfil guardado.');
 
   } catch (err) {

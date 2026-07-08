@@ -1660,6 +1660,31 @@ p {
   gap: var(--esp-6);
 }
 
+/* ── Banners de alerta / onboarding ────────────────────────── */
+.panel-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--esp-3);
+  padding: var(--esp-4) var(--esp-5);
+  border-radius: var(--radio-lg);
+  font-size: var(--texto-sm);
+  margin-bottom: var(--esp-2);
+}
+
+.panel-banner--alerta {
+  background-color: var(--badge-pendiente-bg);
+  color: var(--badge-pendiente-color);
+  border: 1px solid var(--badge-pendiente-borde);
+}
+
+.panel-banner--info {
+  background-color: var(--color-primario-suave);
+  color: var(--color-primario);
+  border: 1px solid var(--color-borde);
+}
+
 /* ── Cabecera: identidad + disponibilidad ─────────────────── */
 .panel-cabecera {
   background-color: var(--color-fondo-card);
@@ -1817,6 +1842,39 @@ p {
   display: flex;
   flex-direction: column;
   gap: var(--esp-5);
+}
+
+/* ── Barra de completitud del perfil ──────────────────────── */
+.progreso-perfil {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-2);
+}
+
+.progreso-perfil__header {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--texto-sm);
+  color: var(--color-texto-suave);
+}
+
+.progreso-perfil__porcentaje {
+  font-weight: var(--peso-semibold);
+  color: var(--color-primario);
+}
+
+.progreso-perfil__pista {
+  height: 8px;
+  background-color: var(--color-borde-suave);
+  border-radius: var(--radio-completo);
+  overflow: hidden;
+}
+
+.progreso-perfil__relleno {
+  height: 100%;
+  background-color: var(--color-acento);
+  border-radius: var(--radio-completo);
+  transition: width var(--transicion);
 }
 
 .panel-seccion[hidden] {

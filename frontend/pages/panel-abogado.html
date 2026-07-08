@@ -17,6 +17,10 @@
       </a>
       <nav class="nav-usuario" aria-label="Menú de usuario">
         <span class="nav-usuario__nombre" id="nombreUsuario" aria-live="polite"></span>
+        <a class="btn btn--secundario btn--sm" id="btnVerPerfilPublico" href="#" target="_blank" rel="noopener"
+          style="border-color: rgba(255,255,255,0.4); color: rgba(255,255,255,0.85);" hidden>
+          Ver mi perfil público
+        </a>
         <button class="btn btn--secundario btn--sm" id="btnCerrarSesion" type="button"
           style="border-color: rgba(255,255,255,0.4); color: rgba(255,255,255,0.85);">
           Salir
@@ -42,6 +46,19 @@
 
       <!-- Contenido del panel -->
       <div id="contenidoPanel" hidden>
+
+        <!-- Alerta: suscripción próxima a vencer -->
+        <div class="panel-banner panel-banner--alerta" id="bannerSuscripcion" hidden>
+          <p id="bannerSuscripcionTexto"></p>
+        </div>
+
+        <!-- Onboarding: perfil incompleto -->
+        <div class="panel-banner panel-banner--info" id="bannerOnboarding" hidden>
+          <p>Complete su perfil para ser visible en las búsquedas.</p>
+          <button class="btn btn--primario btn--sm" id="btnCompletarPerfil" type="button">
+            Completar perfil
+          </button>
+        </div>
 
         <!-- Cabecera: identidad, verificación y disponibilidad -->
         <section class="panel-cabecera">
@@ -85,6 +102,16 @@
 
         <!-- ═══════════════ SECCIÓN: MI PERFIL ═══════════════ -->
         <section class="panel-seccion" id="seccionPerfil" role="tabpanel" aria-labelledby="tabPerfil">
+
+          <div class="progreso-perfil">
+            <div class="progreso-perfil__header">
+              <span>Perfil completo</span>
+              <span class="progreso-perfil__porcentaje" id="progresoPerfilPorcentaje">0%</span>
+            </div>
+            <div class="progreso-perfil__pista">
+              <div class="progreso-perfil__relleno" id="progresoPerfilRelleno" style="width: 0%"></div>
+            </div>
+          </div>
 
           <div class="panel-perfil-foto">
             <div class="panel-perfil-foto__avatar" id="perfilFotoAvatar"></div>
@@ -189,6 +216,7 @@
             <button class="filtro-tipo__btn" data-estado="COMPLETADA" type="button">Completadas</button>
             <button class="filtro-tipo__btn" data-estado="RECHAZADA" type="button">Rechazadas</button>
             <button class="filtro-tipo__btn" data-estado="EXPIRADA" type="button">Expiradas</button>
+            <button class="filtro-tipo__btn" data-estado="CANCELADA" type="button">Canceladas</button>
           </div>
 
           <p class="campo__error" id="errorSolicitudes" role="alert" aria-live="polite"></p>
