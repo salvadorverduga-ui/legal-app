@@ -62,7 +62,7 @@ export const toast = {
 // defecto que indique cada pantalla.
 const MENSAJES_ERROR_CONOCIDOS = new Set([
   'El archivo debe ser JPG, PNG o WEBP.',
-  'El archivo no debe superar los 2MB.',
+  'El archivo no debe superar los 10MB.',
   'No hay sesión activa.',
   'Ya dejó una reseña para esta solicitud.',
   'No se encontró la solicitud.',

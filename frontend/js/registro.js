@@ -163,7 +163,8 @@ async function manejarRegistroAbogado(evento) {
   const provincia = document.getElementById('abogadoProvincia').value;
   const especialidades = obtenerEspecialidadesSeleccionadas('especialidadesAbogado');
   const docCarnet = document.getElementById('abogadoDocCarnet').files[0];
-  const docCedula = document.getElementById('abogadoDocCedula').files[0];
+  const docCedulaAnverso = document.getElementById('abogadoDocCedulaAnverso').files[0];
+  const docCedulaReverso = document.getElementById('abogadoDocCedulaReverso').files[0];
   const errorEl = document.getElementById('errorAbogado');
   const btnEl = document.getElementById('btnRegistrarAbogado');
 
@@ -188,9 +189,14 @@ async function manejarRegistroAbogado(evento) {
     errorEl.textContent = `Carné de abogado: ${errorCarnet}`;
     return;
   }
-  const errorCedula = validarArchivo(docCedula);
-  if (errorCedula) {
-    errorEl.textContent = `Cédula de identidad: ${errorCedula}`;
+  const errorCedulaAnverso = validarArchivo(docCedulaAnverso);
+  if (errorCedulaAnverso) {
+    errorEl.textContent = `Cédula — parte frontal: ${errorCedulaAnverso}`;
+    return;
+  }
+  const errorCedulaReverso = validarArchivo(docCedulaReverso);
+  if (errorCedulaReverso) {
+    errorEl.textContent = `Cédula — parte posterior: ${errorCedulaReverso}`;
     return;
   }
 
@@ -212,7 +218,11 @@ async function manejarRegistroAbogado(evento) {
 
     let notaDocumentos = 'Podrá subir sus documentos de verificación al confirmar su correo e ingresar por primera vez.';
     if (data?.session) {
-      const { error: errorDocs } = await api.abogados.enviarDocumentosVerificacion({ carnet: docCarnet, cedula: docCedula });
+      const { error: errorDocs } = await api.abogados.enviarDocumentosVerificacion({
+        carnet: docCarnet,
+        cedulaAnverso: docCedulaAnverso,
+        cedulaReverso: docCedulaReverso,
+      });
       if (!errorDocs) notaDocumentos = 'Sus documentos de verificación fueron enviados.';
     }
 

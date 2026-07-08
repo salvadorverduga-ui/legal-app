@@ -256,10 +256,11 @@ async function generarVerificacionCard(v) {
 
 async function generarEnlacesDocumentos(v) {
   const DOCUMENTOS = [
-    { path: v.doc_carnet_url,       etiqueta: 'Carné de abogado' },
-    { path: v.doc_cedula_url,       etiqueta: 'Cédula de identidad' },
-    { path: v.doc_ruc_url,          etiqueta: 'RUC' },
-    { path: v.doc_nombramiento_url, etiqueta: 'Nombramiento del representante legal' },
+    { path: v.doc_carnet_url,         etiqueta: 'Carné de abogado' },
+    { path: v.doc_cedula_url,         etiqueta: 'Cédula — anverso' },
+    { path: v.doc_cedula_reverso_url, etiqueta: 'Cédula — reverso' },
+    { path: v.doc_ruc_url,            etiqueta: 'RUC' },
+    { path: v.doc_nombramiento_url,   etiqueta: 'Nombramiento del representante legal' },
   ].filter(doc => doc.path);
 
   if (DOCUMENTOS.length === 0) return '';

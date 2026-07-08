@@ -240,18 +240,18 @@ export const perfiles = {
   /**
    * Sube una foto de perfil a Supabase Storage (bucket: avatares)
    * y actualiza perfiles.foto_url con el path resultante.
-   * El archivo debe ser image/jpeg, image/png o image/webp. Tamaño máximo: 2MB.
+   * El archivo debe ser image/jpeg, image/png o image/webp. Tamaño máximo: 10MB.
    * Retorna { url, error } donde url es el path en Storage.
    */
   async subirFotoPerfil(archivo) {
     const TIPOS_PERMITIDOS = ['image/jpeg', 'image/png', 'image/webp'];
-    const TAMANO_MAXIMO_BYTES = 2 * 1024 * 1024;
+    const TAMANO_MAXIMO_BYTES = 10 * 1024 * 1024;
 
     if (!TIPOS_PERMITIDOS.includes(archivo.type)) {
       return { url: null, error: { message: 'El archivo debe ser JPG, PNG o WEBP.' } };
     }
     if (archivo.size > TAMANO_MAXIMO_BYTES) {
-      return { url: null, error: { message: 'El archivo no debe superar los 2MB.' } };
+      return { url: null, error: { message: 'El archivo no debe superar los 10MB.' } };
     }
 
     const { data: { user }, error: errUser } = await _cliente.auth.getUser();
@@ -462,7 +462,9 @@ export const abogados = {
   /**
    * Sube los documentos de verificación a Supabase Storage (bucket: verificacion-docs)
    * e inserta una fila en la tabla verificaciones con estado='PENDIENTE'.
-   * archivos: { carnet: File, cedula: File }
+   * La cédula se sube en dos archivos separados (anverso y reverso), cada
+   * uno con su propio prefijo en el path de Storage.
+   * archivos: { carnet: File, cedulaAnverso: File, cedulaReverso: File }
    * El admin revisa manualmente desde el panel y aprueba o rechaza.
    * Retorna { data, error }.
    */
@@ -474,11 +476,12 @@ export const abogados = {
 
     try {
       const doc_carnet_url = await _subirDocumento(user.id, archivos.carnet, 'carnet');
-      const doc_cedula_url = await _subirDocumento(user.id, archivos.cedula, 'cedula');
+      const doc_cedula_url = await _subirDocumento(user.id, archivos.cedulaAnverso, 'cedula-anverso');
+      const doc_cedula_reverso_url = await _subirDocumento(user.id, archivos.cedulaReverso, 'cedula-reverso');
 
       const { data, error } = await _cliente
         .from('verificaciones')
-        .insert({ abogado_id: user.id, doc_carnet_url, doc_cedula_url })
+        .insert({ abogado_id: user.id, doc_carnet_url, doc_cedula_url, doc_cedula_reverso_url })
         .select()
         .single();
 
