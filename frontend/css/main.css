@@ -698,6 +698,7 @@ p {
 .badge--estado-rechazada    { background-color: var(--color-error-bg); color: var(--color-error); border-color: #FECACA; }
 .badge--estado-expirada     { background-color: #F8FAFC; color: var(--color-texto-suave); border-color: var(--color-borde); }
 .badge--estado-resenada     { background-color: var(--badge-individual-bg); color: var(--badge-individual-color); border-color: var(--badge-individual-borde); }
+.badge--estado-cancelada    { background-color: #F8FAFC; color: var(--color-texto-suave); border-color: var(--color-borde); }
 
 
 /* ────────────────────────────────────────────────────────────
@@ -829,6 +830,11 @@ p {
   font-weight: var(--peso-semibold);
   color: var(--color-texto);
   margin-bottom: var(--esp-2);
+}
+
+.estado-vacio__cta {
+  display: inline-block;
+  margin-top: var(--esp-4);
 }
 
 

@@ -78,6 +78,7 @@
             <button class="filtro-tipo__btn" data-estado="RESEÑADA" type="button">Reseñadas</button>
             <button class="filtro-tipo__btn" data-estado="RECHAZADA" type="button">Rechazadas</button>
             <button class="filtro-tipo__btn" data-estado="EXPIRADA" type="button">Expiradas</button>
+            <button class="filtro-tipo__btn" data-estado="CANCELADA" type="button">Canceladas</button>
           </div>
 
           <p class="campo__error" id="errorSolicitudes" role="alert" aria-live="polite"></p>
@@ -85,8 +86,9 @@
           <div class="solicitudes-lista" id="solicitudesLista"></div>
 
           <div class="estado-vacio" id="estadoSinSolicitudes" hidden>
-            <p class="estado-vacio__titulo">Aún no ha enviado solicitudes</p>
-            <p>Busque un abogado y envíe su primera solicitud de consulta.</p>
+            <p class="estado-vacio__titulo">Aún no ha enviado ninguna solicitud</p>
+            <p>Busque un abogado para comenzar.</p>
+            <a href="/pages/busqueda" class="btn btn--primario estado-vacio__cta">Buscar un abogado</a>
           </div>
         </section>
 

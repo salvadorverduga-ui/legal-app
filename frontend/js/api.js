@@ -728,6 +728,28 @@ export const solicitudes = {
     return { data, error: null };
   },
 
+  /**
+   * El cliente cancela su propia solicitud mientras está PENDIENTE.
+   * La política RLS "cliente_cancela_solicitud" solo permite esta transición
+   * exacta (PENDIENTE -> CANCELADA).
+   * Retorna { data, error }.
+   */
+  async cancelar(solicitudId) {
+    const { data, error } = await _cliente
+      .from('solicitudes')
+      .update({ estado: 'CANCELADA' })
+      .eq('id', solicitudId)
+      .eq('estado', 'PENDIENTE')
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[api.solicitudes.cancelar]', error.message);
+      return { data: null, error };
+    }
+    return { data, error: null };
+  },
+
 };
 
 

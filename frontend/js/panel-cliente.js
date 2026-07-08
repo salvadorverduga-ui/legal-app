@@ -14,6 +14,7 @@ const ETIQUETAS_ESTADO_SOLICITUD = {
   'RESEÑADA': 'Reseñada',
   RECHAZADA:  'Rechazada',
   EXPIRADA:   'Expirada',
+  CANCELADA:  'Cancelada',
 };
 
 const CLASE_ESTADO_SOLICITUD = {
@@ -23,6 +24,7 @@ const CLASE_ESTADO_SOLICITUD = {
   'RESEÑADA': 'badge--estado-resenada',
   RECHAZADA:  'badge--estado-rechazada',
   EXPIRADA:   'badge--estado-expirada',
+  CANCELADA:  'badge--estado-cancelada',
 };
 
 const SECCIONES = ['Solicitudes', 'Resenas'];
@@ -171,6 +173,7 @@ function generarSolicitudCard(s) {
 
   const puedeCompletar = s.estado === 'ACEPTADA';
   const puedeReseñar = s.estado === 'COMPLETADA' && !s.tiene_resena;
+  const puedeCancelar = s.estado === 'PENDIENTE';
   const formularioAbierto = solicitudConFormularioAbierto === s.id;
 
   const completarHtml = puedeCompletar ? `
@@ -178,6 +181,20 @@ function generarSolicitudCard(s) {
       <button class="btn btn--primario btn--sm" type="button" data-accion="marcar-completada" data-id="${idSeguro}">
         Marcar consulta como completada
       </button>
+    </div>
+  ` : '';
+
+  const cancelarHtml = puedeCancelar ? `
+    <div class="solicitud-item__acciones">
+      <button class="btn btn--secundario btn--sm" type="button" data-accion="cancelar-solicitud" data-id="${idSeguro}">
+        Cancelar solicitud
+      </button>
+    </div>
+  ` : '';
+
+  const buscarOtroHtml = (s.estado === 'RECHAZADA' || s.estado === 'EXPIRADA') ? `
+    <div class="solicitud-item__acciones">
+      <a href="/pages/busqueda" class="btn btn--secundario btn--sm">Buscar otro abogado</a>
     </div>
   ` : '';
 
@@ -224,6 +241,8 @@ function generarSolicitudCard(s) {
       ${detalleHtml}
       ${motivoRechazoHtml}
       ${completarHtml}
+      ${cancelarHtml}
+      ${buscarOtroHtml}
       ${accionesHtml}
     </article>
   `;
@@ -254,6 +273,7 @@ function manejarClickSolicitudes(e) {
   const { accion, id } = btn.dataset;
 
   if (accion === 'marcar-completada') manejarMarcarCompletada(id);
+  if (accion === 'cancelar-solicitud') manejarCancelarSolicitud(id);
   if (accion === 'mostrar-resena') {
     solicitudConFormularioAbierto = id;
     renderizarSolicitudes();
@@ -280,6 +300,27 @@ async function manejarMarcarCompletada(id) {
   if (entrada) Object.assign(entrada, data);
   renderizarSolicitudes();
   toast.exito('Consulta marcada como completada.');
+}
+
+async function manejarCancelarSolicitud(id) {
+  const confirmado = window.confirm('¿Cancelar esta solicitud? Esta acción no se puede deshacer.');
+  if (!confirmado) return;
+
+  const errorEl = document.getElementById('errorSolicitudes');
+  errorEl.textContent = '';
+
+  const { data, error } = await api.solicitudes.cancelar(id);
+  if (error) {
+    const mensaje = mensajeAmigable(error, 'No se pudo cancelar la solicitud. Intente de nuevo.');
+    errorEl.textContent = mensaje;
+    toast.error(mensaje);
+    return;
+  }
+
+  const entrada = solicitudesActuales.find(s => s.id === id);
+  if (entrada) Object.assign(entrada, data);
+  renderizarSolicitudes();
+  toast.exito('Solicitud cancelada.');
 }
 
 async function manejarSubmitResena(e) {
