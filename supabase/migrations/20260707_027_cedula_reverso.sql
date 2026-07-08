@@ -12,9 +12,17 @@ COMMENT ON COLUMN verificaciones.doc_cedula_reverso_url IS 'Path en Supabase Sto
 -- y RLS por fila (migración 008) — ambos son a nivel de tabla, no de columna,
 -- así que no hace falta un GRANT nuevo para esta columna.
 
--- Actualiza la vista del panel de administración (migración 018) para que
--- el admin también vea el reverso al revisar una verificación pendiente.
-CREATE OR REPLACE VIEW admin_verificaciones_pendientes AS
+-- Recrea la vista del panel de administración (migración 018) para que el
+-- admin también vea el reverso al revisar una verificación pendiente.
+-- No se puede usar CREATE OR REPLACE VIEW acá: doc_cedula_reverso_url se
+-- inserta en medio de la lista de columnas (antes de doc_ruc_url), y
+-- Postgres interpreta eso como "renombrar" doc_ruc_url en su posición
+-- ordinal, algo que CREATE OR REPLACE VIEW no permite. DROP + CREATE
+-- evita esa restricción a costa de perder momentáneamente el GRANT de
+-- la vista (se repone abajo).
+DROP VIEW IF EXISTS admin_verificaciones_pendientes;
+
+CREATE VIEW admin_verificaciones_pendientes AS
 SELECT
   v.id,
   v.estado,
@@ -37,3 +45,7 @@ WHERE v.estado = 'PENDIENTE'
   AND es_admin();
 
 COMMENT ON VIEW admin_verificaciones_pendientes IS 'Cola de verificaciones pendientes para el panel de administración. Filtra por es_admin() porque la vista no hereda el RLS de verificaciones.';
+
+-- DROP VIEW elimina también los GRANTs que tenía la vista (migración 018),
+-- así que hay que volver a otorgarlo (CLAUDE.md §12).
+GRANT SELECT ON admin_verificaciones_pendientes TO authenticated;
