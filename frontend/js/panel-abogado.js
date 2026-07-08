@@ -191,23 +191,17 @@ function actualizarBannerSuscripcion() {
   const banner = document.getElementById('bannerSuscripcion');
   const vigenteHasta = abogadoActual.suscripcion_vigente_hasta;
 
-  if (!vigenteHasta) {
-    banner.hidden = true;
-    return;
-  }
-
   const hoy = new Date();
   hoy.setHours(0, 0, 0, 0);
-  const fechaVencimiento = new Date(`${vigenteHasta}T00:00:00`);
-  const diasRestantes = Math.round((fechaVencimiento - hoy) / (1000 * 60 * 60 * 24));
+  const suscripcionInactiva = !vigenteHasta || new Date(`${vigenteHasta}T00:00:00`) < hoy;
 
-  if (diasRestantes < 0 || diasRestantes > 7) {
+  if (!suscripcionInactiva) {
     banner.hidden = true;
     return;
   }
 
   document.getElementById('bannerSuscripcionTexto').textContent =
-    `Su suscripción vence el ${formatearFecha(vigenteHasta)}. Renueve para mantener su perfil visible.`;
+    'Su suscripción no está activa. Su perfil no es visible para los clientes.';
   banner.hidden = false;
 }
 

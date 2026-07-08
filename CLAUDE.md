@@ -245,6 +245,7 @@ Nunca commitear `.env` — está en `.gitignore`.
 - [ ] Flujo de pago PayPhone — integración específica
 - [ ] Estructura definitiva de tablas (diseñar antes de primera migración)
 - [ ] Activación automática de suscripcion_vigente_hasta al recibir pago (PayPhone) — por ahora manual desde Supabase
+- [ ] Integración Google Play Billing para suscripciones automáticas (V2) — reemplaza PayPhone
 
 ---
 
