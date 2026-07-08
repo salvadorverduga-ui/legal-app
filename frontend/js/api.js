@@ -1020,6 +1020,27 @@ export const admin = {
     return data?.[0] ?? null;
   },
 
+  /**
+   * Retorna el historial de acciones del admin (aprobar/rechazar verificaciones)
+   * desde la vista admin_log_detalle, con el nombre del admin y del abogado/estudio
+   * afectado ya resueltos. Ordenadas por fecha descendente (más reciente primero).
+   * La tabla admin_log solo se completa desde el trigger fn_propagar_estado_verificacion
+   * (migración 024) — nunca se inserta desde el frontend.
+   * Retorna array (puede estar vacío).
+   */
+  async getLogAcciones() {
+    const { data, error } = await _cliente
+      .from('admin_log_detalle')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('[api.admin.getLogAcciones]', error.message);
+      return [];
+    }
+    return data ?? [];
+  },
+
 };
 
 

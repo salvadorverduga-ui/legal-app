@@ -84,10 +84,30 @@
             role="tab" aria-selected="false" aria-controls="seccionMetricas">
             Métricas
           </button>
+          <button class="panel-tab" id="tabLogAcciones" type="button"
+            role="tab" aria-selected="false" aria-controls="seccionLogAcciones">
+            Log de acciones
+          </button>
         </nav>
 
         <!-- ═══════════════ SECCIÓN: VERIFICACIONES PENDIENTES ═══════════════ -->
         <section class="panel-seccion" id="seccionVerificaciones" role="tabpanel" aria-labelledby="tabVerificaciones">
+
+          <div class="verificaciones-filtro">
+            <div class="campo">
+              <label for="buscarVerificaciones" class="campo__etiqueta">Buscar</label>
+              <input type="text" id="buscarVerificaciones" class="campo__input"
+                placeholder="Nombre del abogado o estudio..." autocomplete="off">
+            </div>
+            <div class="campo">
+              <label for="filtroTipoVerificacion" class="campo__etiqueta">Tipo</label>
+              <select id="filtroTipoVerificacion" class="campo__input">
+                <option value="">Todos</option>
+                <option value="abogado">Abogado individual</option>
+                <option value="estudio">Estudio</option>
+              </select>
+            </div>
+          </div>
 
           <p class="campo__error" id="errorVerificaciones" role="alert" aria-live="polite"></p>
 
@@ -117,6 +137,18 @@
           <p class="campo__error" id="errorMetricas" role="alert" aria-live="polite"></p>
 
           <div class="metricas-grid" id="metricasGrid"></div>
+        </section>
+
+        <!-- ═══════════════ SECCIÓN: LOG DE ACCIONES ═══════════════ -->
+        <section class="panel-seccion" id="seccionLogAcciones" role="tabpanel" aria-labelledby="tabLogAcciones" hidden>
+
+          <p class="campo__error" id="errorLogAcciones" role="alert" aria-live="polite"></p>
+
+          <div class="log-lista" id="logAccionesLista"></div>
+
+          <div class="estado-vacio" id="estadoSinLogAcciones" hidden>
+            <p>Aún no hay acciones registradas.</p>
+          </div>
         </section>
 
       </div>

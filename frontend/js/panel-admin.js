@@ -31,12 +31,19 @@ const ETIQUETAS_METRICAS = {
   tasa_aceptacion:            'Tasa de aceptación',
 };
 
-const SECCIONES = ['Verificaciones', 'Suscripciones', 'Metricas'];
+const ETIQUETAS_ACCION_LOG = {
+  APROBAR:  { texto: 'Aprobó verificación',  clase: 'badge--verificado' },
+  RECHAZAR: { texto: 'Rechazó verificación', clase: 'badge--rechazado' },
+};
+
+const SECCIONES = ['Verificaciones', 'Suscripciones', 'Metricas', 'LogAcciones'];
 
 // ─── Estado de la página ──────────────────────────────────────────────────
 let perfilActual = null;              // fila propia de la tabla perfiles
 let verificacionesActuales = [];      // caché local; las acciones actualizan sin refetch
 let verificacionConRechazoAbierto = null; // id de la verificación con el campo de motivo visible
+let busquedaVerificaciones = '';       // texto de búsqueda por nombre (abogado o estudio)
+let tipoFiltroVerificacion = '';       // '' = todos | 'abogado' | 'estudio'
 
 // ─── Entry point ────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', inicializar);
@@ -72,6 +79,7 @@ async function inicializar() {
     cargarVerificaciones(),
     cargarSuscripciones(),
     cargarMetricas(),
+    cargarLogAcciones(),
   ]);
 
   mostrarContenido();
@@ -101,6 +109,16 @@ function configurarEventos() {
   });
 
   document.getElementById('verificacionesLista').addEventListener('click', manejarClickVerificaciones);
+
+  document.getElementById('buscarVerificaciones').addEventListener('input', (e) => {
+    busquedaVerificaciones = e.target.value.trim().toLowerCase();
+    renderizarVerificaciones();
+  });
+
+  document.getElementById('filtroTipoVerificacion').addEventListener('change', (e) => {
+    tipoFiltroVerificacion = e.target.value;
+    renderizarVerificaciones();
+  });
 
   configurarMenuVerComo();
 }
@@ -152,18 +170,37 @@ async function cargarVerificaciones() {
   await renderizarVerificaciones();
 }
 
+function filtrarVerificaciones() {
+  return verificacionesActuales.filter(v => {
+    const coincideTipo = !tipoFiltroVerificacion || v.tipo === tipoFiltroVerificacion;
+
+    const nombre = `${v.nombre_solicitante ?? ''} ${v.nombre_estudio ?? ''}`.toLowerCase();
+    const coincideBusqueda = !busquedaVerificaciones || nombre.includes(busquedaVerificaciones);
+
+    return coincideTipo && coincideBusqueda;
+  });
+}
+
 async function renderizarVerificaciones() {
   const contenedor = document.getElementById('verificacionesLista');
   const vacio = document.getElementById('estadoSinVerificaciones');
+  const vacioTitulo = vacio.querySelector('.estado-vacio__titulo');
+  const vacioTexto = vacio.querySelector('p:not(.estado-vacio__titulo)');
+  const lista = filtrarVerificaciones();
 
-  if (verificacionesActuales.length === 0) {
+  if (lista.length === 0) {
     contenedor.innerHTML = '';
+    const hayFiltroActivo = Boolean(busquedaVerificaciones || tipoFiltroVerificacion);
+    vacioTitulo.textContent = hayFiltroActivo ? 'Sin resultados' : 'Sin verificaciones pendientes';
+    vacioTexto.textContent = hayFiltroActivo
+      ? 'No hay verificaciones que coincidan con la búsqueda.'
+      : 'No hay solicitudes de verificación esperando revisión.';
     vacio.hidden = false;
     return;
   }
 
   vacio.hidden = true;
-  const tarjetas = await Promise.all(verificacionesActuales.map(generarVerificacionCard));
+  const tarjetas = await Promise.all(lista.map(generarVerificacionCard));
   contenedor.innerHTML = tarjetas.join('');
 }
 
@@ -359,6 +396,41 @@ async function cargarMetricas() {
   }).join('');
 }
 
+// ─── Log de acciones ────────────────────────────────────────────────────────
+async function cargarLogAcciones() {
+  const errorEl = document.getElementById('errorLogAcciones');
+  const contenedor = document.getElementById('logAccionesLista');
+  const vacio = document.getElementById('estadoSinLogAcciones');
+
+  const registros = await api.admin.getLogAcciones();
+
+  if (registros.length === 0) {
+    contenedor.innerHTML = '';
+    vacio.hidden = false;
+    return;
+  }
+
+  vacio.hidden = true;
+  errorEl.textContent = '';
+  contenedor.innerHTML = registros.map(generarLogItem).join('');
+}
+
+function generarLogItem(l) {
+  const etiquetaAccion = ETIQUETAS_ACCION_LOG[l.accion] ?? { texto: l.accion, clase: 'badge--pendiente' };
+  const etiquetaTipo = ETIQUETAS_TIPO_SOLICITANTE[l.tipo] ?? l.tipo;
+
+  return `
+    <article class="log-item">
+      <div class="log-item__header">
+        <p class="log-item__nombre">${escaparHtml(l.nombre_afectado)}</p>
+        <span class="badge ${etiquetaAccion.clase}">${etiquetaAccion.texto}</span>
+      </div>
+      <p class="log-item__detalle">${escaparHtml(etiquetaTipo)}</p>
+      <p class="log-item__detalle">Por ${escaparHtml(l.admin_nombre)} — ${formatearFechaHora(l.created_at)}</p>
+    </article>
+  `;
+}
+
 // ─── Helpers de presentación ────────────────────────────────────────────────
 function formatearFecha(fechaIso) {
   if (!fechaIso) return '';
@@ -366,6 +438,17 @@ function formatearFecha(fechaIso) {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
+  });
+}
+
+function formatearFechaHora(fechaIso) {
+  if (!fechaIso) return '';
+  return new Date(fechaIso).toLocaleString('es-EC', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
   });
 }
 

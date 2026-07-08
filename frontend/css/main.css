@@ -2174,6 +2174,16 @@ p {
    ============================================================ */
 
 /* ── Verificaciones pendientes ────────────────────────────── */
+.verificaciones-filtro {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--esp-4);
+}
+
+.verificaciones-filtro .campo {
+  flex: 1 1 200px;
+}
+
 .verificaciones-lista {
   display: flex;
   flex-direction: column;
@@ -2277,6 +2287,43 @@ p {
 }
 
 .suscripcion-item__detalle {
+  font-size: var(--texto-sm);
+  color: var(--color-texto-suave);
+}
+
+/* ── Log de acciones ───────────────────────────────────────── */
+.log-lista {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-4);
+}
+
+.log-item {
+  background-color: var(--color-fondo-card);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-lg);
+  padding: var(--esp-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-1);
+}
+
+.log-item__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--esp-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--esp-2);
+}
+
+.log-item__nombre {
+  font-size: var(--texto-base);
+  font-weight: var(--peso-semibold);
+  color: var(--color-primario);
+}
+
+.log-item__detalle {
   font-size: var(--texto-sm);
   color: var(--color-texto-suave);
 }
