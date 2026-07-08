@@ -167,31 +167,23 @@
               <label for="perfilProvincia" class="campo__etiqueta">Provincia</label>
               <select id="perfilProvincia" class="campo__input">
                 <option value="">Seleccione su provincia</option>
-                <option value="Azuay">Azuay</option>
-                <option value="Bolívar">Bolívar</option>
-                <option value="Cañar">Cañar</option>
-                <option value="Carchi">Carchi</option>
-                <option value="Chimborazo">Chimborazo</option>
-                <option value="Cotopaxi">Cotopaxi</option>
-                <option value="El Oro">El Oro</option>
-                <option value="Esmeraldas">Esmeraldas</option>
-                <option value="Galápagos">Galápagos</option>
-                <option value="Guayas">Guayas</option>
-                <option value="Imbabura">Imbabura</option>
-                <option value="Loja">Loja</option>
-                <option value="Los Ríos">Los Ríos</option>
-                <option value="Manabí">Manabí</option>
-                <option value="Morona Santiago">Morona Santiago</option>
-                <option value="Napo">Napo</option>
-                <option value="Orellana">Orellana</option>
-                <option value="Pastaza">Pastaza</option>
-                <option value="Pichincha">Pichincha</option>
-                <option value="Santa Elena">Santa Elena</option>
-                <option value="Santo Domingo de los Tsáchilas">Santo Domingo de los Tsáchilas</option>
-                <option value="Sucumbíos">Sucumbíos</option>
-                <option value="Tungurahua">Tungurahua</option>
-                <option value="Zamora Chinchipe">Zamora Chinchipe</option>
               </select>
+            </div>
+
+            <div class="campo">
+              <label for="perfilCanton" class="campo__etiqueta">Cantón</label>
+              <select id="perfilCanton" class="campo__input" disabled>
+                <option value="">Seleccione primero una provincia</option>
+              </select>
+            </div>
+
+            <div class="campo">
+              <span class="campo__etiqueta">Zonas de servicio adicionales</span>
+              <p class="campo__ayuda">
+                Puede prestar servicios en otras provincias aunque no esté ubicado ahí
+                (consultas online, desplazamiento, etc.).
+              </p>
+              <div class="radio-pills radio-pills--multiple" id="zonasServicioPerfil"></div>
             </div>
 
             <p class="campo__error" id="errorPerfil" role="alert" aria-live="polite"></p>

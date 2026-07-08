@@ -107,8 +107,17 @@ function renderizarPerfil(ab) {
 
   document.getElementById('perfilNombre').textContent = ab.nombre_completo;
 
-  const ubicacion = [ab.ciudad, ab.provincia].filter(Boolean).join(', ');
+  const ubicacion = [ab.canton_nombre, ab.provincia_nombre].filter(Boolean).join(', ');
   document.getElementById('perfilUbicacion').textContent = ubicacion;
+
+  const zonasServicioEl = document.getElementById('perfilZonasServicio');
+  const zonasNombres = ab.zonas_servicio_nombres ?? [];
+  if (zonasNombres.length > 0) {
+    zonasServicioEl.textContent = `También atiende en: ${zonasNombres.join(', ')}`;
+    zonasServicioEl.hidden = false;
+  } else {
+    zonasServicioEl.hidden = true;
+  }
 
   const especialidades = ab.especialidades ?? [];
   document.getElementById('perfilEspecialidades').innerHTML = especialidades

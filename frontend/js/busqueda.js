@@ -14,6 +14,8 @@ const ETIQUETAS_TIPO = {
 
 // ─── Estado de la página ──────────────────────────────────────────────────────
 let tipoActivo = ''; // '' = todos | 'individual' | 'estudio' | 'red'
+let provinciasCache = [];      // catálogo de provincias, cargado una vez
+let provinciaFiltroActiva = null; // { id, nombre } de la provincia buscada, o null
 
 // ─── Entry point ─────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', inicializar);
@@ -42,11 +44,25 @@ async function inicializar() {
     document.getElementById('nombreUsuario').textContent = perfil.nombre_completo;
   }
 
-  // 4. Cargar resultados iniciales (sin filtros: todos los abogados visibles)
+  // 4. Cargar catálogo de provincias para el filtro
+  provinciasCache = await api.geo.getProvincias();
+  poblarSelectProvincias();
+
+  // 5. Cargar resultados iniciales (sin filtros: todos los abogados visibles)
   await ejecutarBusqueda();
 
-  // 5. Registrar todos los eventos de la UI
+  // 6. Registrar todos los eventos de la UI
   configurarEventos();
+}
+
+function poblarSelectProvincias() {
+  const select = document.getElementById('filtroProvincia');
+  provinciasCache.forEach(p => {
+    const option = document.createElement('option');
+    option.value = p.id;
+    option.textContent = p.nombre;
+    select.appendChild(option);
+  });
 }
 
 // ─── Configuración de eventos ─────────────────────────────────────────────────
@@ -94,6 +110,10 @@ function cambiarTipo(tipo) {
 async function ejecutarBusqueda() {
   const filtros = leerFiltros();
 
+  provinciaFiltroActiva = filtros.provincia_id
+    ? provinciasCache.find(p => p.id === filtros.provincia_id) ?? null
+    : null;
+
   mostrarEstado('cargando');
   actualizarChipsFiltros(filtros);
 
@@ -121,11 +141,11 @@ function leerFiltros() {
 
   const especialidad  = document.getElementById('filtroEspecialidad').value.trim();
   const caso_frecuente = document.getElementById('filtroCaso').value.trim();
-  const provincia     = document.getElementById('filtroProvincia').value;
+  const provinciaId   = document.getElementById('filtroProvincia').value;
 
   if (especialidad)   filtros.especialidad   = especialidad;
   if (caso_frecuente) filtros.caso_frecuente = caso_frecuente;
-  if (provincia)      filtros.provincia      = provincia;
+  if (provinciaId)    filtros.provincia_id   = Number(provinciaId);
   if (tipoActivo)     filtros.tipo           = tipoActivo;
 
   return filtros;
@@ -173,7 +193,7 @@ function actualizarConteo(total) {
 const ETIQUETAS_FILTRO = {
   especialidad:   'Especialidad',
   caso_frecuente: 'Caso',
-  provincia:      'Provincia',
+  provincia_id:   'Provincia',
   tipo:           'Tipo',
 };
 
@@ -185,10 +205,13 @@ function actualizarChipsFiltros(filtros) {
     if (!valor) return;
 
     const etiqueta = ETIQUETAS_FILTRO[clave] ?? clave;
+    const valorVisible = clave === 'provincia_id'
+      ? (provinciasCache.find(p => p.id === valor)?.nombre ?? valor)
+      : valor;
     const chip = document.createElement('span');
     chip.className = 'chip-filtro';
     chip.innerHTML = `
-      ${escaparHtml(etiqueta)}: <strong>${escaparHtml(valor)}</strong>
+      ${escaparHtml(etiqueta)}: <strong>${escaparHtml(valorVisible)}</strong>
       <button class="chip-filtro__quitar" type="button" aria-label="Quitar filtro ${escaparHtml(etiqueta)}">
         &#10005;
       </button>
@@ -201,7 +224,7 @@ function actualizarChipsFiltros(filtros) {
 function quitarFiltro(clave) {
   if (clave === 'especialidad') document.getElementById('filtroEspecialidad').value = '';
   if (clave === 'caso_frecuente') document.getElementById('filtroCaso').value = '';
-  if (clave === 'provincia') document.getElementById('filtroProvincia').value = '';
+  if (clave === 'provincia_id') document.getElementById('filtroProvincia').value = '';
   if (clave === 'tipo') {
     tipoActivo = '';
     document.querySelectorAll('.filtro-tipo__btn').forEach(btn => {
@@ -228,10 +251,16 @@ function generarCardAbogado(ab) {
     ? `<img src="${escaparAtrib(fotoUrl)}" alt="Foto de ${escaparAtrib(ab.nombre_completo)}" loading="lazy">`
     : `<div class="avatar-placeholder" aria-hidden="true">${escaparHtml(iniciales)}</div>`;
 
-  const ubicacion = [ab.ciudad, ab.provincia]
+  const ubicacion = [ab.canton_nombre, ab.provincia_nombre]
     .filter(Boolean)
     .map(escaparHtml)
     .join(', ');
+
+  // Cuando hay un filtro de provincia activo y el abogado solo la cubre como
+  // zona de servicio adicional (no es su provincia principal), se lo indica.
+  const badgeZonaHtml = provinciaFiltroActiva && ab.provincia_id !== provinciaFiltroActiva.id
+    ? `<span class="badge badge--zona-servicio">También atiende en ${escaparHtml(provinciaFiltroActiva.nombre)}</span>`
+    : '';
 
   const especialidades = (ab.especialidades ?? []).slice(0, 3);
   const extras = (ab.especialidades?.length ?? 0) - 3;
@@ -263,6 +292,7 @@ function generarCardAbogado(ab) {
           </div>
           <h3 class="card-abogado__nombre">${escaparHtml(ab.nombre_completo)}</h3>
           ${ubicacion ? `<p class="card-abogado__ubicacion">${ubicacion}</p>` : ''}
+          ${badgeZonaHtml}
         </div>
       </div>
 

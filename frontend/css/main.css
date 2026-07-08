@@ -691,6 +691,14 @@ p {
   border-color: #FECACA;
 }
 
+/* Zona de servicio adicional — abogado que atiende la provincia buscada
+   sin estar ubicado ahí como provincia principal */
+.badge--zona-servicio {
+  background-color: var(--badge-pendiente-bg);
+  color: var(--badge-pendiente-color);
+  border-color: var(--badge-pendiente-borde);
+}
+
 /* Estado de solicitud */
 .badge--estado-pendiente    { background-color: #FFF7ED; color: #9A3412; border-color: #FED7AA; }
 .badge--estado-aceptada     { background-color: var(--badge-verificado-bg); color: var(--badge-verificado-color); border-color: var(--badge-verificado-borde); }
@@ -1469,6 +1477,12 @@ p {
 }
 
 .perfil-header__ubicacion {
+  font-size: var(--texto-sm);
+  color: var(--color-texto-suave);
+  margin-bottom: var(--esp-4);
+}
+
+.perfil-header__zonas-servicio {
   font-size: var(--texto-sm);
   color: var(--color-texto-suave);
   margin-bottom: var(--esp-4);

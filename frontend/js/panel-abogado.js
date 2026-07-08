@@ -48,6 +48,8 @@ let perfilActual = null;         // fila propia de la tabla perfiles
 let abogadoActual = null;        // fila propia de la tabla abogados
 let solicitudesActuales = [];    // caché local; las acciones actualizan sin refetch
 let estadoFiltroActivo = '';     // '' = todas
+let provinciasCache = [];        // catálogo de provincias, cargado una vez
+let zonasServicioSeleccionadas = new Set(); // provincia_id de las zonas adicionales marcadas
 
 // ─── Entry point ─────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', inicializar);
@@ -88,7 +90,8 @@ async function inicializar() {
   inicializarNotificaciones();
 
   renderizarCabecera();
-  rellenarFormularioPerfil();
+  await cargarProvincias();
+  await rellenarFormularioPerfil();
   actualizarBanners();
 
   const [resenas] = await Promise.all([
@@ -141,6 +144,9 @@ function configurarEventos() {
     e.preventDefault();
     manejarGuardarPerfil();
   });
+
+  document.getElementById('perfilProvincia').addEventListener('change', manejarCambioProvinciaPrincipal);
+  document.getElementById('zonasServicioPerfil').addEventListener('change', manejarCambioZonaServicio);
 
   document.querySelectorAll('#seccionSolicitudes .filtro-tipo__btn').forEach(btn => {
     btn.addEventListener('click', () => cambiarFiltroSolicitudes(btn.dataset.estado));
@@ -287,8 +293,83 @@ async function manejarCambioFoto(e) {
   e.target.value = '';
 }
 
+// ─── Mi perfil: ubicación (provincia, cantón, zonas de servicio) ─────────────
+async function cargarProvincias() {
+  provinciasCache = await api.geo.getProvincias();
+
+  const select = document.getElementById('perfilProvincia');
+  provinciasCache.forEach(p => {
+    const option = document.createElement('option');
+    option.value = p.id;
+    option.textContent = p.nombre;
+    select.appendChild(option);
+  });
+}
+
+async function cargarCantones(provinciaId, cantonSeleccionadoId = null) {
+  const select = document.getElementById('perfilCanton');
+  select.innerHTML = '';
+
+  if (!provinciaId) {
+    select.disabled = true;
+    select.innerHTML = '<option value="">Seleccione primero una provincia</option>';
+    return;
+  }
+
+  select.disabled = false;
+  const placeholder = document.createElement('option');
+  placeholder.value = '';
+  placeholder.textContent = 'Seleccione su cantón';
+  select.appendChild(placeholder);
+
+  const cantones = await api.geo.getCantonesPorProvincia(provinciaId);
+  cantones.forEach(c => {
+    const option = document.createElement('option');
+    option.value = c.id;
+    option.textContent = c.nombre;
+    select.appendChild(option);
+  });
+
+  if (cantonSeleccionadoId) select.value = String(cantonSeleccionadoId);
+}
+
+function renderizarZonasServicio() {
+  const provinciaPrincipalId = document.getElementById('perfilProvincia').value;
+  const contenedor = document.getElementById('zonasServicioPerfil');
+
+  contenedor.innerHTML = provinciasCache
+    .filter(p => String(p.id) !== String(provinciaPrincipalId))
+    .map(p => `
+      <label class="radio-pills__opcion">
+        <input type="checkbox" name="zona_servicio" value="${p.id}"
+          ${zonasServicioSeleccionadas.has(p.id) ? 'checked' : ''}>
+        <span>${escaparHtml(p.nombre)}</span>
+      </label>
+    `)
+    .join('');
+}
+
+function manejarCambioProvinciaPrincipal() {
+  const provinciaId = document.getElementById('perfilProvincia').value;
+
+  // La provincia principal no puede ser también una zona de servicio adicional.
+  if (provinciaId) zonasServicioSeleccionadas.delete(Number(provinciaId));
+
+  cargarCantones(provinciaId || null);
+  renderizarZonasServicio();
+}
+
+function manejarCambioZonaServicio(e) {
+  const chk = e.target.closest('input[name="zona_servicio"]');
+  if (!chk) return;
+
+  const provinciaId = Number(chk.value);
+  if (chk.checked) zonasServicioSeleccionadas.add(provinciaId);
+  else zonasServicioSeleccionadas.delete(provinciaId);
+}
+
 // ─── Mi perfil: formulario ────────────────────────────────────────────────────
-function rellenarFormularioPerfil() {
+async function rellenarFormularioPerfil() {
   document.getElementById('perfilDescripcion').value = abogadoActual.descripcion ?? '';
   actualizarContadorDescripcion();
 
@@ -297,7 +378,13 @@ function rellenarFormularioPerfil() {
   });
 
   document.getElementById('perfilPrecio').value = abogadoActual.precio_consulta ?? '';
-  document.getElementById('perfilProvincia').value = perfilActual.provincia ?? '';
+
+  document.getElementById('perfilProvincia').value = abogadoActual.provincia_id ?? '';
+  await cargarCantones(abogadoActual.provincia_id, abogadoActual.canton_id);
+
+  const zonas = await api.abogados.getZonasServicio();
+  zonasServicioSeleccionadas = new Set(zonas.map(z => z.provincia_id));
+  renderizarZonasServicio();
 
   actualizarProgresoPerfil();
 }
@@ -309,7 +396,7 @@ function actualizarProgresoPerfil() {
     Boolean(abogadoActual.descripcion?.trim()),
     (abogadoActual.especialidades ?? []).length > 0,
     abogadoActual.precio_consulta != null,
-    Boolean(perfilActual.provincia),
+    Boolean(abogadoActual.provincia_id),
   ];
   const porcentaje = campos.filter(Boolean).length * 20;
 
@@ -338,23 +425,26 @@ async function manejarGuardarPerfil() {
   ).map(chk => chk.value);
   const precioRaw = document.getElementById('perfilPrecio').value;
   const precio_consulta = precioRaw ? Number(precioRaw) : null;
-  const provincia = document.getElementById('perfilProvincia').value;
+  const provinciaRaw = document.getElementById('perfilProvincia').value;
+  const cantonRaw = document.getElementById('perfilCanton').value;
+  const provincia_id = provinciaRaw ? Number(provinciaRaw) : null;
+  const canton_id = cantonRaw ? Number(cantonRaw) : null;
+  const zonasServicio = Array.from(zonasServicioSeleccionadas);
 
   try {
-    const [resultadoAbogado, resultadoPerfil] = await Promise.all([
-      api.abogados.actualizarPerfilAbogado({ descripcion, especialidades, precio_consulta }),
-      api.perfiles.actualizarPerfil({ provincia }),
+    const [resultadoAbogado, resultadoZonas] = await Promise.all([
+      api.abogados.actualizarPerfilAbogado({ descripcion, especialidades, precio_consulta, provincia_id, canton_id }),
+      api.abogados.actualizarZonasServicio(zonasServicio),
     ]);
 
-    if (resultadoAbogado.error || resultadoPerfil.error) {
-      const mensaje = mensajeAmigable(resultadoAbogado.error ?? resultadoPerfil.error, 'Ocurrió un error. Intente de nuevo.');
+    if (resultadoAbogado.error || resultadoZonas.error) {
+      const mensaje = mensajeAmigable(resultadoAbogado.error ?? resultadoZonas.error, 'Ocurrió un error. Intente de nuevo.');
       errorEl.textContent = mensaje;
       toast.error(mensaje);
       return;
     }
 
     abogadoActual = resultadoAbogado.data;
-    perfilActual.provincia = resultadoPerfil.data.provincia;
     exitoEl.hidden = false;
     actualizarBannerOnboarding();
     actualizarProgresoPerfil();

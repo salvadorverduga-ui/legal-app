@@ -300,10 +300,12 @@ export const abogados = {
    * filtros: {
    *   especialidad?:     string,  // búsqueda en el array especialidades con operador @>
    *   caso_frecuente?:   string,  // búsqueda en casos_frecuentes
-   *   ciudad?:           string,
-   *   provincia?:        string,
+   *   provincia_id?:     number,  // coincide con provincia_id (principal) O zonas_servicio_ids
+   *   tipo?:             'individual' | 'estudio' | 'red',
    * }
    * Retorna array con tipo_badge ('individual' | 'estudio' | 'red') y datos públicos.
+   * Cuando se filtra por provincia_id, los resultados cuya provincia principal coincide
+   * aparecen antes que los que solo la tienen como zona de servicio adicional.
    */
   async buscar(filtros = {}) {
     // IMPORTANTE: no agregar condiciones de visibilidad aquí.
@@ -328,8 +330,10 @@ export const abogados = {
       query = query.contains('casos_frecuentes', [filtros.caso_frecuente.trim()]);
     }
 
-    if (filtros.provincia?.trim()) {
-      query = query.eq('provincia', filtros.provincia.trim());
+    // Coincide si la provincia buscada es la principal del abogado o
+    // aparece en sus zonas de servicio adicionales (zonas_servicio_ids).
+    if (filtros.provincia_id) {
+      query = query.or(`provincia_id.eq.${filtros.provincia_id},zonas_servicio_ids.cs.{${filtros.provincia_id}}`);
     }
 
     // tipo_badge es columna calculada en la vista: 'individual' | 'estudio' | 'red'
@@ -344,7 +348,19 @@ export const abogados = {
       return { data: [], error };
     }
 
-    return { data: data ?? [], error: null };
+    let resultado = data ?? [];
+
+    // Prioriza coincidencia por provincia principal sobre coincidencia por zona
+    // de servicio adicional, preservando el orden por rating dentro de cada grupo.
+    if (filtros.provincia_id) {
+      resultado = [...resultado].sort((a, b) => {
+        const aEsPrincipal = a.provincia_id === filtros.provincia_id ? 0 : 1;
+        const bEsPrincipal = b.provincia_id === filtros.provincia_id ? 0 : 1;
+        return aEsPrincipal - bEsPrincipal;
+      });
+    }
+
+    return { data: resultado, error: null };
   },
 
   /**
@@ -392,7 +408,7 @@ export const abogados = {
   /**
    * Actualiza los datos profesionales del abogado autenticado en la tabla abogados.
    * Campos permitidos: especialidades, casos_frecuentes, descripcion,
-   *                    precio_consulta, numero_registro.
+   *                    precio_consulta, numero_registro, provincia_id, canton_id.
    * verificacion y suscripcion_vigente_hasta no se pueden modificar desde el cliente.
    * Retorna { data, error }.
    */
@@ -402,7 +418,7 @@ export const abogados = {
       return { data: null, error: errUser ?? { message: 'No hay sesión activa.' } };
     }
 
-    const CAMPOS_PERMITIDOS = ['especialidades', 'casos_frecuentes', 'descripcion', 'precio_consulta', 'numero_registro'];
+    const CAMPOS_PERMITIDOS = ['especialidades', 'casos_frecuentes', 'descripcion', 'precio_consulta', 'numero_registro', 'provincia_id', 'canton_id'];
     const actualizacion = {};
     for (const campo of CAMPOS_PERMITIDOS) {
       if (datos[campo] !== undefined) actualizacion[campo] = datos[campo];
@@ -503,6 +519,116 @@ export const abogados = {
    * Retorna { estado, motivo_rechazo, created_at } o null si nunca envió documentos.
    */
   async getEstadoVerificacion() {},
+
+  /**
+   * Retorna las provincias donde el abogado autenticado presta servicios
+   * además de su provincia principal (abogados.provincia_id).
+   * Retorna array de { provincia_id, provincias: { nombre } } (puede estar vacío).
+   */
+  async getZonasServicio() {
+    const { data: { user }, error: errUser } = await _cliente.auth.getUser();
+    if (errUser || !user) return [];
+
+    const { data, error } = await _cliente
+      .from('abogado_zonas_servicio')
+      .select('provincia_id, provincias (nombre)')
+      .eq('abogado_id', user.id);
+
+    if (error) {
+      console.error('[api.abogados.getZonasServicio]', error.message);
+      return [];
+    }
+    return data ?? [];
+  },
+
+  /**
+   * Reemplaza el conjunto completo de zonas de servicio adicionales del
+   * abogado autenticado por la lista de ids de provincia recibida.
+   * No debe incluir la provincia principal (abogados.provincia_id) — eso
+   * se valida en el frontend antes de llamar esta función.
+   * provinciaIds: number[]
+   * Retorna { data, error }.
+   */
+  async actualizarZonasServicio(provinciaIds = []) {
+    const { data: { user }, error: errUser } = await _cliente.auth.getUser();
+    if (errUser || !user) {
+      return { data: null, error: errUser ?? { message: 'No hay sesión activa.' } };
+    }
+
+    const { error: errDelete } = await _cliente
+      .from('abogado_zonas_servicio')
+      .delete()
+      .eq('abogado_id', user.id);
+
+    if (errDelete) {
+      console.error('[api.abogados.actualizarZonasServicio]', errDelete.message);
+      return { data: null, error: errDelete };
+    }
+
+    if (provinciaIds.length === 0) {
+      return { data: [], error: null };
+    }
+
+    const filas = provinciaIds.map(provincia_id => ({ abogado_id: user.id, provincia_id }));
+    const { data, error } = await _cliente
+      .from('abogado_zonas_servicio')
+      .insert(filas)
+      .select();
+
+    if (error) {
+      console.error('[api.abogados.actualizarZonasServicio]', error.message);
+      return { data: null, error };
+    }
+    return { data: data ?? [], error: null };
+  },
+
+};
+
+
+// ════════════════════════════════════════════════════════════
+// GEO
+// Catálogo de provincias y cantones del Ecuador (datos de referencia,
+// tablas provincias/cantones). Usado para poblar selectores de ubicación
+// en el panel del abogado y en el filtro de búsqueda.
+// ════════════════════════════════════════════════════════════
+export const geo = {
+
+  /**
+   * Retorna todas las provincias ordenadas alfabéticamente.
+   * Retorna array de { id, nombre } (puede estar vacío si falla la consulta).
+   */
+  async getProvincias() {
+    const { data, error } = await _cliente
+      .from('provincias')
+      .select('*')
+      .order('nombre');
+
+    if (error) {
+      console.error('[api.geo.getProvincias]', error.message);
+      return [];
+    }
+    return data ?? [];
+  },
+
+  /**
+   * Retorna los cantones de una provincia, ordenados alfabéticamente.
+   * Retorna array de { id, nombre, provincia_id } (puede estar vacío).
+   */
+  async getCantonesPorProvincia(provinciaId) {
+    if (!provinciaId) return [];
+
+    const { data, error } = await _cliente
+      .from('cantones')
+      .select('*')
+      .eq('provincia_id', provinciaId)
+      .order('nombre');
+
+    if (error) {
+      console.error('[api.geo.getCantonesPorProvincia]', error.message);
+      return [];
+    }
+    return data ?? [];
+  },
 
 };
 
