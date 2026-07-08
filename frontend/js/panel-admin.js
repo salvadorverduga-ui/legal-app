@@ -4,6 +4,7 @@
 
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
+import { inicializarNotificaciones } from './notificaciones.js';
 
 // ─── Etiquetas y estilos ───────────────────────────────────────────────────
 const ETIQUETAS_TIPO_SOLICITANTE = {
@@ -74,6 +75,7 @@ async function inicializar() {
   }
 
   document.getElementById('nombreUsuario').textContent = perfilActual.nombre_completo;
+  inicializarNotificaciones();
 
   await Promise.all([
     cargarVerificaciones(),

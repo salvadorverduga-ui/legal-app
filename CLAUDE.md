@@ -390,7 +390,7 @@ La migración crea el bucket si no existe y fuerza `public = false` aunque ya ex
 - [x] MÓDULO 2 — Cliente: confirmación post-solicitud, CTA después de rechazo/expiración, cancelar solicitud pendiente
 - [x] MÓDULO 3 — Abogado: preview del perfil público, alerta de vencimiento de suscripción, onboarding para abogado nuevo, formulario de perfil con progreso visual
 - [x] MÓDULO 4 — Admin: búsqueda/filtro en verificaciones, log de acciones del admin
-- [ ] MÓDULO 5 — Notificaciones internas: sistema de notificaciones en la interfaz para cada tipo de usuario (nueva solicitud, solicitud aceptada/rechazada, verificación aprobada/rechazada, suscripción próxima a vencer)
+- [x] MÓDULO 5 — Notificaciones internas: sistema de notificaciones en la interfaz para cada tipo de usuario (nueva solicitud, solicitud aceptada/rechazada, verificación aprobada/rechazada, suscripción próxima a vencer)
 
 Marcar cada ítem como `[x]` a medida que se completa el módulo correspondiente.
 

@@ -5,6 +5,7 @@
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
 import { toast, mensajeAmigable } from './utils.js';
+import { inicializarNotificaciones } from './notificaciones.js';
 
 // ─── Etiquetas y estilos por estado ───────────────────────────────────────────
 const ETIQUETAS_ESTADO_SOLICITUD = {
@@ -65,6 +66,7 @@ async function inicializar() {
 
   document.getElementById('nombreUsuario').textContent = perfilActual.nombre_completo;
   renderizarCabecera();
+  inicializarNotificaciones();
 
   const [resenas] = await Promise.all([
     api.resenas.getMisResenas(),

@@ -1045,6 +1045,95 @@ export const admin = {
 
 
 // ════════════════════════════════════════════════════════════
+// NOTIFICACIONES
+// Notificaciones internas del usuario autenticado (CLAUDE.md módulo 5).
+// Se insertan únicamente desde triggers de la BD (fn_notificar_*); el
+// frontend solo lee, marca como leídas y escucha nuevas vía Realtime.
+// ════════════════════════════════════════════════════════════
+export const notificaciones = {
+
+  /**
+   * Retorna las notificaciones no leídas del usuario autenticado,
+   * más recientes primero. Tope de 30 para el dropdown del panel.
+   * Retorna array (puede estar vacío).
+   */
+  async getNoLeidas() {
+    const { data, error } = await _cliente
+      .from('notificaciones')
+      .select('*')
+      .eq('leida', false)
+      .order('created_at', { ascending: false })
+      .limit(30);
+
+    if (error) {
+      console.error('[api.notificaciones.getNoLeidas]', error.message);
+      return [];
+    }
+    return data ?? [];
+  },
+
+  /**
+   * Marca una notificación propia como leída.
+   * Retorna { data, error }.
+   */
+  async marcarLeida(id) {
+    const { data, error } = await _cliente
+      .from('notificaciones')
+      .update({ leida: true })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[api.notificaciones.marcarLeida]', error.message);
+      return { data: null, error };
+    }
+    return { data, error: null };
+  },
+
+  /**
+   * Marca todas las notificaciones no leídas del usuario autenticado como leídas.
+   * Retorna { error }.
+   */
+  async marcarTodasLeidas() {
+    const { error } = await _cliente
+      .from('notificaciones')
+      .update({ leida: true })
+      .eq('leida', false);
+
+    if (error) {
+      console.error('[api.notificaciones.marcarTodasLeidas]', error.message);
+    }
+    return { error };
+  },
+
+  /**
+   * Se suscribe vía Supabase Realtime a nuevas notificaciones (INSERT).
+   * El RLS de la tabla ya restringe el stream a las filas del usuario
+   * autenticado, así que no hace falta filtrar por usuario_id acá.
+   * callback recibe la fila insertada.
+   * Retorna el canal (pasar a dejarDeEscuchar() para cancelar la suscripción).
+   */
+  escucharNuevas(callback) {
+    return _cliente
+      .channel('notificaciones-realtime')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notificaciones' }, (payload) => {
+        callback(payload.new);
+      })
+      .subscribe();
+  },
+
+  /**
+   * Cancela la suscripción de Realtime creada por escucharNuevas().
+   */
+  dejarDeEscuchar(canal) {
+    if (canal) _cliente.removeChannel(canal);
+  },
+
+};
+
+
+// ════════════════════════════════════════════════════════════
 // STORAGE
 // Utilidades para Supabase Storage (URLs públicas de archivos).
 // El bucket debe ser público (configurado en Supabase Dashboard → Storage).
