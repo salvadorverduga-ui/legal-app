@@ -193,7 +193,11 @@ function actualizarBannerSuscripcion() {
 
   const hoy = new Date();
   hoy.setHours(0, 0, 0, 0);
-  const suscripcionInactiva = !vigenteHasta || new Date(`${vigenteHasta}T00:00:00`) < hoy;
+  // El perfil sigue siendo visible durante el período de gracia de 4 días tras el
+  // vencimiento (CLAUDE.md §6) — el banner solo debe aparecer cuando ya no lo es.
+  const finGracia = vigenteHasta ? new Date(`${vigenteHasta}T00:00:00`) : null;
+  if (finGracia) finGracia.setDate(finGracia.getDate() + 4);
+  const suscripcionInactiva = !vigenteHasta || finGracia < hoy;
 
   if (!suscripcionInactiva) {
     banner.hidden = true;
