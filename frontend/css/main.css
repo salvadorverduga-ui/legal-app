@@ -974,6 +974,13 @@ p {
   flex-direction: column;
 }
 
+/* display: flex de arriba gana sobre [hidden] por origen de cascada
+   (regla de autor vs. regla de user-agent), así que hay que repetirlo
+   explícitamente acá para que el atributo hidden vuelva a funcionar. */
+.notificaciones__lista[hidden] {
+  display: none;
+}
+
 .notificaciones__header {
   display: flex;
   align-items: center;
