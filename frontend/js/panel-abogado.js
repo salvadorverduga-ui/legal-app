@@ -243,11 +243,30 @@ async function manejarToggleDisponible() {
 }
 
 // ─── Mi perfil: foto ──────────────────────────────────────────────────────────
+const FOTO_TAMANO_MAXIMO_BYTES = 10 * 1024 * 1024;
+
 async function manejarCambioFoto(e) {
   const archivo = e.target.files[0];
   if (!archivo) return;
 
   const estadoEl = document.getElementById('fotoEstado');
+
+  if (!archivo.type.startsWith('image/')) {
+    const mensaje = 'El archivo debe ser una imagen.';
+    estadoEl.textContent = mensaje;
+    toast.error(mensaje);
+    e.target.value = '';
+    return;
+  }
+
+  if (archivo.size > FOTO_TAMANO_MAXIMO_BYTES) {
+    const mensaje = 'La imagen no debe superar los 10MB.';
+    estadoEl.textContent = mensaje;
+    toast.error(mensaje);
+    e.target.value = '';
+    return;
+  }
+
   estadoEl.textContent = 'Subiendo foto...';
 
   const { url, error } = await api.perfiles.subirFotoPerfil(archivo);
