@@ -56,8 +56,12 @@
 
         <!-- Navegación por secciones -->
         <nav class="panel-tabs" role="tablist" aria-label="Secciones del panel">
-          <button class="panel-tab panel-tab--activo" id="tabSolicitudes" type="button"
-            role="tab" aria-selected="true" aria-controls="seccionSolicitudes">
+          <button class="panel-tab panel-tab--activo" id="tabPerfil" type="button"
+            role="tab" aria-selected="true" aria-controls="seccionPerfil">
+            Mi perfil
+          </button>
+          <button class="panel-tab" id="tabSolicitudes" type="button"
+            role="tab" aria-selected="false" aria-controls="seccionSolicitudes">
             Mis solicitudes
           </button>
           <button class="panel-tab" id="tabResenas" type="button"
@@ -66,8 +70,76 @@
           </button>
         </nav>
 
+        <!-- ═══════════════ SECCIÓN: MI PERFIL ═══════════════ -->
+        <section class="panel-seccion" id="seccionPerfil" role="tabpanel" aria-labelledby="tabPerfil">
+
+          <div class="panel-perfil-foto">
+            <div class="panel-perfil-foto__avatar" id="perfilFotoAvatar"></div>
+            <div class="panel-perfil-foto__acciones">
+              <button class="btn btn--secundario btn--sm" id="btnCambiarFoto" type="button">
+                Cambiar foto
+              </button>
+              <input type="file" id="inputFoto" class="sr-only" accept="image/jpeg,image/png,image/webp">
+              <p class="campo__ayuda" id="fotoEstado" role="status" aria-live="polite"></p>
+            </div>
+          </div>
+
+          <form class="formulario" id="formPerfil" novalidate>
+            <div class="campo">
+              <label for="perfilTelefono" class="campo__etiqueta">Teléfono (opcional)</label>
+              <input type="tel" id="perfilTelefono" class="campo__input" placeholder="+593 99 999 9999">
+              <p class="campo__ayuda">Se comparte con el abogado solo cuando acepta su solicitud.</p>
+            </div>
+
+            <div class="campo">
+              <label for="perfilProvincia" class="campo__etiqueta">Provincia (opcional)</label>
+              <select id="perfilProvincia" class="campo__input">
+                <option value="">Seleccione una provincia</option>
+                <option value="Azuay">Azuay</option>
+                <option value="Bolívar">Bolívar</option>
+                <option value="Cañar">Cañar</option>
+                <option value="Carchi">Carchi</option>
+                <option value="Chimborazo">Chimborazo</option>
+                <option value="Cotopaxi">Cotopaxi</option>
+                <option value="El Oro">El Oro</option>
+                <option value="Esmeraldas">Esmeraldas</option>
+                <option value="Galápagos">Galápagos</option>
+                <option value="Guayas">Guayas</option>
+                <option value="Imbabura">Imbabura</option>
+                <option value="Loja">Loja</option>
+                <option value="Los Ríos">Los Ríos</option>
+                <option value="Manabí">Manabí</option>
+                <option value="Morona Santiago">Morona Santiago</option>
+                <option value="Napo">Napo</option>
+                <option value="Orellana">Orellana</option>
+                <option value="Pastaza">Pastaza</option>
+                <option value="Pichincha">Pichincha</option>
+                <option value="Santa Elena">Santa Elena</option>
+                <option value="Santo Domingo de los Tsáchilas">Santo Domingo de los Tsáchilas</option>
+                <option value="Sucumbíos">Sucumbíos</option>
+                <option value="Tungurahua">Tungurahua</option>
+                <option value="Zamora Chinchipe">Zamora Chinchipe</option>
+              </select>
+            </div>
+
+            <div class="campo">
+              <label for="perfilCiudad" class="campo__etiqueta">Ciudad (opcional)</label>
+              <input type="text" id="perfilCiudad" class="campo__input" maxlength="100" placeholder="Ej: Cuenca">
+            </div>
+
+            <p class="campo__error" id="errorPerfil" role="alert" aria-live="polite"></p>
+            <p class="mensaje-exito" id="exitoPerfil" role="status" aria-live="polite" hidden>
+              Perfil actualizado correctamente.
+            </p>
+
+            <button type="submit" class="btn btn--primario" id="btnGuardarPerfil">
+              Guardar cambios
+            </button>
+          </form>
+        </section>
+
         <!-- ═══════════════ SECCIÓN: MIS SOLICITUDES ═══════════════ -->
-        <section class="panel-seccion" id="seccionSolicitudes" role="tabpanel" aria-labelledby="tabSolicitudes">
+        <section class="panel-seccion" id="seccionSolicitudes" role="tabpanel" aria-labelledby="tabSolicitudes" hidden>
 
           <div class="filtro-tipo" role="group" aria-label="Filtrar solicitudes por estado">
             <span class="filtro-tipo__label">Estado:</span>

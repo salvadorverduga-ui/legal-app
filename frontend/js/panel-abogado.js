@@ -561,11 +561,15 @@ function generarSolicitudCard(s) {
     ? `<p class="solicitud-item__detalle"><span class="solicitud-item__detalle-etiqueta">Motivo:</span> ${escaparHtml(s.motivo_rechazo)}</p>`
     : '';
 
+  const telefonoHtml = s.cliente_telefono
+    ? `Teléfono: <strong>${escaparHtml(s.cliente_telefono)}</strong>`
+    : 'El cliente no registró teléfono — puede contactarlo por email.';
+
   const contactoHtml = s.estado === 'ACEPTADA'
     ? `
       <div class="solicitud-item__contacto">
-        Contacto revelado — Teléfono: <strong>${escaparHtml(s.cliente_telefono ?? 'No registrado')}</strong>,
-        correo: <strong>${escaparHtml(s.cliente_email ?? 'No registrado')}</strong>
+        Contacto revelado — correo: <strong>${escaparHtml(s.cliente_email ?? 'No registrado')}</strong>.
+        ${telefonoHtml}
       </div>
     `
     : '';
