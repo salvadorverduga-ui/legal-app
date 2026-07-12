@@ -1,0 +1,8 @@
+{
+  "name": "legal-app",
+  "private": true,
+  "description": "Plataforma de conexión legal Ecuador — dependencias de api/ (Vercel Serverless Functions). El frontend sigue siendo HTML/CSS/JS vanilla sin build step (ver CLAUDE.md §2).",
+  "dependencies": {
+    "nodemailer": "^9.0.3"
+  }
+}

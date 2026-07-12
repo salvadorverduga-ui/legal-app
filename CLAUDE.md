@@ -25,7 +25,7 @@ Una sola app, un solo repositorio, roles diferenciados por tipo de usuario (clie
 | Config runtime | Vercel Serverless Function (`api/config.js`) — expone `SUPABASE_URL`/`SUPABASE_ANON_KEY` al frontend estático sin commitear credenciales (ver §10) |
 | Hosting | Vercel — auto-deploy en push a `main` |
 | Almacenamiento | Supabase Storage (carnets, logos, fotos) |
-| Email | Resend — vía Supabase Edge Function `notificar-solicitud` (ver §13) |
+| Email | Zoho SMTP — vía Supabase Edge Function `notificar-solicitud` (ver §13) y vía Vercel Function `api/contacto.js` (ver §16) |
 | Notificaciones push | Web Push API / OneSignal (a definir) |
 | Pagos MVP | PayPhone o transferencia manual |
 | Mobile V2 | Capacitor |
@@ -44,7 +44,9 @@ legal-app/
 ├── docs/
 │   └── PRD_Plataforma_Legal_Ecuador.docx
 ├── api/
-│   └── config.js              ← Vercel Function: expone SUPABASE_URL/ANON_KEY sin commitearlas
+│   ├── config.js              ← Vercel Function: expone SUPABASE_URL/ANON_KEY sin commitearlas
+│   └── contacto.js            ← Vercel Function: formulario de contacto/soporte vía Zoho SMTP (ver §16)
+├── package.json                ← dependencias de api/ (nodemailer). El frontend sigue sin build step (§2)
 ├── frontend/
 │   ├── index.html             ← landing / login
 │   ├── css/
@@ -60,20 +62,26 @@ legal-app/
 │   │   ├── panel-abogado.js   ← lógica de panel-abogado.html
 │   │   ├── panel-cliente.js   ← lógica de panel-cliente.html
 │   │   ├── panel-admin.js     ← lógica de panel-admin.html
-│   │   └── registro.js        ← lógica de registro.html
+│   │   ├── registro.js        ← lógica de registro.html
+│   │   ├── recuperar-contrasena.js ← lógica de recuperar-contrasena.html
+│   │   ├── nueva-contrasena.js     ← lógica de nueva-contrasena.html
+│   │   └── contacto.js        ← lógica de contacto.html (sin Supabase; envía a /api/contacto)
 │   └── pages/
 │       ├── busqueda.html
 │       ├── perfil-abogado.html
 │       ├── panel-cliente.html
 │       ├── panel-abogado.html
 │       ├── panel-admin.html
-│       └── registro.html
+│       ├── registro.html
+│       ├── recuperar-contrasena.html
+│       ├── nueva-contrasena.html
+│       └── contacto.html
 ├── supabase/
 │   ├── config.toml            ← project_id para el Supabase CLI (link/deploy)
 │   ├── migrations/            ← archivos SQL en orden cronológico
 │   └── functions/
 │       └── notificar-solicitud/
-│           └── index.ts       ← Edge Function: emails de solicitud vía Resend (ver §13)
+│           └── index.ts       ← Edge Function: emails de solicitud vía Zoho SMTP (ver §13)
 ├── vercel.json                ← security headers + routing
 ├── .env.example                ← lista de variables de entorno; copiar como .env local
 └── .gitignore
@@ -393,6 +401,25 @@ La migración crea el bucket si no existe y fuerza `public = false` aunque ya ex
 - [x] MÓDULO 5 — Notificaciones internas: sistema de notificaciones en la interfaz para cada tipo de usuario (nueva solicitud, solicitud aceptada/rechazada, verificación aprobada/rechazada, suscripción próxima a vencer)
 
 Marcar cada ítem como `[x]` a medida que se completa el módulo correspondiente.
+
+---
+
+## 16. Formulario de contacto y soporte (`api/contacto.js`)
+
+### Arquitectura
+`frontend/pages/contacto.html` no usa Supabase — es un formulario simple (nombre, email, asunto, mensaje) que hace `fetch('/api/contacto', ...)`. `api/contacto.js` es una Vercel Serverless Function (Node.js) que valida los campos y reenvía el mensaje por email al equipo de soporte usando SMTP de Zoho Mail, vía la librería `nodemailer`.
+
+### Por qué una dependencia npm aquí
+CLAUDE.md §2 prohíbe introducir dependencias npm en el **frontend** sin discutirlo primero; esto no cambia. `nodemailer` es una dependencia de `api/` (backend, Node.js, Vercel Serverless Function), documentada en el `package.json` de la raíz del repo — el primero que tiene este proyecto. Se eligió por el mismo motivo que la Edge Function de notificaciones usa `denomailer` en vez de implementar el protocolo SMTP a mano (ver §13): evita reimplementar EHLO/AUTH/DATA sobre TLS a mano, con el riesgo de bugs de seguridad que eso implica. El frontend estático sigue sin build step ni dependencias.
+
+### Por qué variables de entorno separadas de la Edge Function
+`ZOHO_SMTP_USER`, `ZOHO_SMTP_PASSWORD` y `EMAIL_FROM` normalmente tienen el mismo valor que sus equivalentes en Supabase secrets (§13), pero deben configurarse por separado en **Vercel → Project Settings → Environment Variables**, porque `api/contacto.js` corre en Vercel, no en Supabase, y cada plataforma tiene su propio almacén de secrets. `SUPPORT_EMAIL` es nueva: la bandeja que recibe los mensajes del formulario (si no se configura, se usa `ZOHO_SMTP_USER`). Ver `.env.example`.
+
+### Seguridad
+- `asunto` se valida contra una lista blanca fija (4 valores exactos); nunca se usa como texto libre en el email.
+- `email` del remitente se usa como `Reply-To`, nunca como `from`/`to` — el remitente real y el destinatario real (`EMAIL_FROM`/`SUPPORT_EMAIL`) siempre vienen de variables de entorno, no de datos del formulario.
+- `nombre` y `mensaje` se escapan antes de insertarse en el HTML del correo (misma función `escapar()` que ya usa `notificar-solicitud/index.ts`).
+- Sin sesión ni RLS involucrados: este endpoint es público por diseño (cualquiera debe poder pedir soporte), así que la validación de entrada vive enteramente en `api/contacto.js`.
 
 ---
 

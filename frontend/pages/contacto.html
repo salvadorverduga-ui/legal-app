@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Contacte al equipo de soporte de LegalEC.">
+  <title>Soporte — LegalEC</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+
+  <header class="encabezado">
+    <div class="contenedor encabezado__contenedor">
+      <a href="/" class="logo" aria-label="LegalEC — Inicio">
+        <span class="logo__nombre">LegalEC</span>
+      </a>
+    </div>
+  </header>
+
+  <main>
+    <div class="contenedor seccion-registro">
+      <section aria-labelledby="tituloContacto">
+        <div class="tarjeta-auth tarjeta-auth--registro">
+
+          <a href="/" class="btn-volver">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" aria-hidden="true">
+              <path d="M19 12H5M12 5l-7 7 7 7"/>
+            </svg>
+            Volver al inicio
+          </a>
+
+          <h1 class="auth__titulo" id="tituloContacto">Contacto y soporte</h1>
+          <p class="campo__ayuda">
+            Complete el formulario y le responderemos a la brevedad al correo que indique.
+          </p>
+
+          <form id="formContacto" class="formulario" novalidate>
+            <div class="campo">
+              <label for="contactoNombre" class="campo__etiqueta">Nombre</label>
+              <input type="text" id="contactoNombre" name="nombre" class="campo__input" autocomplete="name" maxlength="150" required>
+            </div>
+
+            <div class="campo">
+              <label for="contactoEmail" class="campo__etiqueta">Correo electrónico</label>
+              <input type="email" id="contactoEmail" name="email" class="campo__input" autocomplete="email" inputmode="email" required>
+            </div>
+
+            <div class="campo">
+              <label for="contactoAsunto" class="campo__etiqueta">Asunto</label>
+              <select id="contactoAsunto" name="asunto" class="campo__input" required>
+                <option value="">Seleccione un asunto</option>
+                <option value="Problema técnico">Problema técnico</option>
+                <option value="Consulta sobre suscripción">Consulta sobre suscripción</option>
+                <option value="Reportar abogado">Reportar abogado</option>
+                <option value="Otro">Otro</option>
+              </select>
+            </div>
+
+            <div class="campo">
+              <label for="contactoMensaje" class="campo__etiqueta">Mensaje</label>
+              <textarea
+                id="contactoMensaje"
+                name="mensaje"
+                class="campo__input"
+                rows="6"
+                maxlength="2000"
+                required
+              ></textarea>
+              <p class="campo__contador" id="contadorMensaje">0 / 2000</p>
+            </div>
+
+            <p class="campo__error" id="errorContacto" role="alert" aria-live="polite"></p>
+            <button type="submit" class="btn btn--primario btn--completo" id="btnEnviarContacto">
+              Enviar mensaje
+            </button>
+          </form>
+
+          <div class="mensaje-confirmacion" id="confirmacionContacto" hidden>
+            <p class="mensaje-confirmacion__titulo">Mensaje enviado</p>
+            <p>Recibimos su mensaje. Nuestro equipo de soporte le responderá a la brevedad.</p>
+            <a href="/" class="btn btn--secundario">Volver al inicio</a>
+          </div>
+
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="pie">
+    <div class="contenedor pie__contenedor">
+      <p class="pie__aviso">
+        LegalEC es un servicio de conexión y no un proveedor de servicios jurídicos.
+      </p>
+      <nav class="pie__nav" aria-label="Páginas legales">
+        <a href="#" class="pie__enlace">Términos y condiciones</a>
+        <span class="pie__separador" aria-hidden="true">·</span>
+        <a href="#" class="pie__enlace">Política de privacidad (LOPDP)</a>
+        <span class="pie__separador" aria-hidden="true">·</span>
+        <a href="/pages/contacto" class="pie__enlace">Soporte</a>
+      </nav>
+    </div>
+  </footer>
+
+  <script type="module" src="/js/contacto.js"></script>
+
+</body>
+</html>
