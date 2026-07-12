@@ -28,7 +28,7 @@ const CLASE_ESTADO_SOLICITUD = {
   CANCELADA:  'badge--estado-cancelada',
 };
 
-const SECCIONES = ['Perfil', 'Solicitudes', 'Resenas'];
+const SECCIONES = ['Perfil', 'Solicitudes', 'Abogados', 'Resenas'];
 
 // ─── Estado de la página ──────────────────────────────────────────────────────
 let perfilActual = null;         // fila propia de la tabla perfiles
@@ -70,11 +70,13 @@ async function inicializar() {
   rellenarFormularioPerfil();
   inicializarNotificaciones();
 
-  const [resenas] = await Promise.all([
+  const [resenas, abogadosContactados] = await Promise.all([
     api.resenas.getMisResenas(),
+    api.solicitudes.getAbogadosContactados(),
     cargarSolicitudes(),
   ]);
   renderizarResenas(resenas);
+  renderizarAbogadosContactados(abogadosContactados);
 
   mostrarContenido();
   configurarEventos();
@@ -564,6 +566,64 @@ async function manejarSubmitEditar(e) {
   solicitudConEdicionAbierta = null;
   renderizarSolicitudes();
   toast.exito('Solicitud actualizada.');
+}
+
+// ─── Mis abogados ─────────────────────────────────────────────────────────────
+function renderizarAbogadosContactados(lista) {
+  const contenedor = document.getElementById('abogadosContactadosLista');
+  const vacio = document.getElementById('estadoSinAbogadosContactados');
+
+  if (!lista || lista.length === 0) {
+    contenedor.innerHTML = '';
+    vacio.hidden = false;
+    return;
+  }
+
+  vacio.hidden = true;
+  contenedor.innerHTML = lista.map(generarCardAbogadoContactado).join('');
+}
+
+function generarCardAbogadoContactado(ab) {
+  const avatarHtml = generarAvatarHtml(ab.abogado_foto, ab.abogado_nombre);
+  const idSeguro = escaparAtrib(ab.abogado_id);
+
+  const especialidades = (ab.abogado_especialidades ?? []).slice(0, 3);
+  const extras = (ab.abogado_especialidades?.length ?? 0) - 3;
+  const especialidadesHtml = especialidades
+    .map(e => `<span class="chip">${escaparHtml(e)}</span>`)
+    .join('');
+  const masHtml = extras > 0 ? `<span class="chip chip--mas">+${extras}</span>` : '';
+
+  const activaHtml = ab.tiene_solicitud_activa
+    ? '<span class="badge badge--estado-aceptada">Consulta activa</span>'
+    : '';
+
+  return `
+    <article class="card-abogado" role="listitem">
+      <div class="card-abogado__header">
+        <div class="card-abogado__avatar">${avatarHtml}</div>
+        <div class="card-abogado__meta">
+          <div class="card-abogado__badges">${activaHtml}</div>
+          <h3 class="card-abogado__nombre">${escaparHtml(ab.abogado_nombre)}</h3>
+          ${ab.abogado_provincia ? `<p class="card-abogado__ubicacion">${escaparHtml(ab.abogado_provincia)}</p>` : ''}
+        </div>
+      </div>
+
+      ${especialidades.length ? `
+        <div class="card-abogado__especialidades">
+          ${especialidadesHtml}${masHtml}
+        </div>
+      ` : ''}
+
+      <div class="card-abogado__footer">
+        <p class="card-abogado__precio">Última interacción: ${formatearFecha(ab.ultima_interaccion)}</p>
+        <div class="solicitud-item__acciones">
+          <a href="/pages/perfil-abogado?id=${idSeguro}" class="btn btn--secundario btn--sm">Ver perfil</a>
+          <a href="/pages/perfil-abogado?id=${idSeguro}" class="btn btn--primario btn--sm">Nueva consulta</a>
+        </div>
+      </div>
+    </article>
+  `;
 }
 
 // ─── Reseñas ──────────────────────────────────────────────────────────────────

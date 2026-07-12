@@ -64,6 +64,10 @@
             role="tab" aria-selected="false" aria-controls="seccionSolicitudes">
             Mis solicitudes
           </button>
+          <button class="panel-tab" id="tabAbogados" type="button"
+            role="tab" aria-selected="false" aria-controls="seccionAbogados">
+            Mis abogados
+          </button>
           <button class="panel-tab" id="tabResenas" type="button"
             role="tab" aria-selected="false" aria-controls="seccionResenas">
             Mis reseñas
@@ -160,6 +164,17 @@
           <div class="estado-vacio" id="estadoSinSolicitudes" hidden>
             <p class="estado-vacio__titulo">Aún no ha enviado ninguna solicitud</p>
             <p>Busque un abogado para comenzar.</p>
+            <a href="/pages/busqueda" class="btn btn--primario estado-vacio__cta">Buscar un abogado</a>
+          </div>
+        </section>
+
+        <!-- ═══════════════ SECCIÓN: MIS ABOGADOS ═══════════════ -->
+        <section class="panel-seccion" id="seccionAbogados" role="tabpanel" aria-labelledby="tabAbogados" hidden>
+          <div class="grid-resultados" id="abogadosContactadosLista"></div>
+
+          <div class="estado-vacio" id="estadoSinAbogadosContactados" hidden>
+            <p class="estado-vacio__titulo">Aún no tiene abogados en su historial</p>
+            <p>Cuando un abogado acepte una de sus solicitudes, aparecerá aquí.</p>
             <a href="/pages/busqueda" class="btn btn--primario estado-vacio__cta">Buscar un abogado</a>
           </div>
         </section>

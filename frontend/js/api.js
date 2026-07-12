@@ -970,6 +970,29 @@ export const solicitudes = {
     return { data, error: null };
   },
 
+  /**
+   * Retorna los abogados con los que el cliente autenticado tuvo una
+   * solicitud ACEPTADA, COMPLETADA o RESEÑADA — una fila por abogado (ver
+   * vista panel_abogados_contactados, migración 034).
+   * Ordenados: primero los que tienen una solicitud ACEPTADA en curso
+   * (tiene_solicitud_activa=true), luego por fecha de última interacción
+   * descendente dentro de cada grupo.
+   * Retorna array (puede estar vacío).
+   */
+  async getAbogadosContactados() {
+    const { data, error } = await _cliente
+      .from('panel_abogados_contactados')
+      .select('*')
+      .order('tiene_solicitud_activa', { ascending: false })
+      .order('ultima_interaccion', { ascending: false });
+
+    if (error) {
+      console.error('[api.solicitudes.getAbogadosContactados]', error.message);
+      return [];
+    }
+    return data ?? [];
+  },
+
 };
 
 
