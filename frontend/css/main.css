@@ -1926,6 +1926,13 @@ p {
   border: 1px solid var(--color-borde);
 }
 
+/* display: flex de arriba gana sobre [hidden] por origen de cascada
+   (regla de autor vs. regla de user-agent), así que hay que repetirlo
+   explícitamente acá para que el atributo hidden vuelva a funcionar. */
+.panel-banner[hidden] {
+  display: none;
+}
+
 /* ── Cabecera: identidad + disponibilidad ─────────────────── */
 .panel-cabecera {
   background-color: var(--color-fondo-card);
