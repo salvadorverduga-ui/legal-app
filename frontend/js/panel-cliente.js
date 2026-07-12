@@ -377,7 +377,7 @@ function generarSolicitudCard(s) {
           <div class="solicitud-item__avatar">${avatarHtml}</div>
           <div>
             <p class="solicitud-item__nombre"><a href="/pages/perfil-abogado?id=${abogadoIdSeguro}">${escaparHtml(s.abogado_nombre)}</a></p>
-            <p class="solicitud-item__fecha">Enviada ${formatearTiempoTranscurrido(s.created_at)} · ${formatearFecha(s.created_at)}</p>
+            <p class="solicitud-item__fecha">Enviada ${formatearTiempoTranscurrido(s.created_at)} · ${formatearFechaHora(s.created_at)}</p>
             ${tiempoRestanteHtml}
           </div>
         </div>
@@ -727,6 +727,14 @@ function formatearFecha(fechaIso) {
     month: 'long',
     day: 'numeric',
   });
+}
+
+function formatearFechaHora(fechaIso) {
+  if (!fechaIso) return '';
+  const fecha = new Date(fechaIso);
+  const hora = String(fecha.getHours()).padStart(2, '0');
+  const minutos = String(fecha.getMinutes()).padStart(2, '0');
+  return `${formatearFecha(fechaIso)}, ${hora}:${minutos}`;
 }
 
 // Tiempo transcurrido desde que se envió la solicitud (created_at), en

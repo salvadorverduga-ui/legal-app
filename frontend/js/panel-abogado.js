@@ -622,7 +622,7 @@ function generarSolicitudCard(s) {
           <div class="solicitud-item__avatar">${avatarHtml}</div>
           <div>
             <p class="solicitud-item__nombre">${escaparHtml(s.cliente_nombre)}</p>
-            <p class="solicitud-item__fecha">${formatearFecha(s.created_at)}</p>
+            <p class="solicitud-item__fecha">${formatearFechaHora(s.created_at)}</p>
           </div>
         </div>
         <span class="badge ${claseEstado}">${etiquetaEstado}</span>
@@ -826,6 +826,14 @@ function formatearFecha(fechaIso) {
     month: 'long',
     day: 'numeric',
   });
+}
+
+function formatearFechaHora(fechaIso) {
+  if (!fechaIso) return '';
+  const fecha = new Date(fechaIso);
+  const hora = String(fecha.getHours()).padStart(2, '0');
+  const minutos = String(fecha.getMinutes()).padStart(2, '0');
+  return `${formatearFecha(fechaIso)}, ${hora}:${minutos}`;
 }
 
 // ─── Seguridad: escapado de HTML ──────────────────────────────────────────────
