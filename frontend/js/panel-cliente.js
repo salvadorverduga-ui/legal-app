@@ -4,7 +4,7 @@
 
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
-import { toast, mensajeAmigable } from './utils.js';
+import { toast, mensajeAmigable, rutaPanelPropio } from './utils.js';
 import { inicializarNotificaciones } from './notificaciones.js';
 
 // ─── Etiquetas y estilos por estado ───────────────────────────────────────────
@@ -66,6 +66,7 @@ async function inicializar() {
   }
 
   document.getElementById('nombreUsuario').textContent = perfilActual.nombre_completo;
+  document.querySelector('.logo').href = rutaPanelPropio(perfilActual.rol);
   renderizarCabecera();
   rellenarFormularioPerfil();
   inicializarNotificaciones();
@@ -270,6 +271,7 @@ function generarSolicitudCard(s) {
   const claseEstado = CLASE_ESTADO_SOLICITUD[s.estado] ?? 'badge--estado-expirada';
   const etiquetaEstado = ETIQUETAS_ESTADO_SOLICITUD[s.estado] ?? s.estado;
   const idSeguro = escaparAtrib(s.id);
+  const abogadoIdSeguro = escaparAtrib(s.abogado_id);
 
   const detalleHtml = [
     s.descripcion_caso
@@ -374,7 +376,7 @@ function generarSolicitudCard(s) {
         <div class="solicitud-item__cliente">
           <div class="solicitud-item__avatar">${avatarHtml}</div>
           <div>
-            <p class="solicitud-item__nombre">${escaparHtml(s.abogado_nombre)}</p>
+            <p class="solicitud-item__nombre"><a href="/pages/perfil-abogado?id=${abogadoIdSeguro}">${escaparHtml(s.abogado_nombre)}</a></p>
             <p class="solicitud-item__fecha">Enviada ${formatearTiempoTranscurrido(s.created_at)} · ${formatearFecha(s.created_at)}</p>
             ${tiempoRestanteHtml}
           </div>
@@ -613,7 +615,7 @@ function generarCardAbogadoContactado(ab) {
         <div class="card-abogado__avatar">${avatarHtml}</div>
         <div class="card-abogado__meta">
           <div class="card-abogado__badges">${activaHtml}</div>
-          <h3 class="card-abogado__nombre">${escaparHtml(ab.abogado_nombre)}</h3>
+          <h3 class="card-abogado__nombre"><a href="/pages/perfil-abogado?id=${idSeguro}">${escaparHtml(ab.abogado_nombre)}</a></h3>
           ${ab.abogado_provincia ? `<p class="card-abogado__ubicacion">${escaparHtml(ab.abogado_provincia)}</p>` : ''}
         </div>
       </div>

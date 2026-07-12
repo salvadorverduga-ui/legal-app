@@ -4,7 +4,7 @@
 
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
-import { toast, mensajeAmigable } from './utils.js';
+import { toast, mensajeAmigable, rutaPanelPropio } from './utils.js';
 
 // ─── Etiquetas visibles para tipo_badge ───────────────────────────────────────
 const ETIQUETAS_TIPO = {
@@ -12,6 +12,14 @@ const ETIQUETAS_TIPO = {
   estudio:    'Estudio',
   red:        'Red',
 };
+
+// Markup de confianza (armado acá, nunca con datos de usuario): seguro de
+// insertar con innerHTML. api.solicitudes.crearSolicitud() distingue este
+// caso con error.codigo === 'SOLICITUD_DUPLICADA' (constraint única en
+// solicitudes, ver migración 20260625_006).
+const MENSAJE_SOLICITUD_DUPLICADA =
+  'Ya tiene una solicitud activa con este abogado. ' +
+  '<a href="/pages/panel-cliente?tab=solicitudes">Ver mis solicitudes</a>';
 
 // ─── Estado de la página ──────────────────────────────────────────────────────
 let abogadoActual = null;
@@ -41,8 +49,10 @@ async function inicializar() {
       document.getElementById('nombreUsuario').textContent = perfil.nombre_completo;
     }
     document.getElementById('btnCerrarSesion').hidden = false;
+    document.querySelector('.logo').href = rutaPanelPropio(perfil?.rol);
   } else {
     document.getElementById('btnIniciarSesion').hidden = false;
+    document.querySelector('.logo').href = '/';
   }
 
   // 3. Leer el id del abogado desde la URL
@@ -240,6 +250,11 @@ async function manejarEnvioSolicitud(abogadoId) {
     });
 
     if (error) {
+      if (error.codigo === 'SOLICITUD_DUPLICADA') {
+        errorEl.innerHTML = MENSAJE_SOLICITUD_DUPLICADA;
+        toast.error(MENSAJE_SOLICITUD_DUPLICADA, { html: true });
+        return;
+      }
       const mensaje = mensajeAmigable(error, 'Ocurrió un error. Intente de nuevo.');
       errorEl.textContent = mensaje;
       toast.error(mensaje);

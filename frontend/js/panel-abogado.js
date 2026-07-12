@@ -4,7 +4,7 @@
 
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
-import { toast, mensajeAmigable } from './utils.js';
+import { toast, mensajeAmigable, rutaPanelPropio } from './utils.js';
 import { inicializarNotificaciones } from './notificaciones.js';
 
 // ─── Etiquetas y estilos por estado ───────────────────────────────────────────
@@ -41,7 +41,7 @@ const ETIQUETAS_TIPO_SUSCRIPCION = {
   ESTUDIO_GRANDE:     'Estudio grande',
 };
 
-const SECCIONES = ['Perfil', 'Solicitudes', 'Resenas', 'Suscripcion'];
+const SECCIONES = ['Solicitudes', 'Resenas', 'Suscripcion', 'Perfil'];
 
 // ─── Estado de la página ──────────────────────────────────────────────────────
 let perfilActual = null;         // fila propia de la tabla perfiles
@@ -88,6 +88,7 @@ async function inicializar() {
   }
 
   document.getElementById('nombreUsuario').textContent = perfilActual.nombre_completo;
+  document.querySelector('.logo').href = rutaPanelPropio(perfilActual.rol);
   inicializarNotificaciones();
 
   renderizarCabecera();
@@ -184,8 +185,11 @@ function renderizarCabecera() {
   document.getElementById('cabeceraNombre').textContent = perfilActual.nombre_completo;
 
   const estadoVerificacion = ETIQUETAS_VERIFICACION[abogadoActual.verificacion] ?? ETIQUETAS_VERIFICACION.PENDIENTE;
+  const badgePerfilCompletoHtml = calcularPorcentajePerfil() === 100
+    ? '<span class="badge badge--verificado">Perfil completo &#10003;</span>'
+    : '';
   document.getElementById('cabeceraBadges').innerHTML =
-    `<span class="badge ${estadoVerificacion.clase}">${estadoVerificacion.texto}</span>`;
+    `<span class="badge ${estadoVerificacion.clase}">${estadoVerificacion.texto}</span>${badgePerfilCompletoHtml}`;
 
   document.getElementById('toggleDisponible').checked = abogadoActual.toggle_disponible;
   actualizarEtiquetaDisponible(abogadoActual.toggle_disponible);
@@ -229,9 +233,7 @@ function actualizarBannerSuscripcion() {
 
 function actualizarBannerOnboarding() {
   const banner = document.getElementById('bannerOnboarding');
-  const perfilIncompleto = !abogadoActual.descripcion?.trim()
-    && (abogadoActual.especialidades ?? []).length === 0;
-  banner.hidden = !perfilIncompleto;
+  banner.hidden = calcularPorcentajePerfil() === 100;
 }
 
 async function manejarToggleDisponible() {
@@ -298,6 +300,7 @@ async function manejarCambioFoto(e) {
   perfilActual.foto_url = url;
   renderizarCabecera();
   actualizarProgresoPerfil();
+  actualizarBannerOnboarding();
   estadoEl.textContent = 'Foto actualizada.';
   toast.exito('Foto actualizada.');
   e.target.value = '';
@@ -449,7 +452,7 @@ async function rellenarFormularioPerfil() {
 }
 
 // 5 campos = 20% cada uno: foto, descripción, especialidades, precio, provincia
-function actualizarProgresoPerfil() {
+function calcularPorcentajePerfil() {
   const campos = [
     Boolean(perfilActual.foto_url),
     Boolean(abogadoActual.descripcion?.trim()),
@@ -457,8 +460,11 @@ function actualizarProgresoPerfil() {
     abogadoActual.precio_consulta != null,
     Boolean(abogadoActual.provincia_id),
   ];
-  const porcentaje = campos.filter(Boolean).length * 20;
+  return campos.filter(Boolean).length * 20;
+}
 
+function actualizarProgresoPerfil() {
+  const porcentaje = calcularPorcentajePerfil();
   document.getElementById('progresoPerfilPorcentaje').textContent = `${porcentaje}%`;
   document.getElementById('progresoPerfilRelleno').style.width = `${porcentaje}%`;
 }
@@ -508,6 +514,7 @@ async function manejarGuardarPerfil() {
 
     abogadoActual = resultadoAbogado.data;
     exitoEl.hidden = false;
+    renderizarCabecera();
     actualizarBannerOnboarding();
     actualizarProgresoPerfil();
     toast.exito('Perfil guardado.');

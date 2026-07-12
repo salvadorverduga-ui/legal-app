@@ -24,13 +24,20 @@ function obtenerContenedorToasts() {
   return contenedorToasts;
 }
 
-function mostrarToast(mensaje, tipo) {
+// opciones.html === true: el mensaje incluye markup de confianza (ej. un
+// enlace interno armado por el propio código, nunca texto de usuario) y se
+// inserta con innerHTML en lugar de textContent.
+function mostrarToast(mensaje, tipo, opciones = {}) {
   const contenedor = obtenerContenedorToasts();
 
   const toastEl = document.createElement('div');
   toastEl.className = `toast toast--${tipo}`;
   toastEl.setAttribute('role', tipo === 'error' ? 'alert' : 'status');
-  toastEl.textContent = mensaje;
+  if (opciones.html) {
+    toastEl.innerHTML = mensaje;
+  } else {
+    toastEl.textContent = mensaje;
+  }
   toastEl.addEventListener('click', () => cerrarToast(toastEl));
 
   contenedor.appendChild(toastEl);
@@ -48,9 +55,9 @@ function cerrarToast(toastEl) {
 }
 
 export const toast = {
-  exito: (mensaje) => mostrarToast(mensaje, 'exito'),
-  error: (mensaje) => mostrarToast(mensaje, 'error'),
-  info:  (mensaje) => mostrarToast(mensaje, 'info'),
+  exito: (mensaje, opciones) => mostrarToast(mensaje, 'exito', opciones),
+  error: (mensaje, opciones) => mostrarToast(mensaje, 'error', opciones),
+  info:  (mensaje, opciones) => mostrarToast(mensaje, 'info', opciones),
 };
 
 // ─── Mensajes de error amigables ───────────────────────────────────────────────
@@ -73,4 +80,19 @@ export function mensajeAmigable(error, mensajePorDefecto) {
     return error.message;
   }
   return mensajePorDefecto;
+}
+
+// ─── Ruta del panel propio según rol ────────────────────────────────────────
+// El logo "LegalEC" del header debe llevar siempre al panel del usuario
+// autenticado, o a la landing si no hay sesión. Misma tabla de rutas que
+// app.js usa para redirigir después del login.
+const RUTAS_PANEL_POR_ROL = {
+  cliente: '/pages/panel-cliente',
+  abogado: '/pages/panel-abogado',
+  estudio: '/pages/panel-estudio',
+  admin:   '/pages/panel-admin',
+};
+
+export function rutaPanelPropio(rol) {
+  return RUTAS_PANEL_POR_ROL[rol] ?? '/';
 }

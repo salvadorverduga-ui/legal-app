@@ -560,6 +560,11 @@ p {
   min-height: 1.25rem; /* evita salto de layout cuando aparece */
 }
 
+.campo__error a {
+  color: inherit;
+  text-decoration: underline;
+}
+
 
 /* ────────────────────────────────────────────────────────────
    7. BOTONES
@@ -2211,6 +2216,17 @@ p {
   color: var(--color-primario);
 }
 
+.solicitud-item__nombre a,
+.card-abogado__nombre a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.solicitud-item__nombre a:hover,
+.card-abogado__nombre a:hover {
+  text-decoration: underline;
+}
+
 .solicitud-item__fecha {
   font-size: var(--texto-xs);
   color: var(--color-texto-suave);
@@ -2663,6 +2679,12 @@ p {
 .toast--exito { background-color: var(--color-exito); }
 .toast--error { background-color: var(--color-error); }
 .toast--info  { background-color: var(--color-info); }
+
+.toast a {
+  color: inherit;
+  text-decoration: underline;
+  font-weight: var(--peso-semibold);
+}
 
 @media (min-width: 640px) {
   .toast-contenedor {

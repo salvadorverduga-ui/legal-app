@@ -5,6 +5,7 @@
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
 import { inicializarNotificaciones } from './notificaciones.js';
+import { rutaPanelPropio } from './utils.js';
 
 // ─── Etiquetas y estilos ───────────────────────────────────────────────────
 const ETIQUETAS_TIPO_SOLICITANTE = {
@@ -75,6 +76,7 @@ async function inicializar() {
   }
 
   document.getElementById('nombreUsuario').textContent = perfilActual.nombre_completo;
+  document.querySelector('.logo').href = rutaPanelPropio(perfilActual.rol);
   inicializarNotificaciones();
 
   await Promise.all([

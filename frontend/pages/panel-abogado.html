@@ -82,12 +82,8 @@
 
         <!-- Navegación por secciones -->
         <nav class="panel-tabs" role="tablist" aria-label="Secciones del panel">
-          <button class="panel-tab panel-tab--activo" id="tabPerfil" type="button"
-            role="tab" aria-selected="true" aria-controls="seccionPerfil">
-            Mi perfil
-          </button>
-          <button class="panel-tab" id="tabSolicitudes" type="button"
-            role="tab" aria-selected="false" aria-controls="seccionSolicitudes">
+          <button class="panel-tab panel-tab--activo" id="tabSolicitudes" type="button"
+            role="tab" aria-selected="true" aria-controls="seccionSolicitudes">
             Solicitudes
           </button>
           <button class="panel-tab" id="tabResenas" type="button"
@@ -98,10 +94,51 @@
             role="tab" aria-selected="false" aria-controls="seccionSuscripcion">
             Mi suscripción
           </button>
+          <button class="panel-tab" id="tabPerfil" type="button"
+            role="tab" aria-selected="false" aria-controls="seccionPerfil">
+            Editar perfil
+          </button>
         </nav>
 
-        <!-- ═══════════════ SECCIÓN: MI PERFIL ═══════════════ -->
-        <section class="panel-seccion" id="seccionPerfil" role="tabpanel" aria-labelledby="tabPerfil">
+        <!-- ═══════════════ SECCIÓN: SOLICITUDES ═══════════════ -->
+        <section class="panel-seccion" id="seccionSolicitudes" role="tabpanel" aria-labelledby="tabSolicitudes">
+
+          <div class="filtro-tipo" role="group" aria-label="Filtrar solicitudes por estado">
+            <span class="filtro-tipo__label">Estado:</span>
+            <button class="filtro-tipo__btn filtro-tipo__btn--activo" data-estado="" type="button">Todas</button>
+            <button class="filtro-tipo__btn" data-estado="PENDIENTE" type="button">Pendientes</button>
+            <button class="filtro-tipo__btn" data-estado="ACEPTADA" type="button">Aceptadas</button>
+            <button class="filtro-tipo__btn" data-estado="COMPLETADA" type="button">Completadas</button>
+            <button class="filtro-tipo__btn" data-estado="RECHAZADA" type="button">Rechazadas</button>
+            <button class="filtro-tipo__btn" data-estado="EXPIRADA" type="button">Expiradas</button>
+            <button class="filtro-tipo__btn" data-estado="CANCELADA" type="button">Canceladas</button>
+          </div>
+
+          <p class="campo__error" id="errorSolicitudes" role="alert" aria-live="polite"></p>
+
+          <div class="solicitudes-lista" id="solicitudesLista"></div>
+
+          <div class="estado-vacio" id="estadoSinSolicitudes" hidden>
+            <p>No hay solicitudes en este estado.</p>
+          </div>
+        </section>
+
+        <!-- ═══════════════ SECCIÓN: RESEÑAS ═══════════════ -->
+        <section class="panel-seccion" id="seccionResenas" role="tabpanel" aria-labelledby="tabResenas" hidden>
+          <div class="resenas-lista" id="resenasLista"></div>
+
+          <div class="estado-vacio" id="estadoSinResenas" hidden>
+            <p>Aún no ha recibido reseñas.</p>
+          </div>
+        </section>
+
+        <!-- ═══════════════ SECCIÓN: MI SUSCRIPCIÓN ═══════════════ -->
+        <section class="panel-seccion" id="seccionSuscripcion" role="tabpanel" aria-labelledby="tabSuscripcion" hidden>
+          <div class="tarjeta-suscripcion" id="tarjetaSuscripcion"></div>
+        </section>
+
+        <!-- ═══════════════ SECCIÓN: EDITAR PERFIL ═══════════════ -->
+        <section class="panel-seccion" id="seccionPerfil" role="tabpanel" aria-labelledby="tabPerfil" hidden>
 
           <div class="progreso-perfil">
             <div class="progreso-perfil__header">
@@ -195,43 +232,6 @@
               Guardar cambios
             </button>
           </form>
-        </section>
-
-        <!-- ═══════════════ SECCIÓN: SOLICITUDES ═══════════════ -->
-        <section class="panel-seccion" id="seccionSolicitudes" role="tabpanel" aria-labelledby="tabSolicitudes" hidden>
-
-          <div class="filtro-tipo" role="group" aria-label="Filtrar solicitudes por estado">
-            <span class="filtro-tipo__label">Estado:</span>
-            <button class="filtro-tipo__btn filtro-tipo__btn--activo" data-estado="" type="button">Todas</button>
-            <button class="filtro-tipo__btn" data-estado="PENDIENTE" type="button">Pendientes</button>
-            <button class="filtro-tipo__btn" data-estado="ACEPTADA" type="button">Aceptadas</button>
-            <button class="filtro-tipo__btn" data-estado="COMPLETADA" type="button">Completadas</button>
-            <button class="filtro-tipo__btn" data-estado="RECHAZADA" type="button">Rechazadas</button>
-            <button class="filtro-tipo__btn" data-estado="EXPIRADA" type="button">Expiradas</button>
-            <button class="filtro-tipo__btn" data-estado="CANCELADA" type="button">Canceladas</button>
-          </div>
-
-          <p class="campo__error" id="errorSolicitudes" role="alert" aria-live="polite"></p>
-
-          <div class="solicitudes-lista" id="solicitudesLista"></div>
-
-          <div class="estado-vacio" id="estadoSinSolicitudes" hidden>
-            <p>No hay solicitudes en este estado.</p>
-          </div>
-        </section>
-
-        <!-- ═══════════════ SECCIÓN: RESEÑAS ═══════════════ -->
-        <section class="panel-seccion" id="seccionResenas" role="tabpanel" aria-labelledby="tabResenas" hidden>
-          <div class="resenas-lista" id="resenasLista"></div>
-
-          <div class="estado-vacio" id="estadoSinResenas" hidden>
-            <p>Aún no ha recibido reseñas.</p>
-          </div>
-        </section>
-
-        <!-- ═══════════════ SECCIÓN: MI SUSCRIPCIÓN ═══════════════ -->
-        <section class="panel-seccion" id="seccionSuscripcion" role="tabpanel" aria-labelledby="tabSuscripcion" hidden>
-          <div class="tarjeta-suscripcion" id="tarjetaSuscripcion"></div>
         </section>
 
       </div>

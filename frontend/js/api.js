@@ -827,7 +827,10 @@ export const solicitudes = {
     if (error) {
       console.error('[api.solicitudes.crearSolicitud]', error.message);
       if (error.code === '23505') {
-        return { data: null, error: { message: 'Ya tiene una solicitud activa con este abogado.' } };
+        return {
+          data: null,
+          error: { message: 'Ya tiene una solicitud activa con este abogado.', codigo: 'SOLICITUD_DUPLICADA' },
+        };
       }
       return { data: null, error };
     }

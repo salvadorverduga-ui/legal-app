@@ -4,6 +4,7 @@
 
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
+import { rutaPanelPropio } from './utils.js';
 
 // ─── Etiquetas visibles para tipo_badge ───────────────────────────────────────
 const ETIQUETAS_TIPO = {
@@ -41,6 +42,7 @@ async function inicializar() {
       document.getElementById('nombreUsuario').textContent = perfil.nombre_completo;
     }
     document.getElementById('btnCerrarSesion').hidden = false;
+    document.querySelector('.logo').href = rutaPanelPropio(perfil?.rol);
   } else {
     document.getElementById('btnIniciarSesion').hidden = false;
   }
