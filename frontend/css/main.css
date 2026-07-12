@@ -499,6 +499,16 @@ p {
   gap: var(--esp-5);
 }
 
+.enlace-simple {
+  color: var(--color-primario);
+  text-decoration: underline;
+  font-size: var(--texto-sm);
+}
+
+.enlace-simple:hover {
+  color: var(--color-primario-hover);
+}
+
 .campo {
   display: flex;
   flex-direction: column;

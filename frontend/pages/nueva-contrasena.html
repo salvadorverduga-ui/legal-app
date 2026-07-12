@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Ingrese una nueva contraseña para su cuenta de LegalEC.">
+  <title>Nueva contraseña — LegalEC</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+
+  <header class="encabezado">
+    <div class="contenedor encabezado__contenedor">
+      <a href="/" class="logo" aria-label="LegalEC — Inicio">
+        <span class="logo__nombre">LegalEC</span>
+      </a>
+    </div>
+  </header>
+
+  <main>
+    <div class="contenedor seccion-registro">
+      <section aria-labelledby="tituloNuevaContrasena">
+        <div class="tarjeta-auth tarjeta-auth--registro">
+
+          <!-- Estado: verificando el enlace de recuperación -->
+          <div class="pantalla-carga" id="estadoCargando">
+            <div class="spinner" aria-hidden="true"></div>
+            <p class="pantalla-carga__texto">Verificando enlace...</p>
+          </div>
+
+          <!-- Estado: enlace inválido o expirado -->
+          <div class="estado-vacio" id="estadoError" hidden>
+            <p class="estado-vacio__titulo">Este enlace ya no es válido</p>
+            <p>El enlace de recuperación es de un solo uso y expira después de un tiempo. Solicite uno nuevo.</p>
+            <a href="/pages/recuperar-contrasena" class="btn btn--primario estado-vacio__cta">
+              Solicitar nuevo enlace
+            </a>
+          </div>
+
+          <!-- Formulario de nueva contraseña -->
+          <div id="contenidoFormulario" hidden>
+            <h1 class="auth__titulo" id="tituloNuevaContrasena">Ingrese su nueva contraseña</h1>
+
+            <form id="formNuevaContrasena" class="formulario" novalidate>
+              <div class="campo">
+                <label for="nuevaPassword" class="campo__etiqueta">Nueva contraseña</label>
+                <input
+                  type="password"
+                  id="nuevaPassword"
+                  name="password"
+                  class="campo__input"
+                  autocomplete="new-password"
+                  minlength="8"
+                  required
+                >
+                <span class="campo__ayuda">Mínimo 8 caracteres</span>
+              </div>
+              <div class="campo">
+                <label for="confirmarPassword" class="campo__etiqueta">Confirmar contraseña</label>
+                <input
+                  type="password"
+                  id="confirmarPassword"
+                  name="password_confirmacion"
+                  class="campo__input"
+                  autocomplete="new-password"
+                  minlength="8"
+                  required
+                >
+              </div>
+              <p class="campo__error" id="errorNuevaContrasena" role="alert" aria-live="polite"></p>
+              <button type="submit" class="btn btn--primario btn--completo" id="btnGuardarContrasena">
+                Guardar nueva contraseña
+              </button>
+            </form>
+          </div>
+
+          <!-- Confirmación -->
+          <div class="mensaje-confirmacion" id="confirmacionNuevaContrasena" hidden>
+            <p class="mensaje-confirmacion__titulo">Contraseña actualizada</p>
+            <p>Ya puede ingresar a su cuenta con su nueva contraseña.</p>
+            <a href="/" class="btn btn--primario">Ir a iniciar sesión</a>
+          </div>
+
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script src="/js/vendors/supabase.min.js"></script>
+  <script type="module" src="/js/nueva-contrasena.js"></script>
+
+</body>
+</html>

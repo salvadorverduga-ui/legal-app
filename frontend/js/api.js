@@ -174,6 +174,41 @@ export const auth = {
    */
   onAuthStateChange(callback) {},
 
+  /**
+   * Envía un correo con un enlace para restablecer la contraseña.
+   * El enlace lleva a nueva-contrasena.html, donde Supabase completa el
+   * inicio de sesión temporal (tipo 'recovery') a partir del token en la URL.
+   * No revela si el correo existe o no en el sistema (comportamiento
+   * estándar de Supabase Auth) — siempre retorna éxito salvo error de red.
+   * Retorna { error }.
+   */
+  async recuperarContrasena(email) {
+    const { error } = await _cliente.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/pages/nueva-contrasena`,
+    });
+
+    if (error) {
+      console.error('[api.auth.recuperarContrasena]', error.message);
+      return { error };
+    }
+    return { error: null };
+  },
+
+  /**
+   * Establece una nueva contraseña para la sesión de recuperación activa
+   * (creada por Supabase al abrir el enlace de nueva-contrasena.html).
+   * Retorna { error }.
+   */
+  async actualizarContrasena(nuevaPassword) {
+    const { error } = await _cliente.auth.updateUser({ password: nuevaPassword });
+
+    if (error) {
+      console.error('[api.auth.actualizarContrasena]', error.message);
+      return { error };
+    }
+    return { error: null };
+  },
+
 };
 
 
