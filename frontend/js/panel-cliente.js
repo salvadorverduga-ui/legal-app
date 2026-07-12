@@ -325,6 +325,10 @@ function generarSolicitudCard(s) {
     </form>
   ` : '';
 
+  const tiempoRestanteHtml = s.estado === 'PENDIENTE'
+    ? `<p class="solicitud-item__tiempo-restante${esTiempoRestanteUrgente(s.expires_at) ? ' solicitud-item__tiempo-restante--urgente' : ''}">${formatearTiempoRestante(s.expires_at)}</p>`
+    : '';
+
   return `
     <article class="solicitud-item">
       <div class="solicitud-item__header">
@@ -332,7 +336,8 @@ function generarSolicitudCard(s) {
           <div class="solicitud-item__avatar">${avatarHtml}</div>
           <div>
             <p class="solicitud-item__nombre">${escaparHtml(s.abogado_nombre)}</p>
-            <p class="solicitud-item__fecha">${formatearFecha(s.created_at)}</p>
+            <p class="solicitud-item__fecha">Enviada ${formatearTiempoTranscurrido(s.created_at)} · ${formatearFecha(s.created_at)}</p>
+            ${tiempoRestanteHtml}
           </div>
         </div>
         <span class="badge ${claseEstado}">${etiquetaEstado}</span>
@@ -558,6 +563,45 @@ function formatearFecha(fechaIso) {
     month: 'long',
     day: 'numeric',
   });
+}
+
+// Tiempo transcurrido desde que se envió la solicitud (created_at), en
+// unidades legibles ("hace unos minutos", "hace 3 horas", "hace 2 días").
+function formatearTiempoTranscurrido(fechaIso) {
+  if (!fechaIso) return '';
+  const minutos = Math.floor((Date.now() - new Date(fechaIso).getTime()) / 60000);
+
+  if (minutos < 1) return 'hace unos instantes';
+  if (minutos < 60) return `hace ${minutos} ${minutos === 1 ? 'minuto' : 'minutos'}`;
+
+  const horas = Math.floor(minutos / 60);
+  if (horas < 24) return `hace ${horas} ${horas === 1 ? 'hora' : 'horas'}`;
+
+  const dias = Math.floor(horas / 24);
+  return `hace ${dias} ${dias === 1 ? 'día' : 'días'}`;
+}
+
+// Tiempo que le queda al abogado para responder antes de que la solicitud
+// expire automáticamente (solicitudes.expires_at = created_at + 48h, ver
+// migración 20260625_006_solicitudes.sql).
+function formatearTiempoRestante(expiresAtIso) {
+  if (!expiresAtIso) return '';
+  const minutosRestantes = Math.floor((new Date(expiresAtIso).getTime() - Date.now()) / 60000);
+
+  if (minutosRestantes <= 0) return 'El plazo de respuesta está por vencer.';
+  if (minutosRestantes < 60) {
+    return `Quedan ${minutosRestantes} ${minutosRestantes === 1 ? 'minuto' : 'minutos'} para que el abogado responda.`;
+  }
+
+  const horasRestantes = Math.floor(minutosRestantes / 60);
+  return `Quedan ${horasRestantes} ${horasRestantes === 1 ? 'hora' : 'horas'} para que el abogado responda.`;
+}
+
+// Umbral visual de urgencia: menos de 6 horas restantes para responder.
+function esTiempoRestanteUrgente(expiresAtIso) {
+  if (!expiresAtIso) return false;
+  const horasRestantes = (new Date(expiresAtIso).getTime() - Date.now()) / 3600000;
+  return horasRestantes < 6;
 }
 
 // ─── Seguridad: escapado de HTML ──────────────────────────────────────────────

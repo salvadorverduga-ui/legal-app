@@ -765,6 +765,79 @@ p {
   color: var(--color-primario);
 }
 
+.mensaje-confirmacion__botones {
+  display: flex;
+  gap: var(--esp-3);
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* Stepper: estado visual de la solicitud (Enviada → Respondida → Consulta realizada) */
+.stepper {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-block: var(--esp-2);
+}
+
+.stepper__paso {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--esp-2);
+  width: 6.5rem;
+}
+
+.stepper__circulo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: var(--radio-completo);
+  border: 2px solid var(--color-borde);
+  background-color: var(--color-fondo-card);
+  color: var(--color-texto-suave);
+  font-weight: var(--peso-semibold);
+  font-size: var(--texto-sm);
+}
+
+.stepper__etiqueta {
+  font-size: var(--texto-xs);
+  color: var(--color-texto-suave);
+  text-align: center;
+  line-height: var(--altura-linea-ajustada);
+}
+
+.stepper__paso--activo .stepper__circulo {
+  border-color: var(--color-primario);
+  background-color: var(--color-primario);
+  color: var(--color-texto-inverso);
+}
+
+.stepper__paso--activo .stepper__etiqueta {
+  color: var(--color-primario);
+  font-weight: var(--peso-semibold);
+}
+
+.stepper__paso--completado .stepper__circulo {
+  border-color: var(--color-exito);
+  background-color: var(--color-exito);
+  color: var(--color-texto-inverso);
+}
+
+.stepper__paso--completado .stepper__etiqueta {
+  color: var(--color-exito);
+}
+
+.stepper__linea {
+  flex: 0 0 auto;
+  width: 2.5rem;
+  height: 2px;
+  background-color: var(--color-borde);
+  margin-top: 0.9375rem; /* centra la línea con los círculos (mitad de su alto) */
+}
+
 
 /* ────────────────────────────────────────────────────────────
    10. FOOTER
@@ -2134,6 +2207,16 @@ p {
 .solicitud-item__fecha {
   font-size: var(--texto-xs);
   color: var(--color-texto-suave);
+}
+
+.solicitud-item__tiempo-restante {
+  font-size: var(--texto-xs);
+  color: var(--color-advertencia);
+  font-weight: var(--peso-medio);
+}
+
+.solicitud-item__tiempo-restante--urgente {
+  color: var(--color-error);
 }
 
 .solicitud-item__detalle {
