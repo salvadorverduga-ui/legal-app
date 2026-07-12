@@ -1766,6 +1766,20 @@ p {
   gap: var(--esp-2);
 }
 
+/* Zona de servicio adicional con cantón específico: el pill de la provincia
+   y, si está marcada, el selector de cantón aparecen agrupados en fila. */
+.zona-servicio-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--esp-2);
+}
+
+.zona-servicio-item__canton {
+  width: auto;
+  max-width: 220px;
+}
+
 /* Campo de archivo: el input nativo se deja con la apariencia del navegador
    (necesaria para el botón "Seleccionar archivo"), solo se ajusta el padding. */
 .campo__input--archivo {

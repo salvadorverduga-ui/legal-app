@@ -49,7 +49,8 @@ let abogadoActual = null;        // fila propia de la tabla abogados
 let solicitudesActuales = [];    // caché local; las acciones actualizan sin refetch
 let estadoFiltroActivo = '';     // '' = todas
 let provinciasCache = [];        // catálogo de provincias, cargado una vez
-let zonasServicioSeleccionadas = new Set(); // provincia_id de las zonas adicionales marcadas
+let zonasServicioSeleccionadas = new Map(); // provincia_id -> canton_id|null de las zonas adicionales marcadas
+let cantonesPorProvinciaCache = new Map();  // provincia_id -> cantones[], evita refetch al re-renderizar
 
 // ─── Entry point ─────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', inicializar);
@@ -333,20 +334,58 @@ async function cargarCantones(provinciaId, cantonSeleccionadoId = null) {
   if (cantonSeleccionadoId) select.value = String(cantonSeleccionadoId);
 }
 
-function renderizarZonasServicio() {
+async function obtenerCantonesCacheados(provinciaId) {
+  if (!cantonesPorProvinciaCache.has(provinciaId)) {
+    cantonesPorProvinciaCache.set(provinciaId, await api.geo.getCantonesPorProvincia(provinciaId));
+  }
+  return cantonesPorProvinciaCache.get(provinciaId);
+}
+
+async function renderizarZonasServicio() {
   const provinciaPrincipalId = document.getElementById('perfilProvincia').value;
   const contenedor = document.getElementById('zonasServicioPerfil');
 
-  contenedor.innerHTML = provinciasCache
-    .filter(p => String(p.id) !== String(provinciaPrincipalId))
-    .map(p => `
-      <label class="radio-pills__opcion">
-        <input type="checkbox" name="zona_servicio" value="${p.id}"
-          ${zonasServicioSeleccionadas.has(p.id) ? 'checked' : ''}>
-        <span>${escaparHtml(p.nombre)}</span>
-      </label>
-    `)
+  const opciones = provinciasCache.filter(p => String(p.id) !== String(provinciaPrincipalId));
+
+  // Precarga los cantones de las provincias ya marcadas, en paralelo.
+  await Promise.all(
+    opciones
+      .filter(p => zonasServicioSeleccionadas.has(p.id))
+      .map(p => obtenerCantonesCacheados(p.id))
+  );
+
+  contenedor.innerHTML = opciones
+    .map(p => {
+      const marcada = zonasServicioSeleccionadas.has(p.id);
+      const cantonSeleccionadoId = zonasServicioSeleccionadas.get(p.id);
+      const selectorCantonHtml = marcada
+        ? generarSelectorCantonZona(p.id, cantonesPorProvinciaCache.get(p.id) ?? [], cantonSeleccionadoId)
+        : '';
+
+      return `
+        <div class="zona-servicio-item">
+          <label class="radio-pills__opcion">
+            <input type="checkbox" name="zona_servicio" value="${p.id}" ${marcada ? 'checked' : ''}>
+            <span>${escaparHtml(p.nombre)}</span>
+          </label>
+          ${selectorCantonHtml}
+        </div>
+      `;
+    })
     .join('');
+}
+
+function generarSelectorCantonZona(provinciaId, cantones, cantonSeleccionadoId) {
+  const opcionesHtml = cantones
+    .map(c => `<option value="${c.id}" ${Number(cantonSeleccionadoId) === c.id ? 'selected' : ''}>${escaparHtml(c.nombre)}</option>`)
+    .join('');
+
+  return `
+    <select class="campo__input zona-servicio-item__canton" data-zona-canton="${provinciaId}">
+      <option value="">Toda la provincia</option>
+      ${opcionesHtml}
+    </select>
+  `;
 }
 
 function manejarCambioProvinciaPrincipal() {
@@ -359,13 +398,24 @@ function manejarCambioProvinciaPrincipal() {
   renderizarZonasServicio();
 }
 
-function manejarCambioZonaServicio(e) {
+async function manejarCambioZonaServicio(e) {
   const chk = e.target.closest('input[name="zona_servicio"]');
-  if (!chk) return;
+  if (chk) {
+    const provinciaId = Number(chk.value);
+    if (chk.checked) zonasServicioSeleccionadas.set(provinciaId, null);
+    else zonasServicioSeleccionadas.delete(provinciaId);
+    await renderizarZonasServicio();
+    return;
+  }
 
-  const provinciaId = Number(chk.value);
-  if (chk.checked) zonasServicioSeleccionadas.add(provinciaId);
-  else zonasServicioSeleccionadas.delete(provinciaId);
+  const select = e.target.closest('select[data-zona-canton]');
+  if (select) {
+    const provinciaId = Number(select.dataset.zonaCanton);
+    const cantonId = select.value ? Number(select.value) : null;
+    if (zonasServicioSeleccionadas.has(provinciaId)) {
+      zonasServicioSeleccionadas.set(provinciaId, cantonId);
+    }
+  }
 }
 
 // ─── Mi perfil: formulario ────────────────────────────────────────────────────
@@ -383,8 +433,8 @@ async function rellenarFormularioPerfil() {
   await cargarCantones(abogadoActual.provincia_id, abogadoActual.canton_id);
 
   const zonas = await api.abogados.getZonasServicio();
-  zonasServicioSeleccionadas = new Set(zonas.map(z => z.provincia_id));
-  renderizarZonasServicio();
+  zonasServicioSeleccionadas = new Map(zonas.map(z => [z.provincia_id, z.canton_id]));
+  await renderizarZonasServicio();
 
   actualizarProgresoPerfil();
 }
@@ -429,7 +479,10 @@ async function manejarGuardarPerfil() {
   const cantonRaw = document.getElementById('perfilCanton').value;
   const provincia_id = provinciaRaw ? Number(provinciaRaw) : null;
   const canton_id = cantonRaw ? Number(cantonRaw) : null;
-  const zonasServicio = Array.from(zonasServicioSeleccionadas);
+  const zonasServicio = Array.from(zonasServicioSeleccionadas, ([zonaProvinciaId, zonaCantonId]) => ({
+    provincia_id: zonaProvinciaId,
+    canton_id: zonaCantonId,
+  }));
 
   try {
     const [resultadoAbogado, resultadoZonas] = await Promise.all([

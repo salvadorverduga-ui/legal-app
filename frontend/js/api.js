@@ -308,6 +308,8 @@ export const abogados = {
    * aparecen antes que los que solo la tienen como zona de servicio adicional.
    */
   async buscar(filtros = {}) {
+    const LIMITE_RESULTADOS = 100; // tope para MVP; paginación en V2
+
     // IMPORTANTE: no agregar condiciones de visibilidad aquí.
     // La vista busqueda_abogados ya las tiene en su WHERE clause.
     // El RLS sobre abogados es la fuente de verdad — no duplicar en el frontend.
@@ -317,8 +319,7 @@ export const abogados = {
       .from('busqueda_abogados')
       .select('*')
       .order('rating_promedio', { ascending: false })
-      .order('total_resenas',   { ascending: false })
-      .limit(100); // tope para MVP; paginación en V2
+      .order('total_resenas',   { ascending: false });
 
     // El operador @> (contains) comprueba que el array de la BD contiene el elemento.
     // Usa el GIN index de migration 004. Requiere coincidencia exacta con el valor del array.
@@ -334,6 +335,10 @@ export const abogados = {
     // aparece en sus zonas de servicio adicionales (zonas_servicio_ids).
     if (filtros.provincia_id) {
       query = query.or(`provincia_id.eq.${filtros.provincia_id},zonas_servicio_ids.cs.{${filtros.provincia_id}}`);
+    } else {
+      // Sin filtro de provincia no hace falta reordenar en el cliente: el tope
+      // se aplica directo en la consulta SQL.
+      query = query.limit(LIMITE_RESULTADOS);
     }
 
     // tipo_badge es columna calculada en la vista: 'individual' | 'estudio' | 'red'
@@ -351,13 +356,26 @@ export const abogados = {
     let resultado = data ?? [];
 
     // Prioriza coincidencia por provincia principal sobre coincidencia por zona
-    // de servicio adicional, preservando el orden por rating dentro de cada grupo.
+    // de servicio adicional, preservando el orden por rating dentro de cada grupo
+    // (Array.prototype.sort es estable desde ES2019, así que el orden por rating
+    // ya aplicado en la consulta SQL se conserva dentro de cada grupo).
+    //
+    // Este reordenamiento no puede vivir en la definición de la vista
+    // busqueda_abogados (migración 009/028): una vista no recibe parámetros, así
+    // que no hay forma de que su propio ORDER BY sepa qué provincia se está
+    // buscando en cada consulta. Por eso el tope de resultados tampoco se aplica
+    // en la consulta SQL en este caso — se aplica acá, después de reordenar, para
+    // no truncar de forma prematura y descartar por error abogados cuya provincia
+    // principal coincide en favor de abogados que solo la tienen como zona de
+    // servicio adicional.
     if (filtros.provincia_id) {
-      resultado = [...resultado].sort((a, b) => {
-        const aEsPrincipal = a.provincia_id === filtros.provincia_id ? 0 : 1;
-        const bEsPrincipal = b.provincia_id === filtros.provincia_id ? 0 : 1;
-        return aEsPrincipal - bEsPrincipal;
-      });
+      resultado = [...resultado]
+        .sort((a, b) => {
+          const aEsPrincipal = a.provincia_id === filtros.provincia_id ? 0 : 1;
+          const bEsPrincipal = b.provincia_id === filtros.provincia_id ? 0 : 1;
+          return aEsPrincipal - bEsPrincipal;
+        })
+        .slice(0, LIMITE_RESULTADOS);
     }
 
     return { data: resultado, error: null };
@@ -522,8 +540,9 @@ export const abogados = {
 
   /**
    * Retorna las provincias donde el abogado autenticado presta servicios
-   * además de su provincia principal (abogados.provincia_id).
-   * Retorna array de { provincia_id, provincias: { nombre } } (puede estar vacío).
+   * además de su provincia principal (abogados.provincia_id), junto con el
+   * cantón específico si lo marcó (canton_id null = toda la provincia).
+   * Retorna array de { provincia_id, canton_id, provincias: { nombre }, cantones: { nombre } | null }.
    */
   async getZonasServicio() {
     const { data: { user }, error: errUser } = await _cliente.auth.getUser();
@@ -531,7 +550,7 @@ export const abogados = {
 
     const { data, error } = await _cliente
       .from('abogado_zonas_servicio')
-      .select('provincia_id, provincias (nombre)')
+      .select('provincia_id, canton_id, provincias (nombre), cantones (nombre)')
       .eq('abogado_id', user.id);
 
     if (error) {
@@ -543,13 +562,14 @@ export const abogados = {
 
   /**
    * Reemplaza el conjunto completo de zonas de servicio adicionales del
-   * abogado autenticado por la lista de ids de provincia recibida.
+   * abogado autenticado por la lista recibida.
    * No debe incluir la provincia principal (abogados.provincia_id) — eso
    * se valida en el frontend antes de llamar esta función.
-   * provinciaIds: number[]
+   * zonas: { provincia_id: number, canton_id?: number|null }[]
+   *   canton_id ausente o null = atiende en toda la provincia.
    * Retorna { data, error }.
    */
-  async actualizarZonasServicio(provinciaIds = []) {
+  async actualizarZonasServicio(zonas = []) {
     const { data: { user }, error: errUser } = await _cliente.auth.getUser();
     if (errUser || !user) {
       return { data: null, error: errUser ?? { message: 'No hay sesión activa.' } };
@@ -565,11 +585,15 @@ export const abogados = {
       return { data: null, error: errDelete };
     }
 
-    if (provinciaIds.length === 0) {
+    if (zonas.length === 0) {
       return { data: [], error: null };
     }
 
-    const filas = provinciaIds.map(provincia_id => ({ abogado_id: user.id, provincia_id }));
+    const filas = zonas.map(({ provincia_id, canton_id }) => ({
+      abogado_id: user.id,
+      provincia_id,
+      canton_id: canton_id ?? null,
+    }));
     const { data, error } = await _cliente
       .from('abogado_zonas_servicio')
       .insert(filas)
