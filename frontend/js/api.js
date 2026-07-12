@@ -938,6 +938,38 @@ export const solicitudes = {
     return { data, error: null };
   },
 
+  /**
+   * El cliente edita descripcion_caso y/o disponibilidad_horaria de su
+   * propia solicitud mientras sigue PENDIENTE. La política RLS
+   * "cliente_edita_solicitud_pendiente" (migración 033) exige que la
+   * solicitud siga PENDIENTE antes y después del update, y bloquea
+   * cualquier otra columna (abogado_id, datos de contacto, metadatos del
+   * ciclo de vida).
+   * datos: { descripcion_caso?: string, disponibilidad_horaria?: string }
+   * Retorna { data, error }.
+   */
+  async editar(solicitudId, datos = {}) {
+    const CAMPOS_PERMITIDOS = ['descripcion_caso', 'disponibilidad_horaria'];
+    const actualizacion = {};
+    for (const campo of CAMPOS_PERMITIDOS) {
+      if (datos[campo] !== undefined) actualizacion[campo] = datos[campo];
+    }
+
+    const { data, error } = await _cliente
+      .from('solicitudes')
+      .update(actualizacion)
+      .eq('id', solicitudId)
+      .eq('estado', 'PENDIENTE')
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[api.solicitudes.editar]', error.message);
+      return { data: null, error };
+    }
+    return { data, error: null };
+  },
+
 };
 
 

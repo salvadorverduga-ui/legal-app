@@ -35,6 +35,7 @@ let perfilActual = null;         // fila propia de la tabla perfiles
 let solicitudesActuales = [];    // caché local; las acciones actualizan sin refetch
 let estadoFiltroActivo = '';     // '' = todas
 let solicitudConFormularioAbierto = null; // id de la solicitud con el form de reseña visible
+let solicitudConEdicionAbierta = null;    // id de la solicitud con el form de edición visible
 
 // ─── Entry point ─────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', inicializar);
@@ -107,6 +108,8 @@ function configurarEventos() {
 
   document.getElementById('solicitudesLista').addEventListener('click', manejarClickSolicitudes);
   document.getElementById('solicitudesLista').addEventListener('submit', manejarSubmitResena);
+  document.getElementById('solicitudesLista').addEventListener('submit', manejarSubmitEditar);
+  document.getElementById('solicitudesLista').addEventListener('input', manejarInputSolicitudes);
 
   document.getElementById('btnCambiarFoto').addEventListener('click', () => {
     document.getElementById('inputFoto').click();
@@ -274,6 +277,7 @@ function generarSolicitudCard(s) {
   const puedeReseñar = s.estado === 'COMPLETADA' && !s.tiene_resena;
   const puedeCancelar = s.estado === 'PENDIENTE';
   const formularioAbierto = solicitudConFormularioAbierto === s.id;
+  const edicionAbierta = solicitudConEdicionAbierta === s.id;
 
   const completarHtml = puedeCompletar ? `
     <div class="solicitud-item__acciones">
@@ -285,10 +289,34 @@ function generarSolicitudCard(s) {
 
   const cancelarHtml = puedeCancelar ? `
     <div class="solicitud-item__acciones">
+      <button class="btn btn--secundario btn--sm" type="button" data-accion="mostrar-editar" data-id="${idSeguro}">
+        Editar solicitud
+      </button>
       <button class="btn btn--secundario btn--sm" type="button" data-accion="cancelar-solicitud" data-id="${idSeguro}">
         Cancelar solicitud
       </button>
     </div>
+    <form class="formulario-edicion" id="formEditar-${idSeguro}" data-id="${idSeguro}" ${edicionAbierta ? '' : 'hidden'}>
+      <div class="campo">
+        <label for="descripcion-editar-${idSeguro}" class="campo__etiqueta">Descripción del caso (opcional)</label>
+        <textarea id="descripcion-editar-${idSeguro}" class="campo__input" rows="4" maxlength="500"
+          placeholder="Describa brevemente su situación...">${escaparHtml(s.descripcion_caso ?? '')}</textarea>
+        <p class="campo__contador" id="contadorEditar-${idSeguro}">${(s.descripcion_caso ?? '').length} / 500</p>
+      </div>
+      <div class="campo">
+        <span class="campo__etiqueta">Disponibilidad horaria</span>
+        <div class="radio-pills" role="radiogroup" aria-label="Disponibilidad horaria">
+          ${generarOpcionesDisponibilidad(idSeguro, s.disponibilidad_horaria)}
+        </div>
+      </div>
+      <p class="campo__error" id="errorEditar-${idSeguro}" role="alert" aria-live="polite"></p>
+      <div class="solicitud-item__acciones">
+        <button type="submit" class="btn btn--primario btn--sm">Guardar cambios</button>
+        <button type="button" class="btn btn--secundario btn--sm" data-accion="cancelar-editar" data-id="${idSeguro}">
+          Cancelar
+        </button>
+      </div>
+    </form>
   ` : '';
 
   const buscarOtroHtml = (s.estado === 'RECHAZADA' || s.estado === 'EXPIRADA') ? `
@@ -370,6 +398,20 @@ function generarEstrellasInput(idSeguro) {
   return html;
 }
 
+const OPCIONES_DISPONIBILIDAD = ['Mañana', 'Tarde', 'Indiferente'];
+
+function generarOpcionesDisponibilidad(idSeguro, seleccionActual) {
+  return OPCIONES_DISPONIBILIDAD.map(opcion => {
+    const marcada = (seleccionActual || 'Indiferente') === opcion;
+    return `
+      <label class="radio-pills__opcion">
+        <input type="radio" name="disponibilidad-editar-${idSeguro}" value="${opcion}" ${marcada ? 'checked' : ''}>
+        <span>${opcion}</span>
+      </label>
+    `;
+  }).join('');
+}
+
 function manejarClickSolicitudes(e) {
   const btn = e.target.closest('[data-accion]');
   if (!btn) return;
@@ -386,6 +428,23 @@ function manejarClickSolicitudes(e) {
     solicitudConFormularioAbierto = null;
     renderizarSolicitudes();
   }
+  if (accion === 'mostrar-editar') {
+    solicitudConEdicionAbierta = id;
+    renderizarSolicitudes();
+  }
+  if (accion === 'cancelar-editar') {
+    solicitudConEdicionAbierta = null;
+    renderizarSolicitudes();
+  }
+}
+
+function manejarInputSolicitudes(e) {
+  const textarea = e.target.closest('.formulario-edicion textarea');
+  if (!textarea) return;
+
+  const form = textarea.closest('.formulario-edicion');
+  const contador = document.getElementById(`contadorEditar-${form.dataset.id}`);
+  if (contador) contador.textContent = `${textarea.value.length} / 500`;
 }
 
 async function manejarMarcarCompletada(id) {
@@ -471,6 +530,40 @@ async function manejarSubmitResena(e) {
 
   const resenas = await api.resenas.getMisResenas();
   renderizarResenas(resenas);
+}
+
+async function manejarSubmitEditar(e) {
+  const form = e.target.closest('.formulario-edicion');
+  if (!form) return;
+  e.preventDefault();
+
+  const id = form.dataset.id;
+  const errorEl = document.getElementById(`errorEditar-${id}`);
+  const btnGuardar = form.querySelector('button[type="submit"]');
+  errorEl.textContent = '';
+
+  const descripcion_caso = document.getElementById(`descripcion-editar-${id}`).value.trim();
+  const disponibilidad_horaria = form.querySelector(`input[name="disponibilidad-editar-${id}"]:checked`)?.value ?? '';
+
+  btnGuardar.disabled = true;
+  btnGuardar.textContent = 'Guardando...';
+
+  const { data, error } = await api.solicitudes.editar(id, { descripcion_caso, disponibilidad_horaria });
+
+  if (error) {
+    const mensaje = mensajeAmigable(error, 'No se pudo guardar la solicitud. Intente de nuevo.');
+    errorEl.textContent = mensaje;
+    toast.error(mensaje);
+    btnGuardar.disabled = false;
+    btnGuardar.textContent = 'Guardar cambios';
+    return;
+  }
+
+  const entrada = solicitudesActuales.find(s => s.id === id);
+  if (entrada) Object.assign(entrada, data);
+  solicitudConEdicionAbierta = null;
+  renderizarSolicitudes();
+  toast.exito('Solicitud actualizada.');
 }
 
 // ─── Reseñas ──────────────────────────────────────────────────────────────────

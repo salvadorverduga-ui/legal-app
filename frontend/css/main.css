@@ -2332,6 +2332,19 @@ p {
   display: none;
 }
 
+/* ── Formulario inline de edición de solicitud ─────────────── */
+.formulario-edicion {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-4);
+  padding-top: var(--esp-3);
+  border-top: 1px solid var(--color-borde-suave);
+}
+
+.formulario-edicion[hidden] {
+  display: none;
+}
+
 /* Selector de calificación por estrellas (input radio + label), sin JS.
    Orden 5→1 en el DOM + row-reverse: resalta hasta la estrella elegida. */
 .rating-input {
