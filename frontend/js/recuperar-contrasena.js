@@ -38,15 +38,23 @@ async function manejarEnvio() {
   btnEl.disabled = true;
   btnEl.textContent = 'Enviando...';
 
-  const { error } = await api.auth.recuperarContrasena(email);
+  try {
+    const { error } = await api.auth.recuperarContrasena(email);
 
-  // No se distingue "correo no existe" de "enviado correctamente": evita
-  // que un tercero pueda usar este formulario para averiguar qué correos
-  // tienen cuenta registrada.
-  if (error) {
-    console.error('[recuperar-contrasena] Error al solicitar el enlace:', error.message);
+    // No se distingue "correo no existe" de "enviado correctamente": evita
+    // que un tercero pueda usar este formulario para averiguar qué correos
+    // tienen cuenta registrada.
+    if (error) {
+      console.error('[recuperar-contrasena] Error al solicitar el enlace:', error.message);
+    }
+
+    document.getElementById('formRecuperar').hidden = true;
+    document.getElementById('confirmacionRecuperar').hidden = false;
+  } catch (err) {
+    console.error('[recuperar-contrasena] Error inesperado al solicitar el enlace:', err);
+    errorEl.textContent = 'Ocurrió un error. Intente de nuevo.';
+  } finally {
+    btnEl.disabled = false;
+    btnEl.textContent = 'Enviar enlace de recuperación';
   }
-
-  document.getElementById('formRecuperar').hidden = true;
-  document.getElementById('confirmacionRecuperar').hidden = false;
 }

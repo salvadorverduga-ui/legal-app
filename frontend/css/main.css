@@ -759,6 +759,13 @@ p {
   gap: var(--esp-3);
 }
 
+/* display: flex de arriba gana sobre [hidden] por origen de cascada
+   (regla de autor vs. regla de user-agent), así que hay que repetirlo
+   explícitamente acá para que el atributo hidden vuelva a funcionar. */
+.mensaje-confirmacion[hidden] {
+  display: none;
+}
+
 .mensaje-confirmacion__titulo {
   font-size: var(--texto-lg);
   font-weight: var(--peso-semibold);

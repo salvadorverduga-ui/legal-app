@@ -104,6 +104,7 @@ async function inicializar() {
 
   mostrarContenido();
   configurarEventos();
+  aplicarTabDesdeUrl();
 }
 
 // ─── Control de estados visuales ─────────────────────────────────────────────
@@ -164,6 +165,14 @@ function cambiarTab(seccion) {
     document.getElementById(`tab${nombre}`).setAttribute('aria-selected', String(esActiva));
     document.getElementById(`seccion${nombre}`).hidden = !esActiva;
   });
+}
+
+// Activa la pestaña indicada en ?tab= (ej. desde una notificación), si es válida.
+function aplicarTabDesdeUrl() {
+  const tab = new URLSearchParams(window.location.search).get('tab');
+  if (!tab) return;
+  const seccion = SECCIONES.find(nombre => nombre.toLowerCase() === tab.toLowerCase());
+  if (seccion) cambiarTab(seccion);
 }
 
 // ─── Cabecera: identidad, verificación y disponibilidad ──────────────────────
