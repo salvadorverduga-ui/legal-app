@@ -140,20 +140,23 @@ async function ejecutarBusqueda() {
 function leerFiltros() {
   const filtros = {};
 
+  const nombre        = document.getElementById('filtroNombre').value.trim();
   const especialidad  = document.getElementById('filtroEspecialidad').value.trim();
   const caso_frecuente = document.getElementById('filtroCaso').value.trim();
   const provinciaId   = document.getElementById('filtroProvincia').value;
 
-  if (especialidad)   filtros.especialidad   = especialidad;
-  if (caso_frecuente) filtros.caso_frecuente = caso_frecuente;
-  if (provinciaId)    filtros.provincia_id   = Number(provinciaId);
-  if (tipoActivo)     filtros.tipo           = tipoActivo;
+  if (nombre)          filtros.nombre          = nombre;
+  if (especialidad)    filtros.especialidad    = especialidad;
+  if (caso_frecuente)  filtros.caso_frecuente  = caso_frecuente;
+  if (provinciaId)     filtros.provincia_id    = Number(provinciaId);
+  if (tipoActivo)       filtros.tipo           = tipoActivo;
 
   return filtros;
 }
 
 // ─── Limpiar filtros ──────────────────────────────────────────────────────────
 function limpiarFiltros() {
+  document.getElementById('filtroNombre').value       = '';
   document.getElementById('filtroEspecialidad').value = '';
   document.getElementById('filtroCaso').value         = '';
   document.getElementById('filtroProvincia').value    = '';
@@ -192,6 +195,7 @@ function actualizarConteo(total) {
 
 // ─── Chips de filtros activos ─────────────────────────────────────────────────
 const ETIQUETAS_FILTRO = {
+  nombre:         'Nombre',
   especialidad:   'Especialidad',
   caso_frecuente: 'Caso',
   provincia_id:   'Provincia',
@@ -223,6 +227,7 @@ function actualizarChipsFiltros(filtros) {
 }
 
 function quitarFiltro(clave) {
+  if (clave === 'nombre') document.getElementById('filtroNombre').value = '';
   if (clave === 'especialidad') document.getElementById('filtroEspecialidad').value = '';
   if (clave === 'caso_frecuente') document.getElementById('filtroCaso').value = '';
   if (clave === 'provincia_id') document.getElementById('filtroProvincia').value = '';

@@ -33,6 +33,17 @@ async function _subirDocumento(carpetaId, archivo, prefijo) {
   return path;
 }
 
+/**
+ * Escapa un valor antes de insertarlo entre comillas dobles dentro de un
+ * filtro .or()/.ilike() de PostgREST (sintaxis "column.operator."valor"").
+ * Solo backslash y comilla doble necesitan escaparse dentro de un valor
+ * ya delimitado por comillas dobles — sin esto, un usuario podría escribir
+ * texto con comas o paréntesis para alterar la estructura del filtro.
+ */
+function escaparValorFiltroPostgrest(valor) {
+  return valor.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
 
 // ════════════════════════════════════════════════════════════
 // AUTH
@@ -337,6 +348,7 @@ export const abogados = {
    *   caso_frecuente?:   string,  // búsqueda en casos_frecuentes
    *   provincia_id?:     number,  // coincide con provincia_id (principal) O zonas_servicio_ids
    *   tipo?:             'individual' | 'estudio' | 'red',
+   *   nombre?:           string,  // ILIKE contra nombre_completo (abogado) O estudio_nombre (estudio)
    * }
    * Retorna array con tipo_badge ('individual' | 'estudio' | 'red') y datos públicos.
    * Cuando se filtra por provincia_id, los resultados cuya provincia principal coincide
@@ -364,6 +376,18 @@ export const abogados = {
 
     if (filtros.caso_frecuente?.trim()) {
       query = query.contains('casos_frecuentes', [filtros.caso_frecuente.trim()]);
+    }
+
+    // Busca en el nombre del abogado o en el nombre del estudio al que pertenece
+    // (estudio_nombre es NULL para abogados individuales o en red — ilike sobre
+    // NULL simplemente no matchea, no hace falta filtrarlo aparte).
+    // El valor va entre comillas dobles (sintaxis de PostgREST) para que comas y
+    // paréntesis dentro del texto buscado no se interpreten como separadores del
+    // propio filtro .or() — de lo contrario un usuario podría alterar la consulta
+    // escribiendo algo como "a,estudio_nombre.ilike.%".
+    if (filtros.nombre?.trim()) {
+      const valor = escaparValorFiltroPostgrest(filtros.nombre.trim());
+      query = query.or(`nombre_completo.ilike."%${valor}%",estudio_nombre.ilike."%${valor}%"`);
     }
 
     // Coincide si la provincia buscada es la principal del abogado o

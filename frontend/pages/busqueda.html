@@ -37,6 +37,20 @@
         <form id="formBusqueda" class="form-busqueda" novalidate>
           <div class="form-busqueda__campos">
 
+            <!-- Eje 0: Nombre del abogado o del estudio -->
+            <div class="campo">
+              <label for="filtroNombre" class="campo__etiqueta">Buscar por nombre</label>
+              <input
+                type="text"
+                id="filtroNombre"
+                name="nombre"
+                class="campo__input"
+                placeholder="Nombre del abogado o del estudio"
+                maxlength="150"
+                autocomplete="off"
+              >
+            </div>
+
             <!-- Eje 1: Especialidad -->
             <div class="campo">
               <label for="filtroEspecialidad" class="campo__etiqueta">Especialidad</label>
