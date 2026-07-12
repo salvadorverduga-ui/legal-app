@@ -88,6 +88,10 @@
             role="tab" aria-selected="false" aria-controls="seccionLogAcciones">
             Log de acciones
           </button>
+          <button class="panel-tab" id="tabConfiguracion" type="button"
+            role="tab" aria-selected="false" aria-controls="seccionConfiguracion">
+            Configuración
+          </button>
         </nav>
 
         <!-- ═══════════════ SECCIÓN: VERIFICACIONES PENDIENTES ═══════════════ -->
@@ -149,6 +153,32 @@
           <div class="estado-vacio" id="estadoSinLogAcciones" hidden>
             <p>Aún no hay acciones registradas.</p>
           </div>
+        </section>
+
+        <!-- ═══════════════ SECCIÓN: CONFIGURACIÓN ═══════════════ -->
+        <section class="panel-seccion" id="seccionConfiguracion" role="tabpanel" aria-labelledby="tabConfiguracion" hidden>
+
+          <h2 class="auth__titulo">El Tablón</h2>
+
+          <form class="formulario" id="formConfigTablon" novalidate>
+            <div class="campo">
+              <label for="limiteAplicacionesAbogado" class="campo__etiqueta">
+                Máximo de aplicaciones activas simultáneas por abogado
+              </label>
+              <input type="number" id="limiteAplicacionesAbogado" class="campo__input" min="1" step="1"
+                placeholder="Sin límite">
+              <p class="campo__ayuda">Deje el campo vacío para no aplicar ningún límite.</p>
+            </div>
+
+            <p class="campo__error" id="errorConfigTablon" role="alert" aria-live="polite"></p>
+            <p class="mensaje-exito" id="exitoConfigTablon" role="status" aria-live="polite" hidden>
+              Configuración guardada correctamente.
+            </p>
+
+            <button type="submit" class="btn btn--primario btn--sm" id="btnGuardarConfigTablon">
+              Guardar
+            </button>
+          </form>
         </section>
 
       </div>

@@ -2724,3 +2724,23 @@ p {
 .estado-404__boton {
   display: inline-flex;
 }
+
+
+/* ────────────────────────────────────────────────────────────
+   PÁGINA: EL TABLÓN
+   ──────────────────────────────────────────────────────────── */
+.tablon-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--esp-3);
+  margin-bottom: var(--esp-4);
+}
+
+.tablon-seccion__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--esp-3);
+  flex-wrap: wrap;
+  margin: var(--esp-5) 0 var(--esp-3);
+}

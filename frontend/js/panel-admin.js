@@ -5,7 +5,7 @@
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
 import { inicializarNotificaciones } from './notificaciones.js';
-import { rutaPanelPropio } from './utils.js';
+import { toast, rutaPanelPropio } from './utils.js';
 
 // ─── Etiquetas y estilos ───────────────────────────────────────────────────
 const ETIQUETAS_TIPO_SOLICITANTE = {
@@ -38,7 +38,7 @@ const ETIQUETAS_ACCION_LOG = {
   RECHAZAR: { texto: 'Rechazó verificación', clase: 'badge--rechazado' },
 };
 
-const SECCIONES = ['Verificaciones', 'Suscripciones', 'Metricas', 'LogAcciones'];
+const SECCIONES = ['Verificaciones', 'Suscripciones', 'Metricas', 'LogAcciones', 'Configuracion'];
 
 // ─── Estado de la página ──────────────────────────────────────────────────
 let perfilActual = null;              // fila propia de la tabla perfiles
@@ -84,6 +84,7 @@ async function inicializar() {
     cargarSuscripciones(),
     cargarMetricas(),
     cargarLogAcciones(),
+    cargarConfigTablon(),
   ]);
 
   mostrarContenido();
@@ -123,6 +124,8 @@ function configurarEventos() {
     tipoFiltroVerificacion = e.target.value;
     renderizarVerificaciones();
   });
+
+  document.getElementById('formConfigTablon').addEventListener('submit', manejarSubmitConfigTablon);
 
   configurarMenuVerComo();
 }
@@ -434,6 +437,43 @@ function generarLogItem(l) {
       <p class="log-item__detalle">Por ${escaparHtml(l.admin_nombre)} — ${formatearFechaHora(l.created_at)}</p>
     </article>
   `;
+}
+
+// ─── Configuración: El Tablón ───────────────────────────────────────────────
+async function cargarConfigTablon() {
+  const config = await api.tablon.getConfigTablon();
+  const limite = config.find(c => c.clave === 'limite_aplicaciones_abogado');
+  document.getElementById('limiteAplicacionesAbogado').value = limite?.valor ?? '';
+}
+
+async function manejarSubmitConfigTablon(e) {
+  e.preventDefault();
+
+  const errorEl = document.getElementById('errorConfigTablon');
+  const exitoEl = document.getElementById('exitoConfigTablon');
+  const btnGuardar = document.getElementById('btnGuardarConfigTablon');
+  errorEl.textContent = '';
+  exitoEl.hidden = true;
+
+  const valorCampo = document.getElementById('limiteAplicacionesAbogado').value.trim();
+  const valor = valorCampo === '' ? null : valorCampo;
+
+  btnGuardar.disabled = true;
+  btnGuardar.textContent = 'Guardando...';
+
+  const { error } = await api.tablon.actualizarConfigTablon('limite_aplicaciones_abogado', valor);
+
+  btnGuardar.disabled = false;
+  btnGuardar.textContent = 'Guardar';
+
+  if (error) {
+    errorEl.textContent = 'No se pudo guardar la configuración. Intente de nuevo.';
+    toast.error(errorEl.textContent);
+    return;
+  }
+
+  exitoEl.hidden = false;
+  toast.exito('Configuración guardada.');
 }
 
 // ─── Helpers de presentación ────────────────────────────────────────────────

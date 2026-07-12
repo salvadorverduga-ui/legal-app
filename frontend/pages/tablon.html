@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="El Tablón — publique casos legales o aplique a casos de clientes en LegalEC.">
+  <title>El Tablón — LegalEC</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+
+  <header class="encabezado">
+    <div class="contenedor encabezado__contenedor">
+      <a href="/pages/panel-cliente" class="logo" id="logoHeader" aria-label="LegalEC — Mi panel">
+        <span class="logo__nombre">LegalEC</span>
+      </a>
+      <nav class="nav-usuario" aria-label="Menú de usuario">
+        <span class="nav-usuario__nombre" id="nombreUsuario" aria-live="polite"></span>
+        <button class="btn btn--secundario btn--sm" id="btnCerrarSesion" type="button"
+          style="border-color: rgba(255,255,255,0.4); color: rgba(255,255,255,0.85);">
+          Salir
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <div class="contenedor panel-cliente__contenido">
+
+      <!-- Estado: cargando -->
+      <div class="pantalla-carga" id="estadoCargando">
+        <div class="spinner" aria-hidden="true"></div>
+        <p class="pantalla-carga__texto">Cargando El Tablón...</p>
+      </div>
+
+      <!-- Estado: error -->
+      <div class="estado-vacio" id="estadoError" hidden>
+        <p class="estado-vacio__titulo">No pudimos cargar El Tablón</p>
+        <p>Intente recargar la página. Si el problema continúa, contacte a soporte.</p>
+      </div>
+
+      <!-- Contenido -->
+      <div id="contenidoPanel" hidden>
+
+        <section class="panel-cabecera">
+          <div class="panel-cabecera__identidad">
+            <div>
+              <h1 class="panel-cabecera__nombre">El Tablón</h1>
+              <p class="panel-cabecera__subtitulo" id="subtituloTablon"></p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ═══════════════ VISTA CLIENTE ═══════════════ -->
+        <div id="vistaCliente" hidden>
+
+          <div class="tablon-toolbar">
+            <button class="btn btn--primario" id="btnPublicarCaso" type="button">
+              Publicar caso
+            </button>
+          </div>
+
+          <p class="campo__ayuda" id="avisoLimiteCasos" hidden>
+            Ya publicó el máximo de 2 casos hoy. Podrá publicar de nuevo mañana.
+          </p>
+
+          <!-- Formulario de publicación -->
+          <form class="formulario formulario-edicion" id="formPublicarCaso" hidden novalidate>
+            <div class="campo">
+              <label for="tituloCaso" class="campo__etiqueta">Título</label>
+              <input type="text" id="tituloCaso" class="campo__input" maxlength="120" required
+                placeholder="Ej: Necesito ayuda con un despido intempestivo">
+            </div>
+
+            <div class="campo">
+              <label for="descripcionCaso" class="campo__etiqueta">Descripción</label>
+              <textarea id="descripcionCaso" class="campo__input" rows="5" maxlength="600" required
+                placeholder="Describa su situación con el mayor detalle posible..."></textarea>
+              <p class="campo__contador" id="contadorDescripcionCaso">0 / 600</p>
+            </div>
+
+            <div class="campo">
+              <label for="especialidadCaso" class="campo__etiqueta">Especialidad</label>
+              <select id="especialidadCaso" class="campo__input" required>
+                <option value="">Seleccione una especialidad</option>
+                <option value="Derecho de familia">Derecho de familia</option>
+                <option value="Derecho laboral">Derecho laboral</option>
+                <option value="Derecho mercantil">Derecho mercantil</option>
+                <option value="Derecho penal">Derecho penal</option>
+                <option value="Derecho civil">Derecho civil</option>
+                <option value="Derecho administrativo">Derecho administrativo</option>
+                <option value="Derecho tributario">Derecho tributario</option>
+                <option value="Derecho inmobiliario">Derecho inmobiliario</option>
+                <option value="Derecho de tránsito">Derecho de tránsito</option>
+                <option value="Derecho constitucional">Derecho constitucional</option>
+                <option value="Derecho ambiental">Derecho ambiental</option>
+                <option value="Propiedad intelectual">Propiedad intelectual</option>
+                <option value="Derecho internacional">Derecho internacional</option>
+                <option value="Derecho migratorio">Derecho migratorio</option>
+              </select>
+            </div>
+
+            <div class="campo">
+              <label for="casoComunCaso" class="campo__etiqueta">Caso común (opcional)</label>
+              <select id="casoComunCaso" class="campo__input">
+                <option value="">Ninguno de los siguientes</option>
+                <option value="Pensión alimenticia">Pensión alimenticia</option>
+                <option value="Patria potestad">Patria potestad</option>
+                <option value="Divorcio">Divorcio</option>
+                <option value="Trámite de herencia">Trámite de herencia</option>
+                <option value="Despido intempestivo">Despido intempestivo</option>
+                <option value="Accidente de tránsito">Accidente de tránsito</option>
+                <option value="Problema de arrendamiento">Problema de arrendamiento</option>
+                <option value="Deuda comercial">Deuda comercial</option>
+                <option value="Trámite migratorio">Trámite migratorio</option>
+                <option value="Otro">Otro</option>
+              </select>
+            </div>
+
+            <div class="campo">
+              <label>
+                <input type="checkbox" id="anonimoCaso">
+                Publicar anónimamente (los abogados verán "Cliente anónimo" hasta que elija a uno)
+              </label>
+            </div>
+
+            <p class="campo__error" id="errorPublicarCaso" role="alert" aria-live="polite"></p>
+
+            <div class="solicitud-item__acciones">
+              <button type="submit" class="btn btn--primario btn--sm" id="btnGuardarCaso">Publicar</button>
+              <button type="button" class="btn btn--secundario btn--sm" id="btnCancelarPublicarCaso">Cancelar</button>
+            </div>
+          </form>
+
+          <div class="solicitudes-lista" id="misCasosLista"></div>
+
+          <div class="estado-vacio" id="estadoSinCasosCliente" hidden>
+            <p class="estado-vacio__titulo">Aún no ha publicado casos</p>
+            <p>Publique un caso para que abogados verificados apliquen a atenderlo.</p>
+          </div>
+
+          <!-- Aplicaciones recibidas en un caso -->
+          <section id="seccionAplicacionesCaso" hidden>
+            <div class="tablon-seccion__header">
+              <h2 class="auth__titulo">Aplicaciones recibidas</h2>
+              <button class="btn btn--secundario btn--sm" id="btnCerrarAplicaciones" type="button">Volver</button>
+            </div>
+            <div class="solicitudes-lista" id="aplicacionesLista"></div>
+            <div class="estado-vacio" id="estadoSinAplicaciones" hidden>
+              <p>Todavía no hay abogados aplicando a este caso.</p>
+            </div>
+          </section>
+        </div>
+
+        <!-- ═══════════════ VISTA ABOGADO ═══════════════ -->
+        <div id="vistaAbogado" hidden>
+
+          <div class="verificaciones-filtro">
+            <div class="campo">
+              <label for="filtroEspecialidadTablon" class="campo__etiqueta">Especialidad</label>
+              <select id="filtroEspecialidadTablon" class="campo__input">
+                <option value="">Todas</option>
+                <option value="Derecho de familia">Derecho de familia</option>
+                <option value="Derecho laboral">Derecho laboral</option>
+                <option value="Derecho mercantil">Derecho mercantil</option>
+                <option value="Derecho penal">Derecho penal</option>
+                <option value="Derecho civil">Derecho civil</option>
+                <option value="Derecho administrativo">Derecho administrativo</option>
+                <option value="Derecho tributario">Derecho tributario</option>
+                <option value="Derecho inmobiliario">Derecho inmobiliario</option>
+                <option value="Derecho de tránsito">Derecho de tránsito</option>
+                <option value="Derecho constitucional">Derecho constitucional</option>
+                <option value="Derecho ambiental">Derecho ambiental</option>
+                <option value="Propiedad intelectual">Propiedad intelectual</option>
+                <option value="Derecho internacional">Derecho internacional</option>
+                <option value="Derecho migratorio">Derecho migratorio</option>
+              </select>
+            </div>
+            <div class="campo">
+              <label for="filtroCasoComunTablon" class="campo__etiqueta">Caso común</label>
+              <select id="filtroCasoComunTablon" class="campo__input">
+                <option value="">Todos</option>
+                <option value="Pensión alimenticia">Pensión alimenticia</option>
+                <option value="Patria potestad">Patria potestad</option>
+                <option value="Divorcio">Divorcio</option>
+                <option value="Trámite de herencia">Trámite de herencia</option>
+                <option value="Despido intempestivo">Despido intempestivo</option>
+                <option value="Accidente de tránsito">Accidente de tránsito</option>
+                <option value="Problema de arrendamiento">Problema de arrendamiento</option>
+                <option value="Deuda comercial">Deuda comercial</option>
+                <option value="Trámite migratorio">Trámite migratorio</option>
+                <option value="Otro">Otro</option>
+              </select>
+            </div>
+          </div>
+
+          <p class="campo__error" id="errorCasosAbogado" role="alert" aria-live="polite"></p>
+
+          <div class="solicitudes-lista" id="casosActivosLista"></div>
+
+          <div class="estado-vacio" id="estadoSinCasosAbogado" hidden>
+            <p class="estado-vacio__titulo">Sin casos disponibles</p>
+            <p>No hay casos activos que coincidan con los filtros seleccionados.</p>
+          </div>
+        </div>
+
+        <!-- Aviso: abogado no verificado -->
+        <div class="estado-vacio" id="estadoNoVerificado" hidden>
+          <p class="estado-vacio__titulo">El Tablón es solo para abogados verificados</p>
+          <p>Complete su proceso de verificación desde su panel para ver y aplicar a casos.</p>
+          <a href="/pages/panel-abogado" class="btn btn--primario estado-vacio__cta">Ir a mi panel</a>
+        </div>
+
+      </div>
+    </div>
+  </main>
+
+  <footer class="pie">
+    <div class="contenedor pie__contenedor">
+      <p class="pie__aviso">
+        LegalEC es un servicio de conexión y no un proveedor de servicios jurídicos.
+      </p>
+      <nav class="pie__nav" aria-label="Páginas legales">
+        <a href="#" class="pie__enlace">Términos y condiciones</a>
+        <span class="pie__separador" aria-hidden="true">·</span>
+        <a href="#" class="pie__enlace">Política de privacidad (LOPDP)</a>
+        <span class="pie__separador" aria-hidden="true">·</span>
+        <a href="/pages/contacto" class="pie__enlace">Soporte</a>
+      </nav>
+    </div>
+  </footer>
+
+  <script src="/js/vendors/supabase.min.js"></script>
+  <script type="module" src="/js/tablon.js"></script>
+
+</body>
+</html>

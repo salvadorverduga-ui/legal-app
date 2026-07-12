@@ -1443,3 +1443,221 @@ export const storage = {
   },
 
 };
+
+
+// ════════════════════════════════════════════════════════════
+// EL TABLÓN
+// Casos publicados por clientes; abogados verificados aplican. Al elegir
+// un abogado se crea automáticamente una solicitud mediada normal (ver
+// migración 20260712_040_tablon.sql, trigger fn_crear_solicitud_desde_tablon).
+// ════════════════════════════════════════════════════════════
+export const tablon = {
+
+  /**
+   * Retorna los casos activos de El Tablón para el abogado verificado
+   * autenticado, desde la vista tablon_casos_abogado (que ya resuelve
+   * cliente_nombre respetando el anonimato y devuelve vacío si quien
+   * consulta no es abogado verificado). Más recientes primero.
+   * Retorna array (puede estar vacío).
+   */
+  async getCasosActivos() {
+    const { data, error } = await _cliente
+      .from('tablon_casos_abogado')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('[api.tablon.getCasosActivos]', error.message);
+      return [];
+    }
+    return data ?? [];
+  },
+
+  /**
+   * Retorna los casos propios del cliente autenticado (todos los estados),
+   * con el total de aplicaciones recibidas, desde tablon_casos_cliente.
+   * Más recientes primero.
+   * Retorna array (puede estar vacío).
+   */
+  async getMisCasos() {
+    const { data, error } = await _cliente
+      .from('tablon_casos_cliente')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('[api.tablon.getMisCasos]', error.message);
+      return [];
+    }
+    return data ?? [];
+  },
+
+  /**
+   * Publica un nuevo caso en El Tablón. Solo clientes con rol='cliente'
+   * (política RLS de INSERT). El trigger fn_verificar_limite_casos_tablon
+   * rechaza el INSERT si el cliente ya publicó 2 casos hoy (hint
+   * LIMITE_CASOS_TABLON).
+   * datos: { titulo, descripcion, especialidad, caso_comun?: string, anonimo?: boolean }
+   * Retorna { data, error }.
+   */
+  async publicarCaso(datos) {
+    const { data: { user }, error: errUser } = await _cliente.auth.getUser();
+    if (errUser || !user) {
+      return { data: null, error: errUser ?? { message: 'No hay sesión activa.' } };
+    }
+
+    const { data, error } = await _cliente
+      .from('casos_tablon')
+      .insert({
+        cliente_id: user.id,
+        titulo: datos.titulo?.trim(),
+        descripcion: datos.descripcion?.trim(),
+        especialidad: datos.especialidad,
+        caso_comun: datos.caso_comun || null,
+        anonimo: !!datos.anonimo,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[api.tablon.publicarCaso]', error.message);
+      if (error.hint === 'LIMITE_CASOS_TABLON') {
+        return {
+          data: null,
+          error: { message: 'Ya publicó el máximo de 2 casos hoy. Intente de nuevo mañana.', codigo: 'LIMITE_CASOS_TABLON' },
+        };
+      }
+      return { data: null, error };
+    }
+
+    return { data, error: null };
+  },
+
+  /**
+   * Aplica a un caso como abogado verificado. La política RLS de INSERT
+   * valida verificacion='VERIFICADO' y que el caso siga ACTIVO. El trigger
+   * fn_verificar_limite_aplicaciones_tablon rechaza el INSERT si se
+   * configuró un límite en config_tablon y el abogado ya lo alcanzó (hint
+   * LIMITE_APLICACIONES_TABLON). Un abogado no puede aplicar dos veces al
+   * mismo caso (23505, restricción UNIQUE).
+   * mensaje: opcional, máx. 300 caracteres.
+   * Retorna { data, error }.
+   */
+  async aplicar(casoId, mensaje) {
+    const { data: { user }, error: errUser } = await _cliente.auth.getUser();
+    if (errUser || !user) {
+      return { data: null, error: errUser ?? { message: 'No hay sesión activa.' } };
+    }
+
+    const { data, error } = await _cliente
+      .from('aplicaciones_tablon')
+      .insert({
+        caso_id: casoId,
+        abogado_id: user.id,
+        mensaje: mensaje?.trim() || null,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[api.tablon.aplicar]', error.message);
+      if (error.hint === 'LIMITE_APLICACIONES_TABLON') {
+        return {
+          data: null,
+          error: { message: 'Alcanzó el máximo de aplicaciones activas permitidas.', codigo: 'LIMITE_APLICACIONES_TABLON' },
+        };
+      }
+      if (error.code === '23505') {
+        return {
+          data: null,
+          error: { message: 'Ya aplicó a este caso.', codigo: 'APLICACION_DUPLICADA' },
+        };
+      }
+      return { data: null, error };
+    }
+
+    return { data, error: null };
+  },
+
+  /**
+   * Retorna las aplicaciones recibidas en un caso propio, con datos
+   * públicos del abogado aplicante, desde tablon_aplicaciones_cliente.
+   * Más antiguas primero (orden de llegada).
+   * Retorna array (puede estar vacío).
+   */
+  async getAplicaciones(casoId) {
+    const { data, error } = await _cliente
+      .from('tablon_aplicaciones_cliente')
+      .select('*')
+      .eq('caso_id', casoId)
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.error('[api.tablon.getAplicaciones]', error.message);
+      return [];
+    }
+    return data ?? [];
+  },
+
+  /**
+   * Elige a un abogado aplicante. La política RLS restringe la operación
+   * al cliente dueño del caso. El trigger fn_crear_solicitud_desde_tablon
+   * crea automáticamente la solicitud mediada normal; si ya existía una
+   * solicitud activa entre ambos, el caso se marca ELEGIDO igual sin
+   * duplicarla.
+   * Retorna { data, error }.
+   */
+  async elegirAbogado(aplicacionId) {
+    const { data, error } = await _cliente
+      .from('aplicaciones_tablon')
+      .update({ estado: 'ELEGIDO' })
+      .eq('id', aplicacionId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[api.tablon.elegirAbogado]', error.message);
+      return { data: null, error };
+    }
+    return { data, error: null };
+  },
+
+  /**
+   * Retorna la configuración de El Tablón (clave/valor/descripcion) desde
+   * config_tablon. Lectura pública para todo usuario autenticado.
+   * Retorna array (puede estar vacío).
+   */
+  async getConfigTablon() {
+    const { data, error } = await _cliente
+      .from('config_tablon')
+      .select('*');
+
+    if (error) {
+      console.error('[api.tablon.getConfigTablon]', error.message);
+      return [];
+    }
+    return data ?? [];
+  },
+
+  /**
+   * Actualiza el valor de una clave de configuración. Solo admin (política
+   * RLS de UPDATE). valor se envía como string; NULL se pasa como null
+   * explícito para "sin límite".
+   * Retorna { data, error }.
+   */
+  async actualizarConfigTablon(clave, valor) {
+    const { data, error } = await _cliente
+      .from('config_tablon')
+      .update({ valor })
+      .eq('clave', clave)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[api.tablon.actualizarConfigTablon]', error.message);
+      return { data: null, error };
+    }
+    return { data, error: null };
+  },
+
+};

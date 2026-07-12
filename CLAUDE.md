@@ -65,7 +65,8 @@ legal-app/
 │   │   ├── registro.js        ← lógica de registro.html
 │   │   ├── recuperar-contrasena.js ← lógica de recuperar-contrasena.html
 │   │   ├── nueva-contrasena.js     ← lógica de nueva-contrasena.html
-│   │   └── contacto.js        ← lógica de contacto.html (sin Supabase; envía a /api/contacto)
+│   │   ├── contacto.js        ← lógica de contacto.html (sin Supabase; envía a /api/contacto)
+│   │   └── tablon.js          ← lógica de tablon.html ("El Tablón", ver §17)
 │   └── pages/
 │       ├── busqueda.html
 │       ├── perfil-abogado.html
@@ -75,7 +76,8 @@ legal-app/
 │       ├── registro.html
 │       ├── recuperar-contrasena.html
 │       ├── nueva-contrasena.html
-│       └── contacto.html
+│       ├── contacto.html
+│       └── tablon.html        ← "El Tablón": casos publicados por clientes, aplicaciones de abogados (ver §17)
 ├── supabase/
 │   ├── config.toml            ← project_id para el Supabase CLI (link/deploy)
 │   ├── migrations/            ← archivos SQL en orden cronológico
@@ -420,6 +422,34 @@ CLAUDE.md §2 prohíbe introducir dependencias npm en el **frontend** sin discut
 - `email` del remitente se usa como `Reply-To`, nunca como `from`/`to` — el remitente real y el destinatario real (`EMAIL_FROM`/`SUPPORT_EMAIL`) siempre vienen de variables de entorno, no de datos del formulario.
 - `nombre` y `mensaje` se escapan antes de insertarse en el HTML del correo (misma función `escapar()` que ya usa `notificar-solicitud/index.ts`).
 - Sin sesión ni RLS involucrados: este endpoint es público por diseño (cualquiera debe poder pedir soporte), así que la validación de entrada vive enteramente en `api/contacto.js`.
+
+---
+
+## 17. El Tablón
+
+### Qué es
+Sección independiente (`frontend/pages/tablon.html`, `/pages/tablon`) donde clientes publican casos y abogados verificados aplican para atenderlos. Al elegir un abogado se crea automáticamente una solicitud mediada normal (mismo flujo del §6/§13) — El Tablón es solo un canal adicional para llegar a esa solicitud, no reemplaza sus reglas de privacidad de contacto.
+
+### Modelo de datos (migración `20260712_040_tablon.sql`)
+| Tabla | Qué guarda |
+|---|---|
+| `casos_tablon` | Caso publicado por un cliente: título, descripción, especialidad, caso común opcional, si es anónimo, estado (`ACTIVO`/`EXPIRADO`/`CERRADO`) |
+| `aplicaciones_tablon` | Aplicación de un abogado verificado a un caso: mensaje opcional, estado (`PENDIENTE`/`ELEGIDO`/`RECHAZADO`) |
+| `config_tablon` | Configuración editable desde `panel-admin.html` — hoy solo `limite_aplicaciones_abogado` (NULL = sin límite) |
+
+### Reglas de negocio y dónde viven
+- **Máximo 2 casos publicados por cliente por día**: trigger `fn_verificar_limite_casos_tablon` (BEFORE INSERT en `casos_tablon`), no en RLS, para poder devolver un mensaje de error legible.
+- **Expiración a los 15 días**: `expires_at` se calcula en el trigger `fn_set_expires_at_caso_tablon`; un job de `pg_cron` (`expirar-casos-tablon`, cada hora) transiciona `ACTIVO → EXPIRADO` vía `fn_expirar_casos_tablon`.
+- **Solo abogados con `verificacion = 'VERIFICADO'` ven y aplican a casos**: condición en las políticas RLS de `casos_tablon`/`aplicaciones_tablon` y en la vista `tablon_casos_abogado` (doble capa, igual que la regla de visibilidad de búsqueda en §4.1).
+- **Anonimato**: si `casos_tablon.anonimo = true`, la vista `tablon_casos_abogado` muestra `cliente_nombre = 'Cliente anónimo'` a un abogado hasta que ese abogado específico queda `ELEGIDO` en `aplicaciones_tablon` para ese caso. La condición vive en la vista (base de datos), nunca se resuelve ocultando el nombre solo en el frontend.
+- **Elegir a un abogado crea la solicitud mediada**: trigger `fn_crear_solicitud_desde_tablon` (AFTER UPDATE OF estado en `aplicaciones_tablon`, cuando pasa a `ELEGIDO`) inserta en `solicitudes` con el `cliente_id`/`abogado_id` correspondientes. Si ya existía una solicitud activa entre ambos (ej. el cliente ya lo había contactado desde búsqueda normal), el `unique_violation` se atrapa y el caso se marca `ELEGIDO` igual, sin duplicar la solicitud. A partir de ahí rige el flujo normal de §6: el contacto del cliente se revela al abogado solo cuando esa solicitud pasa a `ACEPTADA`.
+- **Límite de aplicaciones por abogado**: sin límite por defecto (`config_tablon.limite_aplicaciones_abogado = NULL`). Si el admin fija un número desde la pestaña "Configuración" de `panel-admin.html`, el trigger `fn_verificar_limite_aplicaciones_tablon` lo hace cumplir contando las aplicaciones `PENDIENTE` del abogado.
+- El cliente puede elegir a más de un abogado aplicante (no hay restricción de "un solo elegido por caso").
+
+### Frontend
+- `frontend/js/tablon.js` decide la vista (cliente o abogado verificado) según `perfiles.rol` y, para abogados, `abogados.verificacion`.
+- Todas las queries pasan por el módulo `api.tablon` en `frontend/js/api.js` (§7: nunca inline en las páginas).
+- Link "El Tablón" en el header de `panel-cliente.html` y `panel-abogado.html`.
 
 ---
 
