@@ -30,27 +30,29 @@ async function inicializar() {
     return;
   }
 
-  // 2. Verificar autenticación — redirigir si no hay sesión
+  // 2. El perfil público es accesible sin sesión. Si hay una activa,
+  // se muestra el nombre del usuario y el botón de salir; si no, un
+  // enlace para iniciar sesión.
   const sesion = await api.auth.getSession();
-  if (!sesion) {
-    window.location.href = '/';
-    return;
+  let perfil = null;
+  if (sesion) {
+    perfil = await api.perfiles.getPerfilActual();
+    if (perfil?.nombre_completo) {
+      document.getElementById('nombreUsuario').textContent = perfil.nombre_completo;
+    }
+    document.getElementById('btnCerrarSesion').hidden = false;
+  } else {
+    document.getElementById('btnIniciarSesion').hidden = false;
   }
 
-  // 3. Mostrar nombre del usuario en el encabezado
-  const perfil = await api.perfiles.getPerfilActual();
-  if (perfil?.nombre_completo) {
-    document.getElementById('nombreUsuario').textContent = perfil.nombre_completo;
-  }
-
-  // 4. Leer el id del abogado desde la URL
+  // 3. Leer el id del abogado desde la URL
   const abogadoId = new URLSearchParams(window.location.search).get('id');
   if (!abogadoId) {
     mostrarError();
     return;
   }
 
-  // 5. Cargar perfil y reseñas en paralelo
+  // 4. Cargar perfil y reseñas en paralelo
   const [abogado, resenas] = await Promise.all([
     api.abogados.getAbogado(abogadoId),
     api.resenas.getResenasAbogado(abogadoId),
@@ -68,6 +70,8 @@ async function inicializar() {
 
   if (perfil?.rol === 'cliente') {
     document.getElementById('seccionBotonSolicitar').hidden = false;
+  } else if (!sesion) {
+    document.getElementById('seccionSinSesion').hidden = false;
   }
 
   mostrarContenido();

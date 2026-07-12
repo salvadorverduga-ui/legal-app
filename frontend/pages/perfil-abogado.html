@@ -17,10 +17,14 @@
       </a>
       <nav class="nav-usuario" aria-label="Menú de usuario">
         <span class="nav-usuario__nombre" id="nombreUsuario" aria-live="polite"></span>
-        <button class="btn btn--secundario btn--sm" id="btnCerrarSesion" type="button"
+        <button class="btn btn--secundario btn--sm" id="btnCerrarSesion" type="button" hidden
           style="border-color: rgba(255,255,255,0.4); color: rgba(255,255,255,0.85);">
           Salir
         </button>
+        <a class="btn btn--secundario btn--sm" id="btnIniciarSesion" href="/" hidden
+          style="border-color: rgba(255,255,255,0.4); color: rgba(255,255,255,0.85);">
+          Iniciar sesión
+        </a>
       </nav>
     </div>
   </header>
@@ -80,6 +84,13 @@
           <button class="btn btn--primario btn--completo" id="btnSolicitar" type="button" aria-controls="seccionSolicitud">
             Solicitar consulta
           </button>
+        </section>
+
+        <!-- Aviso: sin sesión activa -->
+        <section id="seccionSinSesion" hidden>
+          <a href="/" class="btn btn--primario btn--completo">
+            Inicie sesión para contactar a este abogado
+          </a>
         </section>
 
         <!-- Formulario de solicitud -->

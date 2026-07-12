@@ -31,27 +31,28 @@ async function inicializar() {
     return;
   }
 
-  // 2. Verificar autenticación — redirigir si no hay sesión
+  // 2. La búsqueda es pública: no se exige sesión. Si hay una activa,
+  // se muestra el nombre del usuario y el botón de salir; si no, un
+  // enlace para iniciar sesión.
   const sesion = await api.auth.getSession();
-  if (!sesion) {
-    window.location.href = '/';
-    return;
+  if (sesion) {
+    const perfil = await api.perfiles.getPerfilActual();
+    if (perfil?.nombre_completo) {
+      document.getElementById('nombreUsuario').textContent = perfil.nombre_completo;
+    }
+    document.getElementById('btnCerrarSesion').hidden = false;
+  } else {
+    document.getElementById('btnIniciarSesion').hidden = false;
   }
 
-  // 3. Mostrar nombre del usuario en el encabezado
-  const perfil = await api.perfiles.getPerfilActual();
-  if (perfil?.nombre_completo) {
-    document.getElementById('nombreUsuario').textContent = perfil.nombre_completo;
-  }
-
-  // 4. Cargar catálogo de provincias para el filtro
+  // 3. Cargar catálogo de provincias para el filtro
   provinciasCache = await api.geo.getProvincias();
   poblarSelectProvincias();
 
-  // 5. Cargar resultados iniciales (sin filtros: todos los abogados visibles)
+  // 4. Cargar resultados iniciales (sin filtros: todos los abogados visibles)
   await ejecutarBusqueda();
 
-  // 6. Registrar todos los eventos de la UI
+  // 5. Registrar todos los eventos de la UI
   configurarEventos();
 }
 
