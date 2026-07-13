@@ -42,7 +42,7 @@ const ETIQUETAS_TIPO_SUSCRIPCION = {
   ESTUDIO_GRANDE:     'Estudio grande',
 };
 
-const SECCIONES = ['Solicitudes', 'Resenas', 'Suscripcion', 'Perfil'];
+const SECCIONES = ['Inicio', 'Solicitudes', 'Resenas', 'Suscripcion', 'Perfil'];
 
 // ─── Estado de la página ──────────────────────────────────────────────────────
 let perfilActual = null;         // fila propia de la tabla perfiles
@@ -89,25 +89,30 @@ async function inicializar() {
   }
 
   document.querySelector('.logo').href = rutaPanelPropio(perfilActual.rol);
+  const urlPerfilPublico = `/pages/perfil-abogado?id=${abogadoActual.id}`;
   inicializarMenuPerfil({
     rol: 'abogado',
     nombre: perfilActual.nombre_completo,
     fotoPath: perfilActual.foto_url,
-    urlPerfilPublico: `/pages/perfil-abogado?id=${abogadoActual.id}`,
+    urlPerfilPublico,
   });
   inicializarNotificaciones();
 
   renderizarCabecera();
+  renderizarSaludoInicio();
+  document.getElementById('inicioVerPerfilPublico').href = urlPerfilPublico;
   await cargarProvincias();
   await rellenarFormularioPerfil();
   actualizarBanners();
 
-  const [resenas] = await Promise.all([
+  const [resenas, casosTablon] = await Promise.all([
     api.resenas.getResenasAbogado(abogadoActual.id),
+    api.tablon.getCasosActivos(),
     cargarSolicitudes(),
     cargarSuscripcion(),
   ]);
   renderizarResenas(resenas);
+  renderizarResumenInicio(resenas.length, casosTablon);
 
   mostrarContenido();
   configurarEventos();
@@ -131,7 +136,13 @@ function configurarEventos() {
     document.getElementById(`tab${nombre}`).addEventListener('click', () => cambiarTab(nombre));
   });
 
-  document.getElementById('toggleDisponible').addEventListener('change', manejarToggleDisponible);
+  document.querySelectorAll('[data-ir-a-tab]').forEach(el => {
+    el.addEventListener('click', () => cambiarTab(el.dataset.irATab));
+  });
+
+  document.querySelectorAll('.js-toggle-disponible').forEach(el => {
+    el.addEventListener('change', manejarToggleDisponible);
+  });
 
   document.getElementById('btnCompletarPerfil').addEventListener('click', () => {
     cambiarTab('Perfil');
@@ -192,12 +203,42 @@ function renderizarCabecera() {
   document.getElementById('cabeceraBadges').innerHTML =
     `<span class="badge ${estadoVerificacion.clase}">${estadoVerificacion.texto}</span>${badgePerfilCompletoHtml}`;
 
-  document.getElementById('toggleDisponible').checked = abogadoActual.toggle_disponible;
+  document.querySelectorAll('.js-toggle-disponible').forEach(el => {
+    el.checked = abogadoActual.toggle_disponible;
+  });
   actualizarEtiquetaDisponible(abogadoActual.toggle_disponible);
 }
 
+// El toggle vive tanto en la cabecera (visible en todas las pestañas) como en
+// la pestaña Inicio; ambos controles se mantienen sincronizados por clase.
 function actualizarEtiquetaDisponible(disponible) {
-  document.getElementById('toggleDisponibleEtiqueta').textContent = disponible ? 'Disponible' : 'No disponible';
+  const texto = disponible ? 'Disponible' : 'No disponible';
+  document.querySelectorAll('.js-toggle-disponible-etiqueta').forEach(el => {
+    el.textContent = texto;
+  });
+}
+
+// ─── Inicio (dashboard) ───────────────────────────────────────────────────────
+function renderizarSaludoInicio() {
+  document.getElementById('inicioSaludo').textContent = `${obtenerSaludo()}, ${perfilActual.nombre_completo}`;
+}
+
+function obtenerSaludo() {
+  const hora = new Date().getHours();
+  if (hora >= 5 && hora < 12) return 'Buenos días';
+  if (hora >= 12 && hora < 19) return 'Buenas tardes';
+  return 'Buenas noches';
+}
+
+function renderizarResumenInicio(resenasTotales, casosTablon) {
+  const pendientes = solicitudesActuales.filter(s => s.estado === 'PENDIENTE').length;
+
+  const especialidadesPropias = new Set(abogadoActual.especialidades ?? []);
+  const casosDeSuEspecialidad = (casosTablon ?? []).filter(c => especialidadesPropias.has(c.especialidad)).length;
+
+  document.getElementById('inicioSolicitudesPendientes').textContent = String(pendientes);
+  document.getElementById('inicioCasosTablon').textContent = String(casosDeSuEspecialidad);
+  document.getElementById('inicioResenasTotales').textContent = String(resenasTotales);
 }
 
 // ─── Banners: vencimiento de suscripción y onboarding ────────────────────────
@@ -234,27 +275,27 @@ function actualizarBannerOnboarding() {
 }
 
 async function manejarToggleDisponible() {
-  const toggle = document.getElementById('toggleDisponible');
+  const controles = document.querySelectorAll('.js-toggle-disponible');
   const estadoEl = document.getElementById('toggleDisponibleEstado');
 
-  toggle.disabled = true;
+  controles.forEach(el => { el.disabled = true; });
   estadoEl.textContent = '';
 
   const { toggle_disponible, error } = await api.abogados.toggleDisponible();
 
   if (error) {
-    toggle.checked = abogadoActual.toggle_disponible;
+    controles.forEach(el => { el.checked = abogadoActual.toggle_disponible; });
     const mensaje = mensajeAmigable(error, 'No se pudo actualizar la disponibilidad. Intente de nuevo.');
     estadoEl.textContent = mensaje;
     toast.error(mensaje);
   } else {
     abogadoActual.toggle_disponible = toggle_disponible;
-    toggle.checked = toggle_disponible;
+    controles.forEach(el => { el.checked = toggle_disponible; });
     actualizarEtiquetaDisponible(toggle_disponible);
     toast.info(toggle_disponible ? 'Ahora está disponible.' : 'Ahora no está disponible.');
   }
 
-  toggle.disabled = false;
+  controles.forEach(el => { el.disabled = false; });
 }
 
 // ─── Mi perfil: foto ──────────────────────────────────────────────────────────

@@ -29,7 +29,7 @@ const CLASE_ESTADO_SOLICITUD = {
   CANCELADA:  'badge--estado-cancelada',
 };
 
-const SECCIONES = ['Perfil', 'Solicitudes', 'Abogados', 'Resenas'];
+const SECCIONES = ['Inicio', 'Solicitudes', 'Abogados', 'Resenas', 'Perfil'];
 
 // ─── Estado de la página ──────────────────────────────────────────────────────
 let perfilActual = null;         // fila propia de la tabla perfiles
@@ -69,16 +69,19 @@ async function inicializar() {
   document.querySelector('.logo').href = rutaPanelPropio(perfilActual.rol);
   renderizarCabecera();
   rellenarFormularioPerfil();
+  renderizarSaludoInicio();
   inicializarMenuPerfil({ rol: 'cliente', nombre: perfilActual.nombre_completo, fotoPath: perfilActual.foto_url });
   inicializarNotificaciones();
 
-  const [resenas, abogadosContactados] = await Promise.all([
+  const [resenas, abogadosContactados, notificacionesNoLeidas] = await Promise.all([
     api.resenas.getMisResenas(),
     api.solicitudes.getAbogadosContactados(),
+    api.notificaciones.getNoLeidas(),
     cargarSolicitudes(),
   ]);
   renderizarResenas(resenas);
   renderizarAbogadosContactados(abogadosContactados);
+  renderizarResumenInicio(notificacionesNoLeidas.length);
 
   mostrarContenido();
   configurarEventos();
@@ -100,6 +103,10 @@ function mostrarContenido() {
 function configurarEventos() {
   SECCIONES.forEach(nombre => {
     document.getElementById(`tab${nombre}`).addEventListener('click', () => cambiarTab(nombre));
+  });
+
+  document.querySelectorAll('[data-ir-a-tab]').forEach(el => {
+    el.addEventListener('click', () => cambiarTab(el.dataset.irATab));
   });
 
   document.querySelectorAll('#seccionSolicitudes .filtro-tipo__btn').forEach(btn => {
@@ -146,6 +153,26 @@ function renderizarCabecera() {
   document.getElementById('cabeceraAvatar').innerHTML = avatarHtml;
   document.getElementById('perfilFotoAvatar').innerHTML = avatarHtml;
   document.getElementById('cabeceraNombre').textContent = perfilActual.nombre_completo;
+}
+
+// ─── Inicio (dashboard) ───────────────────────────────────────────────────────
+function renderizarSaludoInicio() {
+  document.getElementById('inicioSaludo').textContent = `${obtenerSaludo()}, ${perfilActual.nombre_completo}`;
+}
+
+function obtenerSaludo() {
+  const hora = new Date().getHours();
+  if (hora >= 5 && hora < 12) return 'Buenos días';
+  if (hora >= 12 && hora < 19) return 'Buenas tardes';
+  return 'Buenas noches';
+}
+
+// Solicitudes "activas": esperando respuesta del abogado o ya aceptadas
+// (consulta en curso) — no incluye estados terminales.
+function renderizarResumenInicio(notificacionesNoLeidas) {
+  const activas = solicitudesActuales.filter(s => s.estado === 'PENDIENTE' || s.estado === 'ACEPTADA').length;
+  document.getElementById('inicioSolicitudesActivas').textContent = String(activas);
+  document.getElementById('inicioNotificacionesNoLeidas').textContent = String(notificacionesNoLeidas);
 }
 
 // ─── Mi perfil: foto ──────────────────────────────────────────────────────────

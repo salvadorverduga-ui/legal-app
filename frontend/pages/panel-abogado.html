@@ -67,9 +67,9 @@
 
           <div class="panel-cabecera__disponibilidad">
             <label class="toggle-switch">
-              <input type="checkbox" id="toggleDisponible">
+              <input type="checkbox" id="toggleDisponible" class="js-toggle-disponible">
               <span class="toggle-switch__pista" aria-hidden="true"></span>
-              <span class="toggle-switch__etiqueta" id="toggleDisponibleEtiqueta">Disponible</span>
+              <span class="toggle-switch__etiqueta js-toggle-disponible-etiqueta" id="toggleDisponibleEtiqueta">Disponible</span>
             </label>
             <p class="campo__error" id="toggleDisponibleEstado" role="alert" aria-live="polite"></p>
           </div>
@@ -77,8 +77,12 @@
 
         <!-- Navegación por secciones -->
         <nav class="panel-tabs" role="tablist" aria-label="Secciones del panel">
-          <button class="panel-tab panel-tab--activo" id="tabSolicitudes" type="button"
-            role="tab" aria-selected="true" aria-controls="seccionSolicitudes">
+          <button class="panel-tab panel-tab--activo" id="tabInicio" type="button"
+            role="tab" aria-selected="true" aria-controls="seccionInicio">
+            Inicio
+          </button>
+          <button class="panel-tab" id="tabSolicitudes" type="button"
+            role="tab" aria-selected="false" aria-controls="seccionSolicitudes">
             Solicitudes
           </button>
           <button class="panel-tab" id="tabResenas" type="button"
@@ -95,8 +99,44 @@
           </button>
         </nav>
 
+        <!-- ═══════════════ SECCIÓN: INICIO ═══════════════ -->
+        <section class="panel-seccion" id="seccionInicio" role="tabpanel" aria-labelledby="tabInicio">
+          <h2 class="panel-inicio__saludo" id="inicioSaludo"></h2>
+
+          <div class="panel-inicio__disponibilidad">
+            <label class="toggle-switch">
+              <input type="checkbox" id="toggleDisponibleInicio" class="js-toggle-disponible">
+              <span class="toggle-switch__pista" aria-hidden="true"></span>
+              <span class="toggle-switch__etiqueta js-toggle-disponible-etiqueta" id="toggleDisponibleEtiquetaInicio">Disponible</span>
+            </label>
+          </div>
+
+          <div class="accesos-rapidos">
+            <button class="acceso-rapido" type="button" data-ir-a-tab="Solicitudes">Ver solicitudes</button>
+            <a href="/pages/tablon" class="acceso-rapido">El Tablón</a>
+            <a href="#" class="acceso-rapido" id="inicioVerPerfilPublico" target="_blank" rel="noopener noreferrer">
+              Ver mi perfil público
+            </a>
+          </div>
+
+          <div class="metricas-grid">
+            <div class="metrica-tarjeta">
+              <p class="metrica-tarjeta__valor" id="inicioSolicitudesPendientes">0</p>
+              <p class="metrica-tarjeta__etiqueta">Solicitudes pendientes</p>
+            </div>
+            <div class="metrica-tarjeta">
+              <p class="metrica-tarjeta__valor" id="inicioCasosTablon">0</p>
+              <p class="metrica-tarjeta__etiqueta">Casos nuevos en El Tablón</p>
+            </div>
+            <div class="metrica-tarjeta">
+              <p class="metrica-tarjeta__valor" id="inicioResenasTotales">0</p>
+              <p class="metrica-tarjeta__etiqueta">Reseñas totales</p>
+            </div>
+          </div>
+        </section>
+
         <!-- ═══════════════ SECCIÓN: SOLICITUDES ═══════════════ -->
-        <section class="panel-seccion" id="seccionSolicitudes" role="tabpanel" aria-labelledby="tabSolicitudes">
+        <section class="panel-seccion" id="seccionSolicitudes" role="tabpanel" aria-labelledby="tabSolicitudes" hidden>
 
           <div class="filtro-tipo" role="group" aria-label="Filtrar solicitudes por estado">
             <span class="filtro-tipo__label">Estado:</span>

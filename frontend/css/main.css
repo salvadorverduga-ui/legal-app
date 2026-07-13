@@ -2024,6 +2024,50 @@ p {
   border-top: 1px solid var(--color-borde-suave);
 }
 
+/* ── Pestaña "Inicio" (dashboard) ──────────────────────────── */
+.panel-inicio__saludo {
+  font-size: var(--texto-xl);
+  color: var(--color-primario);
+  margin-bottom: var(--esp-5);
+}
+
+.panel-inicio__disponibilidad {
+  margin-bottom: var(--esp-6);
+}
+
+.accesos-rapidos {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--esp-3);
+  margin-bottom: var(--esp-6);
+}
+
+.acceso-rapido {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background-color: var(--color-fondo-card);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-lg);
+  padding: var(--esp-4) var(--esp-5);
+  font-weight: var(--peso-semibold);
+  color: var(--color-primario);
+  box-shadow: var(--sombra-sm);
+  transition: border-color var(--transicion), box-shadow var(--transicion);
+}
+
+.acceso-rapido:hover,
+.acceso-rapido:focus-visible {
+  border-color: var(--color-primario);
+  box-shadow: var(--sombra-md);
+}
+
+@media (min-width: 640px) {
+  .accesos-rapidos {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
 /* Interruptor Disponible / No disponible */
 .toggle-switch {
   display: inline-flex;

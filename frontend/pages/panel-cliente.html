@@ -55,9 +55,9 @@
 
         <!-- Navegación por secciones -->
         <nav class="panel-tabs" role="tablist" aria-label="Secciones del panel">
-          <button class="panel-tab panel-tab--activo" id="tabPerfil" type="button"
-            role="tab" aria-selected="true" aria-controls="seccionPerfil">
-            Mi perfil
+          <button class="panel-tab panel-tab--activo" id="tabInicio" type="button"
+            role="tab" aria-selected="true" aria-controls="seccionInicio">
+            Inicio
           </button>
           <button class="panel-tab" id="tabSolicitudes" type="button"
             role="tab" aria-selected="false" aria-controls="seccionSolicitudes">
@@ -71,10 +71,37 @@
             role="tab" aria-selected="false" aria-controls="seccionResenas">
             Mis reseñas
           </button>
+          <!-- Sin botón visible: se llega desde "Editar perfil" en el menú de perfil del header (?tab=perfil) -->
+          <button class="panel-tab sr-only" id="tabPerfil" type="button" tabindex="-1"
+            role="tab" aria-selected="false" aria-controls="seccionPerfil">
+            Mi perfil
+          </button>
         </nav>
 
+        <!-- ═══════════════ SECCIÓN: INICIO ═══════════════ -->
+        <section class="panel-seccion" id="seccionInicio" role="tabpanel" aria-labelledby="tabInicio">
+          <h2 class="panel-inicio__saludo" id="inicioSaludo"></h2>
+
+          <div class="accesos-rapidos">
+            <a href="/pages/busqueda" class="acceso-rapido">Buscar abogado</a>
+            <a href="/pages/tablon" class="acceso-rapido">El Tablón</a>
+            <button class="acceso-rapido" type="button" data-ir-a-tab="Solicitudes">Mis solicitudes</button>
+          </div>
+
+          <div class="metricas-grid">
+            <div class="metrica-tarjeta">
+              <p class="metrica-tarjeta__valor" id="inicioSolicitudesActivas">0</p>
+              <p class="metrica-tarjeta__etiqueta">Solicitudes activas</p>
+            </div>
+            <div class="metrica-tarjeta">
+              <p class="metrica-tarjeta__valor" id="inicioNotificacionesNoLeidas">0</p>
+              <p class="metrica-tarjeta__etiqueta">Notificaciones sin leer</p>
+            </div>
+          </div>
+        </section>
+
         <!-- ═══════════════ SECCIÓN: MI PERFIL ═══════════════ -->
-        <section class="panel-seccion" id="seccionPerfil" role="tabpanel" aria-labelledby="tabPerfil">
+        <section class="panel-seccion" id="seccionPerfil" role="tabpanel" aria-labelledby="tabPerfil" hidden>
 
           <div class="panel-perfil-foto">
             <div class="panel-perfil-foto__avatar" id="perfilFotoAvatar"></div>

@@ -406,6 +406,7 @@ La migración crea el bucket si no existe y fuerza `public = false` aunque ya ex
 - [x] MÓDULO 4 — Admin: búsqueda/filtro en verificaciones, log de acciones del admin
 - [x] MÓDULO 5 — Notificaciones internas: sistema de notificaciones en la interfaz para cada tipo de usuario (nueva solicitud, solicitud aceptada/rechazada, verificación aprobada/rechazada, suscripción próxima a vencer)
 - [x] MÓDULO A — Menú de perfil desde foto: avatar circular con dropdown (ver §18) reemplaza el nombre en texto y los botones sueltos del header
+- [x] MÓDULO B — Dashboard "Inicio": primera pestaña de `panel-cliente.html` y `panel-abogado.html` con saludo, accesos rápidos y resumen numérico
 
 Marcar cada ítem como `[x]` a medida que se completa el módulo correspondiente.
 
