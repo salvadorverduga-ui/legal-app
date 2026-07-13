@@ -96,3 +96,84 @@ const RUTAS_PANEL_POR_ROL = {
 export function rutaPanelPropio(rol) {
   return RUTAS_PANEL_POR_ROL[rol] ?? '/';
 }
+
+// ─── Modal de confirmación propio ────────────────────────────────────────────
+// Reemplaza a window.confirm() — CLAUDE.md §7 prohíbe los diálogos del
+// sistema (window.confirm/alert/prompt) en toda la app.
+// Uso desde cualquier página:
+//   import { confirmar } from './utils.js';
+//   const ok = await confirmar('¿Cancelar esta solicitud? Esta acción no se puede deshacer.');
+//   if (!ok) return;
+
+let elementosModalConfirmar = null;
+
+function obtenerModalConfirmar() {
+  if (elementosModalConfirmar) return elementosModalConfirmar;
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-confirmar-overlay';
+  overlay.hidden = true;
+  overlay.innerHTML = `
+    <div class="modal-confirmar" role="alertdialog" aria-modal="true" aria-labelledby="modalConfirmarMensaje">
+      <p class="modal-confirmar__mensaje" id="modalConfirmarMensaje"></p>
+      <div class="modal-confirmar__acciones">
+        <button type="button" class="btn btn--secundario btn--sm" id="modalConfirmarBtnCancelar"></button>
+        <button type="button" class="btn btn--primario btn--sm" id="modalConfirmarBtnConfirmar"></button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  elementosModalConfirmar = {
+    overlay,
+    mensaje: overlay.querySelector('#modalConfirmarMensaje'),
+    btnCancelar: overlay.querySelector('#modalConfirmarBtnCancelar'),
+    btnConfirmar: overlay.querySelector('#modalConfirmarBtnConfirmar'),
+  };
+  return elementosModalConfirmar;
+}
+
+/**
+ * Muestra un modal de confirmación propio y retorna una Promise que resuelve
+ * true (confirmó) o false (canceló, cerró con Escape o hizo clic fuera).
+ * opciones: { textoConfirmar?: string, textoCancelar?: string }
+ */
+export function confirmar(mensaje, opciones = {}) {
+  const { textoConfirmar = 'Confirmar', textoCancelar = 'Cancelar' } = opciones;
+  const { overlay, mensaje: mensajeEl, btnCancelar, btnConfirmar } = obtenerModalConfirmar();
+
+  mensajeEl.textContent = mensaje;
+  btnCancelar.textContent = textoCancelar;
+  btnConfirmar.textContent = textoConfirmar;
+
+  const elementoConFocoPrevio = document.activeElement;
+
+  return new Promise((resolve) => {
+    function cerrar(resultado) {
+      overlay.hidden = true;
+      btnCancelar.removeEventListener('click', manejarCancelar);
+      btnConfirmar.removeEventListener('click', manejarConfirmar);
+      overlay.removeEventListener('click', manejarClickOverlay);
+      document.removeEventListener('keydown', manejarTecla);
+      if (elementoConFocoPrevio instanceof HTMLElement) elementoConFocoPrevio.focus();
+      resolve(resultado);
+    }
+
+    function manejarCancelar() { cerrar(false); }
+    function manejarConfirmar() { cerrar(true); }
+    function manejarClickOverlay(e) {
+      if (e.target === overlay) cerrar(false);
+    }
+    function manejarTecla(e) {
+      if (e.key === 'Escape') cerrar(false);
+    }
+
+    btnCancelar.addEventListener('click', manejarCancelar);
+    btnConfirmar.addEventListener('click', manejarConfirmar);
+    overlay.addEventListener('click', manejarClickOverlay);
+    document.addEventListener('keydown', manejarTecla);
+
+    overlay.hidden = false;
+    btnConfirmar.focus();
+  });
+}

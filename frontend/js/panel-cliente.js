@@ -4,7 +4,7 @@
 
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
-import { toast, mensajeAmigable, rutaPanelPropio } from './utils.js';
+import { toast, mensajeAmigable, rutaPanelPropio, confirmar } from './utils.js';
 import { inicializarNotificaciones } from './notificaciones.js';
 import { inicializarMenuPerfil, actualizarAvatarMenuPerfil } from './menu-perfil.js';
 
@@ -600,7 +600,7 @@ async function manejarMarcarCompletada(id) {
 }
 
 async function manejarCancelarSolicitud(id) {
-  const confirmado = window.confirm('¿Cancelar esta solicitud? Esta acción no se puede deshacer.');
+  const confirmado = await confirmar('¿Cancelar esta solicitud? Esta acción no se puede deshacer.');
   if (!confirmado) return;
 
   const errorEl = document.getElementById('errorSolicitudes');

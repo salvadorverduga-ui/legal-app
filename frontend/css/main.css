@@ -2820,6 +2820,47 @@ p {
 
 
 /* ────────────────────────────────────────────────────────────
+   MODAL DE CONFIRMACIÓN — reemplaza a window.confirm() (confirmar() en utils.js)
+   ──────────────────────────────────────────────────────────── */
+.modal-confirmar-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--esp-4);
+  background-color: rgba(30, 41, 59, 0.5);
+}
+
+.modal-confirmar-overlay[hidden] {
+  display: none;
+}
+
+.modal-confirmar {
+  width: 100%;
+  max-width: 400px;
+  background-color: var(--color-fondo-card);
+  border-radius: var(--radio-lg);
+  box-shadow: var(--sombra-xl);
+  padding: var(--esp-6);
+}
+
+.modal-confirmar__mensaje {
+  color: var(--color-texto);
+  font-size: var(--texto-base);
+  line-height: var(--altura-linea-normal);
+  margin-bottom: var(--esp-5);
+}
+
+.modal-confirmar__acciones {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--esp-3);
+}
+
+
+/* ────────────────────────────────────────────────────────────
    PÁGINA 404
    ──────────────────────────────────────────────────────────── */
 .estado-404 {

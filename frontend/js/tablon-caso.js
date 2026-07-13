@@ -5,7 +5,7 @@
 
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
-import { toast, mensajeAmigable, rutaPanelPropio } from './utils.js';
+import { toast, mensajeAmigable, rutaPanelPropio, confirmar } from './utils.js';
 import { inicializarNotificaciones } from './notificaciones.js';
 import { inicializarMenuPerfil } from './menu-perfil.js';
 
@@ -270,7 +270,7 @@ async function manejarToggleSeguimientoAplicacion(aplicacionId) {
 }
 
 async function manejarElegirAbogado(aplicacionId) {
-  const confirmado = window.confirm(
+  const confirmado = await confirmar(
     '¿Elegir a este abogado? Se creará una solicitud de consulta y sus datos de contacto se revelarán de inmediato.'
   );
   if (!confirmado) return;
@@ -290,7 +290,7 @@ async function manejarElegirAbogado(aplicacionId) {
 }
 
 async function manejarCerrarCaso() {
-  const confirmado = window.confirm('¿Cerrar este caso? Ya no podrá recibir más aplicaciones ni elegir a otro abogado.');
+  const confirmado = await confirmar('¿Cerrar este caso? Ya no podrá recibir más aplicaciones ni elegir a otro abogado.');
   if (!confirmado) return;
 
   const { data, error } = await api.tablon.cerrarCaso(casoId);

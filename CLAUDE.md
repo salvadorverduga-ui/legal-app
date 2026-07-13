@@ -201,6 +201,7 @@ Un perfil de abogado aparece en búsquedas SOLO si:
 - Helpers globales van en `utils.js`
 - Inicialización, routing y auth van en `app.js`
 - Comentar funciones complejas en español
+- Nunca usar `window.confirm()`, `window.alert()` o `window.prompt()` — son diálogos del sistema, no de la app. Reemplazar siempre por modales o confirmaciones inline propias. Esta regla aplica a todos los archivos JS del proyecto. Para confirmaciones sí/no, usar `confirmar(mensaje)` de `utils.js` (modal propio, retorna una `Promise<boolean>`).
 
 ### SQL / Supabase
 - Nombres de tablas en español y snake_case: `perfiles`, `solicitudes`, `abogados`
