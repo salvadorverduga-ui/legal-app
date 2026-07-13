@@ -220,6 +220,25 @@ export const auth = {
     return { error: null };
   },
 
+  /**
+   * Cambia la contraseña del usuario ya autenticado, desde su propio panel
+   * (a diferencia de actualizarContrasena, que opera sobre la sesión
+   * temporal de recuperación). El llamador (cambiar-contrasena.js) debe
+   * reautenticar con iniciarSesion() usando la contraseña actual antes de
+   * llamar a esta función, para evitar que una sesión abierta sin
+   * vigilancia cambie la contraseña sin conocerla.
+   * Retorna { error }.
+   */
+  async cambiarContrasena(nuevaPassword) {
+    const { error } = await _cliente.auth.updateUser({ password: nuevaPassword });
+
+    if (error) {
+      console.error('[api.auth.cambiarContrasena]', error.message);
+      return { error };
+    }
+    return { error: null };
+  },
+
 };
 
 

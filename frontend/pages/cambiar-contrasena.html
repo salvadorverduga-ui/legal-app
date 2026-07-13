@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Cambie la contraseña de su cuenta de LegalEC.">
+  <title>Cambiar contraseña — LegalEC</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+
+  <header class="encabezado">
+    <div class="contenedor encabezado__contenedor">
+      <a href="/" class="logo" aria-label="LegalEC — Mi panel">
+        <span class="logo__nombre">LegalEC</span>
+      </a>
+    </div>
+  </header>
+
+  <main>
+    <div class="contenedor seccion-registro">
+      <section aria-labelledby="tituloCambiarContrasena">
+        <div class="tarjeta-auth tarjeta-auth--registro">
+
+          <!-- Estado: cargando -->
+          <div class="pantalla-carga" id="estadoCargando">
+            <div class="spinner" aria-hidden="true"></div>
+            <p class="pantalla-carga__texto">Cargando...</p>
+          </div>
+
+          <!-- Formulario de cambio de contraseña -->
+          <div id="contenidoFormulario" hidden>
+            <h1 class="auth__titulo" id="tituloCambiarContrasena">Cambiar contraseña</h1>
+
+            <form id="formCambiarContrasena" class="formulario" novalidate>
+              <div class="campo">
+                <label for="passwordActual" class="campo__etiqueta">Contraseña actual</label>
+                <input
+                  type="password"
+                  id="passwordActual"
+                  name="password_actual"
+                  class="campo__input"
+                  autocomplete="current-password"
+                  required
+                >
+              </div>
+              <div class="campo">
+                <label for="passwordNueva" class="campo__etiqueta">Nueva contraseña</label>
+                <input
+                  type="password"
+                  id="passwordNueva"
+                  name="password_nueva"
+                  class="campo__input"
+                  autocomplete="new-password"
+                  minlength="8"
+                  required
+                >
+                <span class="campo__ayuda">Mínimo 8 caracteres</span>
+              </div>
+              <div class="campo">
+                <label for="passwordConfirmacion" class="campo__etiqueta">Confirmar nueva contraseña</label>
+                <input
+                  type="password"
+                  id="passwordConfirmacion"
+                  name="password_confirmacion"
+                  class="campo__input"
+                  autocomplete="new-password"
+                  minlength="8"
+                  required
+                >
+              </div>
+              <p class="campo__error" id="errorCambiarContrasena" role="alert" aria-live="polite"></p>
+              <button type="submit" class="btn btn--primario btn--completo" id="btnGuardarContrasena">
+                Guardar nueva contraseña
+              </button>
+            </form>
+          </div>
+
+          <!-- Confirmación -->
+          <div class="mensaje-confirmacion" id="confirmacionCambiarContrasena" hidden>
+            <p class="mensaje-confirmacion__titulo">Contraseña actualizada</p>
+            <p>Su contraseña se cambió correctamente.</p>
+            <a href="/" class="btn btn--primario" id="enlaceVolverPanel">Volver a mi panel</a>
+          </div>
+
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="pie">
+    <div class="contenedor pie__contenedor">
+      <p class="pie__aviso">
+        LegalEC es un servicio de conexión y no un proveedor de servicios jurídicos.
+      </p>
+      <nav class="pie__nav" aria-label="Páginas legales">
+        <a href="#" class="pie__enlace">Términos y condiciones</a>
+        <span class="pie__separador" aria-hidden="true">·</span>
+        <a href="#" class="pie__enlace">Política de privacidad (LOPDP)</a>
+        <span class="pie__separador" aria-hidden="true">·</span>
+        <a href="/pages/contacto" class="pie__enlace">Soporte</a>
+      </nav>
+    </div>
+  </footer>
+
+  <script src="/js/vendors/supabase.min.js"></script>
+  <script type="module" src="/js/cambiar-contrasena.js"></script>
+
+</body>
+</html>

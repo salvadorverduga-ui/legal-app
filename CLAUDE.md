@@ -57,6 +57,8 @@ legal-app/
 │   │   ├── app.js             ← inicialización, routing, auth, roles
 │   │   ├── api.js             ← todas las queries a Supabase
 │   │   ├── config.js          ← obtiene SUPABASE_URL/ANON_KEY desde /api/config
+│   │   ├── menu-perfil.js     ← menú desplegable de perfil (foto/iniciales) en el header (ver §18)
+│   │   ├── notificaciones.js  ← campana de notificaciones en el header
 │   │   ├── busqueda.js        ← lógica de busqueda.html
 │   │   ├── perfil-abogado.js  ← lógica de perfil-abogado.html
 │   │   ├── panel-abogado.js   ← lógica de panel-abogado.html
@@ -65,6 +67,7 @@ legal-app/
 │   │   ├── registro.js        ← lógica de registro.html
 │   │   ├── recuperar-contrasena.js ← lógica de recuperar-contrasena.html
 │   │   ├── nueva-contrasena.js     ← lógica de nueva-contrasena.html
+│   │   ├── cambiar-contrasena.js   ← lógica de cambiar-contrasena.html (usuario ya autenticado, ver §18)
 │   │   ├── contacto.js        ← lógica de contacto.html (sin Supabase; envía a /api/contacto)
 │   │   └── tablon.js          ← lógica de tablon.html ("El Tablón", ver §17)
 │   └── pages/
@@ -76,6 +79,7 @@ legal-app/
 │       ├── registro.html
 │       ├── recuperar-contrasena.html
 │       ├── nueva-contrasena.html
+│       ├── cambiar-contrasena.html ← cambio de contraseña desde el panel (usuario ya autenticado, ver §18)
 │       ├── contacto.html
 │       └── tablon.html        ← "El Tablón": casos publicados por clientes, aplicaciones de abogados (ver §17)
 ├── supabase/
@@ -401,6 +405,7 @@ La migración crea el bucket si no existe y fuerza `public = false` aunque ya ex
 - [x] MÓDULO 3 — Abogado: preview del perfil público, alerta de vencimiento de suscripción, onboarding para abogado nuevo, formulario de perfil con progreso visual
 - [x] MÓDULO 4 — Admin: búsqueda/filtro en verificaciones, log de acciones del admin
 - [x] MÓDULO 5 — Notificaciones internas: sistema de notificaciones en la interfaz para cada tipo de usuario (nueva solicitud, solicitud aceptada/rechazada, verificación aprobada/rechazada, suscripción próxima a vencer)
+- [x] MÓDULO A — Menú de perfil desde foto: avatar circular con dropdown (ver §18) reemplaza el nombre en texto y los botones sueltos del header
 
 Marcar cada ítem como `[x]` a medida que se completa el módulo correspondiente.
 
@@ -450,6 +455,27 @@ Sección independiente (`frontend/pages/tablon.html`, `/pages/tablon`) donde cli
 - `frontend/js/tablon.js` decide la vista (cliente o abogado verificado) según `perfiles.rol` y, para abogados, `abogados.verificacion`.
 - Todas las queries pasan por el módulo `api.tablon` en `frontend/js/api.js` (§7: nunca inline en las páginas).
 - Link "El Tablón" en el header de `panel-cliente.html` y `panel-abogado.html`.
+
+---
+
+## 18. Menú de perfil (header)
+
+### Qué es
+`frontend/js/menu-perfil.js` reemplaza el nombre de usuario en texto plano y los botones sueltos ("Ver mi perfil público", "Salir") que tenían `panel-cliente.html` y `panel-abogado.html` por un botón circular (foto de perfil o iniciales) con un menú desplegable, siguiendo el mismo patrón visual del menú "Ver como" de `panel-admin.html` (clases `menu-desplegable`/`menu-desplegable__item`).
+
+### Contenido del menú por rol
+| Rol | Ítems |
+|---|---|
+| `cliente` | Editar perfil · Cambiar contraseña · Cerrar sesión |
+| `abogado` | Ver mi perfil público · Editar perfil · Referir un colega · Cambiar contraseña · Cerrar sesión |
+
+"Editar perfil" navega a `?tab=perfil` del panel propio — la pestaña correspondiente ya existe en ambos paneles y `aplicarTabDesdeUrl()` la activa al cargar. "Referir un colega" lleva a `/pages/referidos` (§19).
+
+### Cambio de contraseña desde el panel
+`frontend/pages/cambiar-contrasena.html` es distinto de `nueva-contrasena.html` (§ enlace de recuperación por correo, sesión temporal tipo `recovery`): acá el usuario ya tiene una sesión normal activa. Antes de llamar a `api.auth.cambiarContrasena(nuevaPassword)`, `cambiar-contrasena.js` reautentica con `api.auth.iniciarSesion(email, contraseñaActual)` — así una sesión abierta sin vigilancia no puede cambiar la contraseña sin conocer la actual. Supabase JS v2 no expone un método dedicado de reautenticación por contraseña; volver a iniciar sesión con las mismas credenciales cumple el mismo propósito sin agregar un flujo de OTP.
+
+### Integración con la campana de notificaciones
+`notificaciones.js` inserta su botón inmediatamente antes de `#menuPerfil` cuando existe (paneles cliente/abogado); en páginas que aún muestran el nombre en texto plano (`panel-admin.html`) mantiene el comportamiento anterior de insertarse después de `.nav-usuario__nombre`. Por eso `inicializarMenuPerfil()` debe llamarse antes que `inicializarNotificaciones()` en el `inicializar()` de cada panel.
 
 ---
 

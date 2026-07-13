@@ -53,8 +53,14 @@ export async function inicializarNotificaciones() {
     </div>
   `;
 
+  // En paneles con menú de perfil (menu-perfil.js), la campana se ubica justo
+  // antes del avatar. En páginas que aún muestran el nombre en texto plano
+  // (ej. panel-admin.html), se mantiene el comportamiento anterior.
+  const menuPerfil = nav.querySelector('#menuPerfil');
   const nombreUsuario = nav.querySelector('.nav-usuario__nombre');
-  if (nombreUsuario) {
+  if (menuPerfil) {
+    menuPerfil.insertAdjacentElement('beforebegin', contenedor);
+  } else if (nombreUsuario) {
     nombreUsuario.insertAdjacentElement('afterend', contenedor);
   } else {
     nav.insertBefore(contenedor, nav.firstChild);

@@ -6,6 +6,7 @@ import * as api from './api.js';
 import { obtenerConfig } from './config.js';
 import { toast, mensajeAmigable, rutaPanelPropio } from './utils.js';
 import { inicializarNotificaciones } from './notificaciones.js';
+import { inicializarMenuPerfil, actualizarAvatarMenuPerfil } from './menu-perfil.js';
 
 // ─── Etiquetas y estilos por estado ───────────────────────────────────────────
 const ETIQUETAS_ESTADO_SOLICITUD = {
@@ -65,10 +66,10 @@ async function inicializar() {
     return;
   }
 
-  document.getElementById('nombreUsuario').textContent = perfilActual.nombre_completo;
   document.querySelector('.logo').href = rutaPanelPropio(perfilActual.rol);
   renderizarCabecera();
   rellenarFormularioPerfil();
+  inicializarMenuPerfil({ rol: 'cliente', nombre: perfilActual.nombre_completo, fotoPath: perfilActual.foto_url });
   inicializarNotificaciones();
 
   const [resenas, abogadosContactados] = await Promise.all([
@@ -97,11 +98,6 @@ function mostrarContenido() {
 
 // ─── Configuración de eventos ─────────────────────────────────────────────────
 function configurarEventos() {
-  document.getElementById('btnCerrarSesion').addEventListener('click', async () => {
-    await api.auth.cerrarSesion();
-    window.location.href = '/';
-  });
-
   SECCIONES.forEach(nombre => {
     document.getElementById(`tab${nombre}`).addEventListener('click', () => cambiarTab(nombre));
   });
@@ -191,6 +187,7 @@ async function manejarCambioFoto(e) {
 
   perfilActual.foto_url = url;
   renderizarCabecera();
+  actualizarAvatarMenuPerfil(perfilActual.foto_url, perfilActual.nombre_completo);
   estadoEl.textContent = 'Foto actualizada.';
   toast.exito('Foto actualizada.');
   e.target.value = '';

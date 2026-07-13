@@ -6,6 +6,7 @@ import * as api from './api.js';
 import { obtenerConfig } from './config.js';
 import { toast, mensajeAmigable, rutaPanelPropio } from './utils.js';
 import { inicializarNotificaciones } from './notificaciones.js';
+import { inicializarMenuPerfil, actualizarAvatarMenuPerfil } from './menu-perfil.js';
 
 // ─── Etiquetas y estilos por estado ───────────────────────────────────────────
 const ETIQUETAS_ESTADO_SOLICITUD = {
@@ -87,8 +88,13 @@ async function inicializar() {
     return;
   }
 
-  document.getElementById('nombreUsuario').textContent = perfilActual.nombre_completo;
   document.querySelector('.logo').href = rutaPanelPropio(perfilActual.rol);
+  inicializarMenuPerfil({
+    rol: 'abogado',
+    nombre: perfilActual.nombre_completo,
+    fotoPath: perfilActual.foto_url,
+    urlPerfilPublico: `/pages/perfil-abogado?id=${abogadoActual.id}`,
+  });
   inicializarNotificaciones();
 
   renderizarCabecera();
@@ -121,11 +127,6 @@ function mostrarContenido() {
 
 // ─── Configuración de eventos ─────────────────────────────────────────────────
 function configurarEventos() {
-  document.getElementById('btnCerrarSesion').addEventListener('click', async () => {
-    await api.auth.cerrarSesion();
-    window.location.href = '/';
-  });
-
   SECCIONES.forEach(nombre => {
     document.getElementById(`tab${nombre}`).addEventListener('click', () => cambiarTab(nombre));
   });
@@ -193,10 +194,6 @@ function renderizarCabecera() {
 
   document.getElementById('toggleDisponible').checked = abogadoActual.toggle_disponible;
   actualizarEtiquetaDisponible(abogadoActual.toggle_disponible);
-
-  const btnVerPerfilPublico = document.getElementById('btnVerPerfilPublico');
-  btnVerPerfilPublico.href = `/pages/perfil-abogado?id=${abogadoActual.id}`;
-  btnVerPerfilPublico.hidden = false;
 }
 
 function actualizarEtiquetaDisponible(disponible) {
@@ -299,6 +296,7 @@ async function manejarCambioFoto(e) {
 
   perfilActual.foto_url = url;
   renderizarCabecera();
+  actualizarAvatarMenuPerfil(perfilActual.foto_url, perfilActual.nombre_completo);
   actualizarProgresoPerfil();
   actualizarBannerOnboarding();
   estadoEl.textContent = 'Foto actualizada.';
