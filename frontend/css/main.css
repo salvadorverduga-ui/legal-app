@@ -2068,6 +2068,17 @@ p {
   }
 }
 
+.panel-inicio__seccion-titulo {
+  font-size: var(--texto-base);
+  font-weight: var(--peso-semibold);
+  color: var(--color-texto);
+  margin-bottom: var(--esp-3);
+}
+
+.panel-inicio__seccion-titulo:not(:first-child) {
+  margin-top: var(--esp-6);
+}
+
 /* Interruptor Disponible / No disponible */
 .toggle-switch {
   display: inline-flex;

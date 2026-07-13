@@ -29,7 +29,19 @@ const CLASE_ESTADO_SOLICITUD = {
   CANCELADA:  'badge--estado-cancelada',
 };
 
-const SECCIONES = ['Inicio', 'Solicitudes', 'Abogados', 'Resenas', 'Perfil'];
+const ETIQUETAS_ESTADO_CASO_TABLON = {
+  ACTIVO:   'Activo',
+  EXPIRADO: 'Expirado',
+  CERRADO:  'Cerrado',
+};
+
+const CLASE_ESTADO_CASO_TABLON = {
+  ACTIVO:   'badge--estado-aceptada',
+  EXPIRADO: 'badge--estado-expirada',
+  CERRADO:  'badge--estado-cancelada',
+};
+
+const SECCIONES = ['Inicio', 'Solicitudes', 'Abogados', 'Resenas', 'Seguimiento', 'Perfil'];
 
 // ─── Estado de la página ──────────────────────────────────────────────────────
 let perfilActual = null;         // fila propia de la tabla perfiles
@@ -73,15 +85,17 @@ async function inicializar() {
   inicializarMenuPerfil({ rol: 'cliente', nombre: perfilActual.nombre_completo, fotoPath: perfilActual.foto_url });
   inicializarNotificaciones();
 
-  const [resenas, abogadosContactados, notificacionesNoLeidas] = await Promise.all([
+  const [resenas, abogadosContactados, notificacionesNoLeidas, misSeguimientos] = await Promise.all([
     api.resenas.getMisResenas(),
     api.solicitudes.getAbogadosContactados(),
     api.notificaciones.getNoLeidas(),
+    api.seguimiento.getMisSeguimientos(),
     cargarSolicitudes(),
   ]);
   renderizarResenas(resenas);
   renderizarAbogadosContactados(abogadosContactados);
   renderizarResumenInicio(notificacionesNoLeidas.length);
+  renderizarSeguimiento(misSeguimientos);
 
   mostrarContenido();
   configurarEventos();
@@ -117,6 +131,8 @@ function configurarEventos() {
   document.getElementById('solicitudesLista').addEventListener('submit', manejarSubmitResena);
   document.getElementById('solicitudesLista').addEventListener('submit', manejarSubmitEditar);
   document.getElementById('solicitudesLista').addEventListener('input', manejarInputSolicitudes);
+
+  document.getElementById('seccionSeguimiento').addEventListener('click', manejarClickSeguimiento);
 
   document.getElementById('btnCambiarFoto').addEventListener('click', () => {
     document.getElementById('inputFoto').click();
@@ -394,6 +410,15 @@ function generarSolicitudCard(s) {
     ? `<p class="solicitud-item__tiempo-restante${esTiempoRestanteUrgente(s.expires_at) ? ' solicitud-item__tiempo-restante--urgente' : ''}">${formatearTiempoRestante(s.expires_at)}</p>`
     : '';
 
+  const seguimientoHtml = `
+    <div class="solicitud-item__acciones">
+      <button class="btn ${s.en_seguimiento_cliente ? 'btn--primario' : 'btn--secundario'} btn--sm" type="button"
+        data-accion="toggle-seguimiento" data-id="${idSeguro}">
+        ${s.en_seguimiento_cliente ? 'En seguimiento' : 'Seguimiento'}
+      </button>
+    </div>
+  `;
+
   return `
     <article class="solicitud-item">
       <div class="solicitud-item__header">
@@ -413,6 +438,7 @@ function generarSolicitudCard(s) {
       ${cancelarHtml}
       ${buscarOtroHtml}
       ${accionesHtml}
+      ${seguimientoHtml}
     </article>
   `;
 }
@@ -473,6 +499,77 @@ function manejarClickSolicitudes(e) {
     solicitudConEdicionAbierta = null;
     renderizarSolicitudes();
   }
+  if (accion === 'toggle-seguimiento') manejarToggleSeguimiento(id);
+}
+
+function manejarClickSeguimiento(e) {
+  const btn = e.target.closest('[data-accion="toggle-seguimiento"]');
+  if (!btn) return;
+  manejarToggleSeguimiento(btn.dataset.id);
+}
+
+async function manejarToggleSeguimiento(id) {
+  const { data, error } = await api.seguimiento.toggleSolicitud(id, 'cliente');
+
+  if (error) {
+    toast.error(mensajeAmigable(error, 'No se pudo actualizar el seguimiento. Intente de nuevo.'));
+    return;
+  }
+
+  const entrada = solicitudesActuales.find(s => s.id === id);
+  if (entrada) Object.assign(entrada, data);
+  renderizarSolicitudes();
+
+  const misSeguimientos = await api.seguimiento.getMisSeguimientos();
+  renderizarSeguimiento(misSeguimientos);
+
+  toast.info(data.en_seguimiento_cliente ? 'Agregado a seguimiento.' : 'Quitado de seguimiento.');
+}
+
+// ─── En seguimiento ───────────────────────────────────────────────────────────
+function renderizarSeguimiento({ solicitudes, casosTablon }) {
+  const contenedorSolicitudes = document.getElementById('seguimientoSolicitudesLista');
+  const vacioSolicitudes = document.getElementById('estadoSinSeguimientoSolicitudes');
+
+  if (!solicitudes || solicitudes.length === 0) {
+    contenedorSolicitudes.innerHTML = '';
+    vacioSolicitudes.hidden = false;
+  } else {
+    vacioSolicitudes.hidden = true;
+    contenedorSolicitudes.innerHTML = solicitudes.map(generarSolicitudCard).join('');
+  }
+
+  const contenedorCasos = document.getElementById('seguimientoCasosLista');
+  const vacioCasos = document.getElementById('estadoSinSeguimientoCasos');
+
+  if (!casosTablon || casosTablon.length === 0) {
+    contenedorCasos.innerHTML = '';
+    vacioCasos.hidden = false;
+  } else {
+    vacioCasos.hidden = true;
+    contenedorCasos.innerHTML = casosTablon.map(generarCasoSeguimientoCard).join('');
+  }
+}
+
+function generarCasoSeguimientoCard(c) {
+  const idSeguro = escaparAtrib(c.id);
+  const claseEstado = CLASE_ESTADO_CASO_TABLON[c.estado] ?? 'badge--estado-expirada';
+  const etiquetaEstado = ETIQUETAS_ESTADO_CASO_TABLON[c.estado] ?? c.estado;
+
+  return `
+    <article class="solicitud-item">
+      <div class="solicitud-item__header">
+        <div>
+          <p class="solicitud-item__nombre">${escaparHtml(c.titulo)}</p>
+          <p class="solicitud-item__fecha">${formatearFecha(c.created_at)} · ${escaparHtml(c.especialidad)}</p>
+        </div>
+        <span class="badge ${claseEstado}">${etiquetaEstado}</span>
+      </div>
+      <div class="solicitud-item__acciones">
+        <a href="/pages/tablon-caso?id=${idSeguro}" class="btn btn--secundario btn--sm">Ver caso</a>
+      </div>
+    </article>
+  `;
 }
 
 function manejarInputSolicitudes(e) {

@@ -71,6 +71,10 @@
             role="tab" aria-selected="false" aria-controls="seccionResenas">
             Mis reseñas
           </button>
+          <button class="panel-tab" id="tabSeguimiento" type="button"
+            role="tab" aria-selected="false" aria-controls="seccionSeguimiento">
+            En seguimiento
+          </button>
           <!-- Sin botón visible: se llega desde "Editar perfil" en el menú de perfil del header (?tab=perfil) -->
           <button class="panel-tab sr-only" id="tabPerfil" type="button" tabindex="-1"
             role="tab" aria-selected="false" aria-controls="seccionPerfil">
@@ -211,6 +215,21 @@
 
           <div class="estado-vacio" id="estadoSinResenas" hidden>
             <p>Aún no ha dejado ninguna reseña.</p>
+          </div>
+        </section>
+
+        <!-- ═══════════════ SECCIÓN: EN SEGUIMIENTO ═══════════════ -->
+        <section class="panel-seccion" id="seccionSeguimiento" role="tabpanel" aria-labelledby="tabSeguimiento" hidden>
+          <h2 class="panel-inicio__seccion-titulo">Solicitudes</h2>
+          <div class="solicitudes-lista" id="seguimientoSolicitudesLista"></div>
+          <div class="estado-vacio" id="estadoSinSeguimientoSolicitudes" hidden>
+            <p>No tiene solicitudes en seguimiento.</p>
+          </div>
+
+          <h2 class="panel-inicio__seccion-titulo">Casos de El Tablón</h2>
+          <div class="solicitudes-lista" id="seguimientoCasosLista"></div>
+          <div class="estado-vacio" id="estadoSinSeguimientoCasos" hidden>
+            <p>No tiene casos de El Tablón en seguimiento.</p>
           </div>
         </section>
 

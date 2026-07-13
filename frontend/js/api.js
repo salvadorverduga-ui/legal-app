@@ -1728,3 +1728,146 @@ export const tablon = {
   },
 
 };
+
+
+// ════════════════════════════════════════════════════════════
+// SEGUIMIENTO
+// "En seguimiento": cliente y abogado marcan solicitudes y aplicaciones de
+// El Tablón para encontrarlas rápido después (migración 041).
+//
+// El seguimiento de El Tablón se guarda por APLICACIÓN, no por caso
+// completo: un caso puede tener varios aplicantes, así que el cliente
+// marca al aplicante puntual que le interesa (no el caso entero), y el
+// abogado marca su propia aplicación. toggleTablon() por eso recibe un
+// aplicacionId (fila de aplicaciones_tablon), aunque conceptualmente el
+// usuario está "siguiendo" el caso al que esa aplicación pertenece.
+// ════════════════════════════════════════════════════════════
+export const seguimiento = {
+
+  /**
+   * Alterna en_seguimiento_cliente o en_seguimiento_abogado (según tipo)
+   * de una solicitud propia. El RLS de solicitudes ya solo permite que
+   * cada parte edite sus propias filas (abogado_responde_solicitud /
+   * cliente_completa_solicitud, migración 006) — tipo solo elige qué
+   * columna alternar, no habilita el acceso.
+   * tipo: 'cliente' | 'abogado'.
+   * Retorna { data, error }.
+   */
+  async toggleSolicitud(solicitudId, tipo) {
+    const columna = tipo === 'abogado' ? 'en_seguimiento_abogado' : 'en_seguimiento_cliente';
+
+    const { data: actual, error: errActual } = await _cliente
+      .from('solicitudes')
+      .select(columna)
+      .eq('id', solicitudId)
+      .single();
+
+    if (errActual) {
+      console.error('[api.seguimiento.toggleSolicitud]', errActual.message);
+      return { data: null, error: errActual };
+    }
+
+    const { data, error } = await _cliente
+      .from('solicitudes')
+      .update({ [columna]: !actual[columna] })
+      .eq('id', solicitudId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[api.seguimiento.toggleSolicitud]', error.message);
+      return { data: null, error };
+    }
+    return { data, error: null };
+  },
+
+  /**
+   * Alterna el seguimiento de una aplicación de El Tablón. Ver nota de
+   * módulo arriba: aplicacionId identifica la fila de aplicaciones_tablon,
+   * no el caso completo.
+   * tipo: 'cliente' | 'abogado'.
+   * Retorna { data, error }.
+   */
+  async toggleTablon(aplicacionId, tipo) {
+    const columna = tipo === 'abogado' ? 'en_seguimiento_abogado' : 'en_seguimiento_cliente';
+
+    const { data: actual, error: errActual } = await _cliente
+      .from('aplicaciones_tablon')
+      .select(columna)
+      .eq('id', aplicacionId)
+      .single();
+
+    if (errActual) {
+      console.error('[api.seguimiento.toggleTablon]', errActual.message);
+      return { data: null, error: errActual };
+    }
+
+    const { data, error } = await _cliente
+      .from('aplicaciones_tablon')
+      .update({ [columna]: !actual[columna] })
+      .eq('id', aplicacionId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[api.seguimiento.toggleTablon]', error.message);
+      return { data: null, error };
+    }
+    return { data, error: null };
+  },
+
+  /**
+   * Retorna las solicitudes y los casos de El Tablón marcados "en
+   * seguimiento" por el usuario autenticado, según su rol.
+   * casosTablon resuelve el caso completo (vía tablon_caso_detalle, que ya
+   * cubre el caso de un abogado siguiendo un caso que expiró/cerró después
+   * de aplicar) a partir de las aplicaciones marcadas.
+   * Retorna { solicitudes: [], casosTablon: [] }.
+   */
+  async getMisSeguimientos() {
+    const perfil = await perfiles.getPerfilActual();
+    if (!perfil) return { solicitudes: [], casosTablon: [] };
+
+    const esAbogado = perfil.rol === 'abogado';
+    const columna = esAbogado ? 'en_seguimiento_abogado' : 'en_seguimiento_cliente';
+    const vistaSolicitudes = esAbogado ? 'panel_solicitudes_abogado' : 'panel_solicitudes_cliente';
+
+    const { data: solicitudes, error: errSolicitudes } = await _cliente
+      .from(vistaSolicitudes)
+      .select('*')
+      .eq(columna, true)
+      .order('created_at', { ascending: false });
+
+    if (errSolicitudes) {
+      console.error('[api.seguimiento.getMisSeguimientos]', errSolicitudes.message);
+    }
+
+    const { data: aplicaciones, error: errAplicaciones } = await _cliente
+      .from('aplicaciones_tablon')
+      .select('id, caso_id')
+      .eq(columna, true);
+
+    if (errAplicaciones) {
+      console.error('[api.seguimiento.getMisSeguimientos]', errAplicaciones.message);
+      return { solicitudes: solicitudes ?? [], casosTablon: [] };
+    }
+
+    const casoIds = [...new Set((aplicaciones ?? []).map(a => a.caso_id))];
+    if (casoIds.length === 0) {
+      return { solicitudes: solicitudes ?? [], casosTablon: [] };
+    }
+
+    const { data: casosTablon, error: errCasos } = await _cliente
+      .from('tablon_caso_detalle')
+      .select('id, titulo, especialidad, estado, created_at, total_aplicaciones')
+      .in('id', casoIds);
+
+    if (errCasos) {
+      console.error('[api.seguimiento.getMisSeguimientos]', errCasos.message);
+      return { solicitudes: solicitudes ?? [], casosTablon: [] };
+    }
+
+    return { solicitudes: solicitudes ?? [], casosTablon: casosTablon ?? [] };
+  },
+
+};

@@ -410,6 +410,7 @@ La migración crea el bucket si no existe y fuerza `public = false` aunque ya ex
 - [x] MÓDULO A — Menú de perfil desde foto: avatar circular con dropdown (ver §18) reemplaza el nombre en texto y los botones sueltos del header
 - [x] MÓDULO B — Dashboard "Inicio": primera pestaña de `panel-cliente.html` y `panel-abogado.html` con saludo, accesos rápidos y resumen numérico
 - [x] MÓDULO C — Rediseño de El Tablón: ubicación en los casos, flujo de contacto directo al elegir, página `tablon-caso.html` por caso, cierre manual (ver §17)
+- [x] MÓDULO D — En seguimiento: solicitudes y aplicaciones de El Tablón marcables, nueva pestaña en ambos paneles (ver §19)
 
 Marcar cada ítem como `[x]` a medida que se completa el módulo correspondiente.
 
@@ -479,13 +480,39 @@ Al elegir un abogado se crea automáticamente una solicitud mediada — pero a d
 | `cliente` | Editar perfil · Cambiar contraseña · Cerrar sesión |
 | `abogado` | Ver mi perfil público · Editar perfil · Referir un colega · Cambiar contraseña · Cerrar sesión |
 
-"Editar perfil" navega a `?tab=perfil` del panel propio — la pestaña correspondiente ya existe en ambos paneles y `aplicarTabDesdeUrl()` la activa al cargar. "Referir un colega" lleva a `/pages/referidos` (§19).
+"Editar perfil" navega a `?tab=perfil` del panel propio — la pestaña correspondiente ya existe en ambos paneles y `aplicarTabDesdeUrl()` la activa al cargar. "Referir un colega" lleva a `/pages/referidos` (§20).
 
 ### Cambio de contraseña desde el panel
 `frontend/pages/cambiar-contrasena.html` es distinto de `nueva-contrasena.html` (§ enlace de recuperación por correo, sesión temporal tipo `recovery`): acá el usuario ya tiene una sesión normal activa. Antes de llamar a `api.auth.cambiarContrasena(nuevaPassword)`, `cambiar-contrasena.js` reautentica con `api.auth.iniciarSesion(email, contraseñaActual)` — así una sesión abierta sin vigilancia no puede cambiar la contraseña sin conocer la actual. Supabase JS v2 no expone un método dedicado de reautenticación por contraseña; volver a iniciar sesión con las mismas credenciales cumple el mismo propósito sin agregar un flujo de OTP.
 
 ### Integración con la campana de notificaciones
 `notificaciones.js` inserta su botón inmediatamente antes de `#menuPerfil` cuando existe (paneles cliente/abogado); en páginas que aún muestran el nombre en texto plano (`panel-admin.html`) mantiene el comportamiento anterior de insertarse después de `.nav-usuario__nombre`. Por eso `inicializarMenuPerfil()` debe llamarse antes que `inicializarNotificaciones()` en el `inicializar()` de cada panel.
+
+---
+
+## 19. En seguimiento
+
+### Qué es
+Cliente y abogado pueden marcar solicitudes y elementos de El Tablón como "en seguimiento" para encontrarlos rápido después. Botón "Seguimiento"/"En seguimiento" (según el estado) en cada tarjeta de solicitud (`panel-cliente.html`, `panel-abogado.html`), en cada aplicación recibida y en la aplicación propia (`tablon-caso.html`), y en cada caso ya aplicado del listado del abogado (`tablon.html`). Nueva pestaña "En seguimiento" en ambos paneles.
+
+### Modelo de datos
+Columnas `en_seguimiento_cliente`/`en_seguimiento_abogado` (boolean, default `false`) en `solicitudes` y en `aplicaciones_tablon` (migración `20260712_041_tablon_mejoras.sql`).
+
+**El seguimiento de El Tablón se guarda por aplicación, no por caso completo** — un caso puede tener varios aplicantes, así que:
+- El cliente marca al aplicante puntual que le interesa (`en_seguimiento_cliente` en la fila de `aplicaciones_tablon` de ese aplicante), no el caso entero.
+- El abogado marca su propia aplicación (`en_seguimiento_abogado` en su única fila para ese caso, `UNIQUE (caso_id, abogado_id)`).
+
+Por eso `api.seguimiento.toggleTablon(aplicacionId, tipo)` recibe el id de una fila de `aplicaciones_tablon`, aunque conceptualmente el usuario esté "siguiendo" el caso al que pertenece. Consecuencia práctica: el botón de seguimiento del lado del abogado en `tablon.html` y en `tablon-caso.html` solo aparece **una vez que aplicó** al caso (recién ahí existe una fila de `aplicaciones_tablon` que marcar) — antes de aplicar no hay dónde guardar el flag sin crear una fila de aplicación falsa.
+
+`tablon_casos_abogado` y `tablon_caso_detalle` exponen `mi_seguimiento` y `mi_aplicacion_id` (el id a pasarle a `toggleTablon`) de la aplicación propia del abogado — migración `20260712_042_tablon_seguimiento_vistas.sql`, que también agregó `en_seguimiento_cliente` a `tablon_aplicaciones_cliente`. Esta migración es una corrección de una falta detectada durante el desarrollo del frontend (mismo criterio que CLAUDE.md §12 para un GRANT faltante: archivo aparte con timestamp del día, no se reabre la 041 ya aplicada).
+
+### RLS
+- **Solicitudes**: sin política nueva — `abogado_responde_solicitud` y `cliente_completa_solicitud` (migración 006) ya permiten a cada parte actualizar cualquier columna de sus propias solicitudes (no restringen columnas), así que ya cubren estos dos flags.
+- **`aplicaciones_tablon`**: el cliente ya podía modificar cualquier columna de las aplicaciones de sus propios casos vía `cliente_elige_aplicacion_tablon` (migración 040). El abogado no tenía ningún `UPDATE` sobre esta tabla — la política nueva `abogado_actualiza_seguimiento_aplicacion` (migración 041) sigue el mismo patrón de columnas "congeladas" que `20260707_033_editar_solicitud.sql`: solo `en_seguimiento_abogado` puede cambiar.
+
+### Frontend
+- `api.seguimiento` en `frontend/js/api.js`: `toggleSolicitud(solicitudId, tipo)`, `toggleTablon(aplicacionId, tipo)`, `getMisSeguimientos()` (retorna `{ solicitudes, casosTablon }`, resuelto según `perfiles.rol`).
+- La pestaña "En seguimiento" de cada panel muestra las solicitudes marcadas (reutilizando la misma tarjeta que la pestaña de solicitudes) y los casos de El Tablón con al menos una aplicación marcada (tarjeta simplificada, solo lectura, con enlace "Ver caso" a `tablon-caso.html` — el toggle en sí vive ahí, no en la pestaña del panel, porque un caso puede tener varias aplicaciones marcadas de forma independiente).
 
 ---
 

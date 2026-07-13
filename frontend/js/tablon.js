@@ -147,7 +147,29 @@ function configurarEventos() {
       filtroCasoComun = e.target.value;
       renderizarCasosActivos();
     });
+
+    document.getElementById('casosActivosLista').addEventListener('click', manejarClickCasosActivos);
   }
+}
+
+function manejarClickCasosActivos(e) {
+  const btn = e.target.closest('[data-accion="toggle-seguimiento"]');
+  if (!btn) return;
+  manejarToggleSeguimiento(btn.dataset.id);
+}
+
+async function manejarToggleSeguimiento(aplicacionId) {
+  const { data, error } = await api.seguimiento.toggleTablon(aplicacionId, 'abogado');
+
+  if (error) {
+    toast.error(mensajeAmigable(error, 'No se pudo actualizar el seguimiento. Intente de nuevo.'));
+    return;
+  }
+
+  const entrada = casosActivosActuales.find(c => c.mi_aplicacion_id === aplicacionId);
+  if (entrada) entrada.mi_seguimiento = data.en_seguimiento_abogado;
+  renderizarCasosActivos();
+  toast.info(data.en_seguimiento_abogado ? 'Agregado a seguimiento.' : 'Quitado de seguimiento.');
 }
 
 // ─── Vista cliente: mis casos ─────────────────────────────────────────────────
@@ -301,6 +323,10 @@ function generarCasoAbogadoCard(c) {
         <span class="badge ${CLASE_ESTADO_APLICACION[c.mi_aplicacion_estado] ?? 'badge--estado-pendiente'}">
           Su aplicación: ${ETIQUETAS_ESTADO_APLICACION[c.mi_aplicacion_estado] ?? c.mi_aplicacion_estado}
         </span>
+        <button class="btn ${c.mi_seguimiento ? 'btn--primario' : 'btn--secundario'} btn--sm" type="button"
+          data-accion="toggle-seguimiento" data-id="${escaparAtrib(c.mi_aplicacion_id)}">
+          ${c.mi_seguimiento ? 'En seguimiento' : 'Seguimiento'}
+        </button>
         <a href="/pages/tablon-caso?id=${idSeguro}" class="btn btn--secundario btn--sm">Ver caso</a>
       </div>
     `

@@ -93,6 +93,10 @@
             role="tab" aria-selected="false" aria-controls="seccionSuscripcion">
             Mi suscripción
           </button>
+          <button class="panel-tab" id="tabSeguimiento" type="button"
+            role="tab" aria-selected="false" aria-controls="seccionSeguimiento">
+            En seguimiento
+          </button>
           <button class="panel-tab" id="tabPerfil" type="button"
             role="tab" aria-selected="false" aria-controls="seccionPerfil">
             Editar perfil
@@ -170,6 +174,21 @@
         <!-- ═══════════════ SECCIÓN: MI SUSCRIPCIÓN ═══════════════ -->
         <section class="panel-seccion" id="seccionSuscripcion" role="tabpanel" aria-labelledby="tabSuscripcion" hidden>
           <div class="tarjeta-suscripcion" id="tarjetaSuscripcion"></div>
+        </section>
+
+        <!-- ═══════════════ SECCIÓN: EN SEGUIMIENTO ═══════════════ -->
+        <section class="panel-seccion" id="seccionSeguimiento" role="tabpanel" aria-labelledby="tabSeguimiento" hidden>
+          <h2 class="panel-inicio__seccion-titulo">Solicitudes</h2>
+          <div class="solicitudes-lista" id="seguimientoSolicitudesLista"></div>
+          <div class="estado-vacio" id="estadoSinSeguimientoSolicitudes" hidden>
+            <p>No tiene solicitudes en seguimiento.</p>
+          </div>
+
+          <h2 class="panel-inicio__seccion-titulo">Casos de El Tablón</h2>
+          <div class="solicitudes-lista" id="seguimientoCasosLista"></div>
+          <div class="estado-vacio" id="estadoSinSeguimientoCasos" hidden>
+            <p>No tiene casos de El Tablón en seguimiento.</p>
+          </div>
         </section>
 
         <!-- ═══════════════ SECCIÓN: EDITAR PERFIL ═══════════════ -->

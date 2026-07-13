@@ -126,6 +126,7 @@ function configurarEventos() {
       document.getElementById('contadorAplicar').textContent = `${e.target.value.length} / 300`;
     });
     document.getElementById('formAplicar').addEventListener('submit', manejarSubmitAplicar);
+    document.getElementById('btnSeguimientoAplicacion').addEventListener('click', manejarToggleSeguimientoPropio);
   }
 }
 
@@ -207,13 +208,21 @@ function generarAplicacionCard(ap) {
     : '';
 
   const puedeElegir = ap.estado === 'PENDIENTE' && casoActual.estado === 'ACTIVO';
-  const accionesHtml = puedeElegir ? `
+  const elegirHtml = puedeElegir ? `
+    <button class="btn btn--primario btn--sm" type="button" data-accion="elegir" data-id="${idSeguro}">
+      Elegir a este abogado
+    </button>
+  ` : '';
+
+  const accionesHtml = `
     <div class="solicitud-item__acciones">
-      <button class="btn btn--primario btn--sm" type="button" data-accion="elegir" data-id="${idSeguro}">
-        Elegir a este abogado
+      ${elegirHtml}
+      <button class="btn ${ap.en_seguimiento_cliente ? 'btn--primario' : 'btn--secundario'} btn--sm" type="button"
+        data-accion="toggle-seguimiento" data-id="${idSeguro}">
+        ${ap.en_seguimiento_cliente ? 'En seguimiento' : 'Seguimiento'}
       </button>
     </div>
-  ` : '';
+  `;
 
   return `
     <article class="solicitud-item">
@@ -235,9 +244,29 @@ function generarAplicacionCard(ap) {
 }
 
 function manejarClickAplicaciones(e) {
-  const btn = e.target.closest('[data-accion="elegir"]');
-  if (!btn) return;
-  manejarElegirAbogado(btn.dataset.id);
+  const btnElegir = e.target.closest('[data-accion="elegir"]');
+  if (btnElegir) {
+    manejarElegirAbogado(btnElegir.dataset.id);
+    return;
+  }
+  const btnSeguimiento = e.target.closest('[data-accion="toggle-seguimiento"]');
+  if (btnSeguimiento) {
+    manejarToggleSeguimientoAplicacion(btnSeguimiento.dataset.id);
+  }
+}
+
+async function manejarToggleSeguimientoAplicacion(aplicacionId) {
+  const { data, error } = await api.seguimiento.toggleTablon(aplicacionId, 'cliente');
+
+  if (error) {
+    toast.error(mensajeAmigable(error, 'No se pudo actualizar el seguimiento. Intente de nuevo.'));
+    return;
+  }
+
+  const entrada = aplicacionesActuales.find(a => a.id === aplicacionId);
+  if (entrada) entrada.en_seguimiento_cliente = data.en_seguimiento_cliente;
+  renderizarAplicaciones();
+  toast.info(data.en_seguimiento_cliente ? 'Agregado a seguimiento.' : 'Quitado de seguimiento.');
 }
 
 async function manejarElegirAbogado(aplicacionId) {
@@ -294,11 +323,28 @@ function renderizarVistaAbogado() {
     badge.className = `badge ${CLASE_ESTADO_APLICACION[casoActual.mi_aplicacion_estado] ?? 'badge--estado-pendiente'}`;
     badge.textContent = `Su aplicación: ${ETIQUETAS_ESTADO_APLICACION[casoActual.mi_aplicacion_estado] ?? casoActual.mi_aplicacion_estado}`;
     formulario.hidden = true;
+
+    const btnSeguimiento = document.getElementById('btnSeguimientoAplicacion');
+    btnSeguimiento.className = `btn ${casoActual.mi_seguimiento ? 'btn--primario' : 'btn--secundario'} btn--sm`;
+    btnSeguimiento.textContent = casoActual.mi_seguimiento ? 'En seguimiento' : 'Seguimiento';
   } else if (casoActual.estado !== 'ACTIVO') {
     formulario.hidden = true;
   } else {
     formulario.hidden = false;
   }
+}
+
+async function manejarToggleSeguimientoPropio() {
+  const { data, error } = await api.seguimiento.toggleTablon(casoActual.mi_aplicacion_id, 'abogado');
+
+  if (error) {
+    toast.error(mensajeAmigable(error, 'No se pudo actualizar el seguimiento. Intente de nuevo.'));
+    return;
+  }
+
+  casoActual.mi_seguimiento = data.en_seguimiento_abogado;
+  renderizarVistaAbogado();
+  toast.info(data.en_seguimiento_abogado ? 'Agregado a seguimiento.' : 'Quitado de seguimiento.');
 }
 
 async function manejarSubmitAplicar(e) {
