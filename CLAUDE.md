@@ -414,6 +414,7 @@ La migración crea el bucket si no existe y fuerza `public = false` aunque ya ex
 - [x] MÓDULO C — Rediseño de El Tablón: ubicación en los casos, flujo de contacto directo al elegir, página `tablon-caso.html` por caso, cierre manual (ver §17)
 - [x] MÓDULO D — En seguimiento: solicitudes y aplicaciones de El Tablón marcables, nueva pestaña en ambos paneles (ver §19)
 - [x] MÓDULO E — Programa de referidos: código único por abogado, mes gratis a ambos al registrarse con él (ver §20)
+- [x] MÓDULO F — Notificaciones completas: 5 tipos nuevos de El Tablón/solicitud cancelada, dropdown muestra últimas 7 leídas y no leídas (ver §21)
 
 Marcar cada ítem como `[x]` a medida que se completa el módulo correspondiente.
 
@@ -542,6 +543,34 @@ Solo se otorga recompensa si el recién registrado tiene `rol='abogado'` — si 
 - `api.referidos` en `frontend/js/api.js`: `getMiCodigo()`, `getMisReferidos()`, `validarCodigo(codigo)` (RPC pública).
 - `api.auth.registrarAbogado()` acepta un `ref` opcional, que se guarda en `raw_user_meta_data`.
 - `registro.js` captura `?ref=` de la URL al cargar la página y lo asocia al registro de abogado; si el código es válido, muestra un aviso ("Fue referido por…") usando `validarCodigo()` — puramente informativo, no bloquea el formulario si el código no es válido.
+
+---
+
+## 21. Notificaciones de El Tablón y del dropdown
+
+### Nuevos tipos (migración `20260712_044_notificaciones_tablon.sql`)
+Mismo patrón que `20260707_025_notificaciones.sql` (§ módulo 5 en §15): triggers `SECURITY DEFINER` que llaman a `fn_crear_notificacion()`, nunca INSERT directo desde el frontend.
+
+| Tipo | Evento | Destinatario | `url_destino` |
+|---|---|---|---|
+| `tablon_nueva_aplicacion` | `AFTER INSERT` en `aplicaciones_tablon` | Cliente dueño del caso | `/pages/tablon-caso?id=<caso_id>` |
+| `tablon_elegido` | `aplicaciones_tablon.estado → ELEGIDO` | Abogado elegido | `/pages/tablon-caso?id=<caso_id>` |
+| `tablon_caso_cerrado` | `casos_tablon.estado → CERRADO` | Cada abogado que seguía `PENDIENTE` en ese caso | `/pages/tablon` |
+| `tablon_caso_expirado` | `casos_tablon.estado → EXPIRADO` (incluye el cron `expirar-casos-tablon`) | Cliente dueño del caso | `/pages/tablon` |
+| `solicitud_cancelada` | `solicitudes.estado → CANCELADA` | Abogado de la solicitud | `/pages/panel-abogado?tab=solicitudes` |
+
+**`tablon_caso_cerrado` está atado al cierre real del caso, no al primer `ELEGIDO`**: CLAUDE.md §17 permite elegir a más de un aplicante para el mismo caso, así que un aplicante `PENDIENTE` no pierde su oportunidad solo porque otro fue elegido — recién al cerrar el caso (`fn_notificar_estado_caso_tablon`) se sabe que no habrá más elecciones, y ahí se notifica a todos los que seguían `PENDIENTE`. `tablon_elegido` es un trigger aparte (`fn_notificar_elegido_tablon`), independiente del ya existente `fn_crear_solicitud_desde_tablon` — Postgres permite varios triggers sobre el mismo evento (`AFTER UPDATE OF estado ON aplicaciones_tablon`), mismo criterio que `trg_revelar_contacto`/`trg_solicitudes_updated_at` en `solicitudes`.
+
+**Los destinos `tablon_caso_cerrado`/`tablon_caso_expirado` apuntan a `/pages/tablon` sin `?tab=`**: el enunciado original pedía `/pages/tablon?tab=aplicaciones` y `?tab=mis-casos`, tabs que existían en el `tablon.html` previo al rediseño de El Tablón (§17). Ese rediseño separó `tablon.html` (listado) de `tablon-caso.html` (detalle de un caso) y `tablon.html` ya no tiene ese concepto de tabs internas.
+
+`solicitud_cancelada` se agregó como una rama más de la función ya existente `fn_notificar_estado_solicitud` (no un trigger nuevo — esa función ya está enganchada a `AFTER UPDATE OF estado ON solicitudes`).
+
+### Comportamiento del dropdown (`frontend/js/notificaciones.js`)
+- El dropdown siempre muestra las últimas 7 notificaciones (`api.notificaciones.getUltimas(7)`), leídas y no leídas — antes solo mostraba no leídas.
+- Las leídas se renderizan con `.notificaciones__item--leida` (opacidad reducida), no se ocultan.
+- El badge de la campana cuenta únicamente las no leídas (`api.notificaciones.getNoLeidas().length`, sigue siendo una consulta separada e independiente de la lista de 7 — puede haber más no leídas de las que caben en el dropdown).
+- El botón "Marcar todas como leídas" se movió del header del dropdown a un pie fijo debajo de la lista (`#notificacionesPie`), oculto si no hay ninguna notificación.
+- Las URLs de destino (tabla de arriba) las genera cada trigger de la base de datos directamente en `url_destino` al insertar — `notificaciones.js` nunca mapea `tipo → URL` en el cliente, solo navega a `n.url_destino` tal cual (mismo patrón que ya usaban `nueva_solicitud`/`solicitud_aceptada`/etc. desde la migración 025).
 
 ---
 

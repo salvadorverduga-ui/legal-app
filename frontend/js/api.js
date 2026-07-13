@@ -1346,7 +1346,9 @@ export const notificaciones = {
 
   /**
    * Retorna las notificaciones no leídas del usuario autenticado,
-   * más recientes primero. Tope de 30 para el dropdown del panel.
+   * más recientes primero. Tope de 30 — usada para el conteo del badge
+   * (panel-cliente.js/panel-abogado.js, resumen de Inicio) y para el
+   * contador del dropdown; la lista visible del dropdown usa getUltimas().
    * Retorna array (puede estar vacío).
    */
   async getNoLeidas() {
@@ -1359,6 +1361,27 @@ export const notificaciones = {
 
     if (error) {
       console.error('[api.notificaciones.getNoLeidas]', error.message);
+      return [];
+    }
+    return data ?? [];
+  },
+
+  /**
+   * Retorna las últimas `limite` notificaciones del usuario autenticado,
+   * leídas y no leídas, más recientes primero — lista que se muestra en el
+   * dropdown de la campana (notificaciones.js). El badge de no leídas usa
+   * getNoLeidas() por separado, no la cuenta de este resultado.
+   * Retorna array (puede estar vacío).
+   */
+  async getUltimas(limite = 7) {
+    const { data, error } = await _cliente
+      .from('notificaciones')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(limite);
+
+    if (error) {
+      console.error('[api.notificaciones.getUltimas]', error.message);
       return [];
     }
     return data ?? [];

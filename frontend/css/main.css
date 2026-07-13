@@ -1145,11 +1145,28 @@ p {
   margin-top: var(--esp-1);
 }
 
+/* Notificaciones ya leídas: quedan visibles en el dropdown (últimas 7,
+   leídas y no leídas) pero atenuadas para distinguirlas de un vistazo. */
+.notificaciones__item--leida {
+  opacity: 0.55;
+}
+
 .notificaciones__vacio {
   padding: var(--esp-6) var(--esp-4);
   text-align: center;
   color: var(--color-texto-suave);
   font-size: var(--texto-sm);
+}
+
+.notificaciones__pie {
+  padding: var(--esp-2) var(--esp-4);
+  border-top: 1px solid var(--color-borde-suave);
+  text-align: center;
+}
+
+.notificaciones__pie .notificaciones__marcar-todas {
+  display: inline-block;
+  padding: var(--esp-1) 0;
 }
 
 /* ── Menú de perfil (foto o iniciales en círculo) ─────────── */

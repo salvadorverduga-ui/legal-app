@@ -19,7 +19,10 @@ const ICONO_CAMPANA = `
   </svg>
 `;
 
-let notificacionesActuales = [];
+const LIMITE_DROPDOWN = 7;
+
+let notificacionesActuales = []; // últimas LIMITE_DROPDOWN, leídas y no leídas — lista visible del dropdown
+let conteoNoLeidas = 0;          // cuenta real de no leídas (puede ser mayor a LIMITE_DROPDOWN) — badge de la campana
 let canalRealtime = null;
 let dropdownAbierto = false;
 
@@ -44,12 +47,14 @@ export async function inicializarNotificaciones() {
     <div class="menu-desplegable__lista notificaciones__lista" id="listaNotificaciones" hidden>
       <div class="notificaciones__header">
         <span>Notificaciones</span>
+      </div>
+      <div class="notificaciones__items" id="notificacionesItems"></div>
+      <p class="notificaciones__vacio" id="notificacionesVacio" hidden>No tiene notificaciones.</p>
+      <div class="notificaciones__pie" id="notificacionesPie" hidden>
         <button class="notificaciones__marcar-todas" id="btnMarcarTodasLeidas" type="button">
           Marcar todas como leídas
         </button>
       </div>
-      <div class="notificaciones__items" id="notificacionesItems"></div>
-      <p class="notificaciones__vacio" id="notificacionesVacio" hidden>No tiene notificaciones nuevas.</p>
     </div>
   `;
 
@@ -74,7 +79,8 @@ export async function inicializarNotificaciones() {
   await cargarNotificaciones();
 
   canalRealtime = api.notificaciones.escucharNuevas((nueva) => {
-    notificacionesActuales = [nueva, ...notificacionesActuales];
+    notificacionesActuales = [nueva, ...notificacionesActuales].slice(0, LIMITE_DROPDOWN);
+    conteoNoLeidas += 1;
     renderizar();
   });
 }
@@ -90,7 +96,12 @@ export function detenerNotificaciones() {
 }
 
 async function cargarNotificaciones() {
-  notificacionesActuales = await api.notificaciones.getNoLeidas();
+  const [ultimas, noLeidas] = await Promise.all([
+    api.notificaciones.getUltimas(LIMITE_DROPDOWN),
+    api.notificaciones.getNoLeidas(),
+  ]);
+  notificacionesActuales = ultimas;
+  conteoNoLeidas = noLeidas.length;
   renderizar();
 }
 
@@ -98,11 +109,14 @@ function renderizar() {
   const badge = document.getElementById('badgeNotificaciones');
   const items = document.getElementById('notificacionesItems');
   const vacio = document.getElementById('notificacionesVacio');
-  if (!badge || !items || !vacio) return;
+  const pie = document.getElementById('notificacionesPie');
+  if (!badge || !items || !vacio || !pie) return;
+
+  badge.textContent = conteoNoLeidas > 9 ? '9+' : String(conteoNoLeidas);
+  badge.hidden = conteoNoLeidas === 0;
 
   const total = notificacionesActuales.length;
-  badge.textContent = total > 9 ? '9+' : String(total);
-  badge.hidden = total === 0;
+  pie.hidden = total === 0;
 
   if (total === 0) {
     items.innerHTML = '';
@@ -117,9 +131,10 @@ function renderizar() {
 function generarItem(n) {
   const idSeguro = escaparAtrib(n.id);
   const urlSegura = escaparAtrib(n.url_destino || '');
+  const claseLeida = n.leida ? ' notificaciones__item--leida' : '';
 
   return `
-    <button class="notificaciones__item" type="button" data-id="${idSeguro}" data-url="${urlSegura}">
+    <button class="notificaciones__item${claseLeida}" type="button" data-id="${idSeguro}" data-url="${urlSegura}">
       <p class="notificaciones__item-titulo">${escaparHtml(n.titulo)}</p>
       <p class="notificaciones__item-mensaje">${escaparHtml(n.mensaje)}</p>
       <p class="notificaciones__item-fecha">${formatearFecha(n.created_at)}</p>
@@ -151,9 +166,15 @@ async function manejarClickNotificacion(e) {
 
   const { id, url } = btn.dataset;
 
-  await api.notificaciones.marcarLeida(id);
-  notificacionesActuales = notificacionesActuales.filter(n => n.id !== id);
-  renderizar();
+  // Las notificaciones leídas quedan visibles en el dropdown (atenuadas),
+  // no se ocultan — solo se marca la propia y se ajusta el badge.
+  const entrada = notificacionesActuales.find(n => n.id === id);
+  if (entrada && !entrada.leida) {
+    await api.notificaciones.marcarLeida(id);
+    entrada.leida = true;
+    conteoNoLeidas = Math.max(0, conteoNoLeidas - 1);
+    renderizar();
+  }
   cerrarDropdown();
 
   if (url) window.location.href = url;
@@ -161,7 +182,8 @@ async function manejarClickNotificacion(e) {
 
 async function manejarMarcarTodasLeidas() {
   await api.notificaciones.marcarTodasLeidas();
-  notificacionesActuales = [];
+  notificacionesActuales = notificacionesActuales.map(n => ({ ...n, leida: true }));
+  conteoNoLeidas = 0;
   renderizar();
 }
 
