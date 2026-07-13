@@ -70,7 +70,8 @@ legal-app/
 │   │   ├── cambiar-contrasena.js   ← lógica de cambiar-contrasena.html (usuario ya autenticado, ver §18)
 │   │   ├── contacto.js        ← lógica de contacto.html (sin Supabase; envía a /api/contacto)
 │   │   ├── tablon.js          ← lógica de tablon.html: publicar casos y listar casos activos (ver §17)
-│   │   └── tablon-caso.js     ← lógica de tablon-caso.html: detalle de un caso puntual (ver §17)
+│   │   ├── tablon-caso.js     ← lógica de tablon-caso.html: detalle de un caso puntual (ver §17)
+│   │   └── referidos.js       ← lógica de referidos.html: programa de referidos (ver §20)
 │   └── pages/
 │       ├── busqueda.html
 │       ├── perfil-abogado.html
@@ -83,7 +84,8 @@ legal-app/
 │       ├── cambiar-contrasena.html ← cambio de contraseña desde el panel (usuario ya autenticado, ver §18)
 │       ├── contacto.html
 │       ├── tablon.html        ← "El Tablón": publicar casos, listado de casos activos (ver §17)
-│       └── tablon-caso.html   ← detalle de un caso puntual: aplicantes, elegir, aplicar, cerrar (ver §17)
+│       ├── tablon-caso.html   ← detalle de un caso puntual: aplicantes, elegir, aplicar, cerrar (ver §17)
+│       └── referidos.html     ← programa de referidos, solo abogados (ver §20)
 ├── supabase/
 │   ├── config.toml            ← project_id para el Supabase CLI (link/deploy)
 │   ├── migrations/            ← archivos SQL en orden cronológico
@@ -411,6 +413,7 @@ La migración crea el bucket si no existe y fuerza `public = false` aunque ya ex
 - [x] MÓDULO B — Dashboard "Inicio": primera pestaña de `panel-cliente.html` y `panel-abogado.html` con saludo, accesos rápidos y resumen numérico
 - [x] MÓDULO C — Rediseño de El Tablón: ubicación en los casos, flujo de contacto directo al elegir, página `tablon-caso.html` por caso, cierre manual (ver §17)
 - [x] MÓDULO D — En seguimiento: solicitudes y aplicaciones de El Tablón marcables, nueva pestaña en ambos paneles (ver §19)
+- [x] MÓDULO E — Programa de referidos: código único por abogado, mes gratis a ambos al registrarse con él (ver §20)
 
 Marcar cada ítem como `[x]` a medida que se completa el módulo correspondiente.
 
@@ -513,6 +516,32 @@ Por eso `api.seguimiento.toggleTablon(aplicacionId, tipo)` recibe el id de una f
 ### Frontend
 - `api.seguimiento` en `frontend/js/api.js`: `toggleSolicitud(solicitudId, tipo)`, `toggleTablon(aplicacionId, tipo)`, `getMisSeguimientos()` (retorna `{ solicitudes, casosTablon }`, resuelto según `perfiles.rol`).
 - La pestaña "En seguimiento" de cada panel muestra las solicitudes marcadas (reutilizando la misma tarjeta que la pestaña de solicitudes) y los casos de El Tablón con al menos una aplicación marcada (tarjeta simplificada, solo lectura, con enlace "Ver caso" a `tablon-caso.html` — el toggle en sí vive ahí, no en la pestaña del panel, porque un caso puede tener varias aplicaciones marcadas de forma independiente).
+
+---
+
+## 20. Programa de referidos
+
+### Qué es
+Cada abogado tiene un código de referido único (`abogados.codigo_referido`, 8 caracteres hex, generado automáticamente al crearse la fila). `frontend/pages/referidos.html` — accesible solo para abogados, desde "Referir un colega" en el menú de perfil (§18) — muestra el link `{origin}/registro?ref=<codigo>` para compartir y el historial de referidos enviados. Cuando otro abogado se registra usando ese link, ambos reciben un mes gratis de suscripción.
+
+### Modelo de datos (migración `20260712_043_referidos.sql`)
+| Objeto | Qué es |
+|---|---|
+| `abogados.codigo_referido` | Código único (`UNIQUE`), generado por el trigger `fn_generar_codigo_referido` (BEFORE INSERT). Congelado contra el propio abogado en la política `abogado_update_propio` (extendida, igual que ya protegía `verificacion`/`suscripcion_vigente_hasta`). |
+| `referidos` | Historial: `referidor_id`, `referido_email`, `codigo_referido` (copia del código usado — no es `UNIQUE` en esta tabla; el mismo abogado puede referir a varias personas con su mismo código), `estado` (`PENDIENTE`/`COMPLETADO`). En este MVP las filas se crean directamente en `COMPLETADO`: la recompensa se otorga de inmediato al registrarse, no hay un paso de reclamo posterior. `PENDIENTE` queda reservado para un futuro flujo de invitaciones. |
+| `validar_codigo_referido(codigo)` | Función RPC pública (sin sesión, `SECURITY DEFINER`) que valida un código antes del registro — solo expone si es válido y el nombre del referidor, nada sensible. |
+
+### Cómo se procesa el registro con código
+El código viaja en `raw_user_meta_data->>'ref'` (igual que el resto de los datos de registro, ver §7 de `20260706_013_registro_metadata.sql`) y se procesa dentro de `fn_crear_fila_abogado`, en un bloque `BEGIN/EXCEPTION` **separado** del que crea la fila de `abogados`: en PL/pgSQL un bloque con `EXCEPTION` es una subtransacción (savepoint), así que si el procesamiento del referido fallara dentro del mismo bloque que el `INSERT INTO abogados`, revertiría también esa fila ya creada. Mismo criterio de aislamiento de fallos que `20260706_014_fix_triggers.sql` (log en `trigger_errors`, nunca aborta el `signUp`).
+
+**La recompensa nunca escribe `abogados.suscripcion_vigente_hasta` directamente** — esa columna es denormalizada desde `suscripciones` y solo la mantiene sincronizada `fn_sincronizar_suscripcion_vigente` (§ ver `20260625_005_suscripciones.sql`; la política RLS `abogado_update_propio` la congela contra cualquier otro escritor). En cambio, se inserta una fila en `suscripciones` con `tipo='ABOGADO_INDIVIDUAL'`, `monto=0`, `metodo_pago='REFERIDO'` (valor nuevo del enum `metodo_pago`, agregado al inicio de esta misma migración) para el referidor y para el recién registrado — el trigger existente de `suscripciones` hace el resto. La fecha de vencimiento del referidor se extiende desde su vigencia actual si sigue activa, o desde hoy si no tenía o ya venció (`GREATEST` + `COALESCE`); la del recién registrado siempre arranca desde hoy.
+
+Solo se otorga recompensa si el recién registrado tiene `rol='abogado'` — si alguien se registra como cliente o estudio con un `?ref=` en la URL, el código simplemente se ignora (no hay error, tampoco recompensa: `estudios` no tiene este programa en el MVP).
+
+### Frontend
+- `api.referidos` en `frontend/js/api.js`: `getMiCodigo()`, `getMisReferidos()`, `validarCodigo(codigo)` (RPC pública).
+- `api.auth.registrarAbogado()` acepta un `ref` opcional, que se guarda en `raw_user_meta_data`.
+- `registro.js` captura `?ref=` de la URL al cargar la página y lo asocia al registro de abogado; si el código es válido, muestra un aviso ("Fue referido por…") usando `validarCodigo()` — puramente informativo, no bloquea el formulario si el código no es válido.
 
 ---
 

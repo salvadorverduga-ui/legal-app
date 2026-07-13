@@ -2079,6 +2079,18 @@ p {
   margin-top: var(--esp-6);
 }
 
+/* ── Referidos: fila del link + botón copiar ──────────────── */
+.referidos__link-fila {
+  display: flex;
+  gap: var(--esp-3);
+  align-items: center;
+}
+
+.referidos__link-fila .campo__input {
+  flex: 1;
+  min-width: 0;
+}
+
 /* Interruptor Disponible / No disponible */
 .toggle-switch {
   display: inline-flex;

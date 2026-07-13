@@ -11,6 +11,7 @@ const TAMANO_MAXIMO_ARCHIVO = 5 * 1024 * 1024; // 5 MB
 const TIPOS_ARCHIVO_PERMITIDOS = ['image/jpeg', 'image/png', 'application/pdf'];
 
 let tipoProfesionalActivo = null; // 'individual' | 'estudio' | 'red'
+let codigoReferido = null; // ?ref= en la URL, capturado en inicializar() y asociado al registro de abogado
 
 // ─── Entry point ─────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', inicializar);
@@ -25,6 +26,9 @@ async function inicializar() {
 
   configurarEventos();
 
+  codigoReferido = new URLSearchParams(window.location.search).get('ref');
+  if (codigoReferido) verificarCodigoReferido(codigoReferido);
+
   const rol = new URLSearchParams(window.location.search).get('rol');
   if (rol === 'cliente') {
     mostrarFlujo('cliente');
@@ -33,6 +37,20 @@ async function inicializar() {
   } else {
     document.getElementById('selectorCuenta').hidden = false;
   }
+}
+
+// Programa de referidos: solo aplica al registro de abogado (§20 CLAUDE.md).
+// Si el código no es válido, se sigue asociando igual al registro (queda
+// guardado en raw_user_meta_data) pero fn_crear_fila_abogado simplemente no
+// encuentra referidor y no otorga recompensa — no hace falta bloquear el
+// formulario ni limpiar codigoReferido acá.
+async function verificarCodigoReferido(codigo) {
+  const { valido, referidorNombre } = await api.referidos.validarCodigo(codigo);
+  if (!valido) return;
+
+  const aviso = document.getElementById('avisoReferido');
+  aviso.textContent = `Fue referido por ${referidorNombre}. Si completa su registro como abogado, ambos recibirán un mes gratis.`;
+  aviso.hidden = false;
 }
 
 // ─── Mostrar el flujo correspondiente ────────────────────────────────────────
@@ -207,6 +225,7 @@ async function manejarRegistroAbogado(evento) {
   try {
     const { data, error } = await api.auth.registrarAbogado({
       email, password, nombre_completo, cedula, numero_carnet, especialidades, provincia,
+      ref: codigoReferido,
     });
 
     if (error) {

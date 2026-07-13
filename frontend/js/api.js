@@ -103,15 +103,18 @@ export const auth = {
    * El trigger fn_crear_fila_abogado crea automáticamente la fila en abogados
    * con verificacion='PENDIENTE', toggle_disponible=true, y copia
    * numero_carnet/especialidades desde raw_user_meta_data.
-   * datos: { email, password, nombre_completo, cedula, numero_carnet, especialidades: string[], provincia }
+   * ref (opcional): código del programa de referidos (?ref= en registro.html,
+   * migración 043). Si es válido, fn_crear_fila_abogado otorga un mes gratis
+   * al referidor y al recién registrado.
+   * datos: { email, password, nombre_completo, cedula, numero_carnet, especialidades: string[], provincia, ref? }
    * Retorna { data, error }.
    */
-  async registrarAbogado({ email, password, nombre_completo, cedula, numero_carnet, especialidades, provincia }) {
+  async registrarAbogado({ email, password, nombre_completo, cedula, numero_carnet, especialidades, provincia, ref }) {
     const { data, error } = await _cliente.auth.signUp({
       email,
       password,
       options: {
-        data: { rol: 'abogado', nombre_completo, cedula, numero_carnet, especialidades, provincia },
+        data: { rol: 'abogado', nombre_completo, cedula, numero_carnet, especialidades, provincia, ref: ref || undefined },
       },
     });
 
@@ -1868,6 +1871,77 @@ export const seguimiento = {
     }
 
     return { solicitudes: solicitudes ?? [], casosTablon: casosTablon ?? [] };
+  },
+
+};
+
+
+// ════════════════════════════════════════════════════════════
+// REFERIDOS
+// Programa de referidos entre abogados (migración 043): cada abogado tiene
+// un código único; cuando otro abogado se registra con ese código, ambos
+// reciben un mes gratis vía fn_crear_fila_abogado. Este módulo solo lee —
+// las filas de referidos y la recompensa las escribe únicamente ese trigger.
+// ════════════════════════════════════════════════════════════
+export const referidos = {
+
+  /**
+   * Retorna el código de referido del abogado autenticado (abogados.codigo_referido).
+   * Retorna null si no hay sesión activa o falla la consulta.
+   */
+  async getMiCodigo() {
+    const { data: { user }, error: errUser } = await _cliente.auth.getUser();
+    if (errUser || !user) return null;
+
+    const { data, error } = await _cliente
+      .from('abogados')
+      .select('codigo_referido')
+      .eq('id', user.id)
+      .single();
+
+    if (error) {
+      console.error('[api.referidos.getMiCodigo]', error.message);
+      return null;
+    }
+    return data?.codigo_referido ?? null;
+  },
+
+  /**
+   * Retorna los referidos enviados por el abogado autenticado (RLS ya
+   * restringe a referidor_id = auth.uid()), más recientes primero.
+   * Retorna array (puede estar vacío).
+   */
+  async getMisReferidos() {
+    const { data, error } = await _cliente
+      .from('referidos')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('[api.referidos.getMisReferidos]', error.message);
+      return [];
+    }
+    return data ?? [];
+  },
+
+  /**
+   * Valida un código de referido antes de registrarse (RPC accesible sin
+   * sesión — registro.html se usa pre-login). Solo confirma validez y el
+   * nombre del referidor; no expone nada sensible.
+   * Retorna { valido: boolean, referidorNombre: string|null }.
+   */
+  async validarCodigo(codigo) {
+    if (!codigo?.trim()) return { valido: false, referidorNombre: null };
+
+    const { data, error } = await _cliente.rpc('validar_codigo_referido', { p_codigo: codigo.trim() });
+
+    if (error) {
+      console.error('[api.referidos.validarCodigo]', error.message);
+      return { valido: false, referidorNombre: null };
+    }
+
+    const fila = data?.[0];
+    return { valido: fila?.valido ?? false, referidorNombre: fila?.referidor_nombre ?? null };
   },
 
 };

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Refiera a un colega abogado y reciban un mes gratis en LegalEC.">
+  <title>Referir un colega — LegalEC</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+
+  <header class="encabezado">
+    <div class="contenedor encabezado__contenedor">
+      <a href="/pages/panel-abogado" class="logo" aria-label="LegalEC — Panel del abogado">
+        <span class="logo__nombre">LegalEC</span>
+      </a>
+      <nav class="nav-usuario" aria-label="Menú de usuario"></nav>
+    </div>
+  </header>
+
+  <main>
+    <div class="contenedor panel-cliente__contenido">
+
+      <!-- Estado: cargando -->
+      <div class="pantalla-carga" id="estadoCargando">
+        <div class="spinner" aria-hidden="true"></div>
+        <p class="pantalla-carga__texto">Cargando...</p>
+      </div>
+
+      <!-- Estado: error -->
+      <div class="estado-vacio" id="estadoError" hidden>
+        <p class="estado-vacio__titulo">No pudimos cargar esta página</p>
+        <p>Intente recargar la página. Si el problema continúa, contacte a soporte.</p>
+      </div>
+
+      <!-- Contenido -->
+      <div id="contenidoPanel" hidden>
+
+        <section class="panel-cabecera">
+          <div class="panel-cabecera__identidad">
+            <div>
+              <h1 class="panel-cabecera__nombre">Referir un colega</h1>
+              <p class="panel-cabecera__subtitulo">
+                Comparta su link. Cuando un colega se registre con él, ambos reciben un mes gratis de suscripción.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <article class="solicitud-item">
+          <p class="solicitud-item__detalle-etiqueta">Su link de referido</p>
+          <div class="campo referidos__link-fila">
+            <input type="text" id="linkReferido" class="campo__input" readonly aria-label="Su link de referido">
+            <button class="btn btn--primario btn--sm" id="btnCopiarLink" type="button">Copiar link</button>
+          </div>
+          <p class="campo__ayuda" id="estadoCopiado" role="status" aria-live="polite"></p>
+        </article>
+
+        <h2 class="panel-inicio__seccion-titulo">Referidos enviados</h2>
+        <div class="solicitudes-lista" id="referidosLista"></div>
+        <div class="estado-vacio" id="estadoSinReferidos" hidden>
+          <p>Todavía no ha referido a ningún colega.</p>
+        </div>
+
+      </div>
+    </div>
+  </main>
+
+  <footer class="pie">
+    <div class="contenedor pie__contenedor">
+      <p class="pie__aviso">
+        LegalEC es un servicio de conexión y no un proveedor de servicios jurídicos.
+      </p>
+      <nav class="pie__nav" aria-label="Páginas legales">
+        <a href="#" class="pie__enlace">Términos y condiciones</a>
+        <span class="pie__separador" aria-hidden="true">·</span>
+        <a href="#" class="pie__enlace">Política de privacidad (LOPDP)</a>
+        <span class="pie__separador" aria-hidden="true">·</span>
+        <a href="/pages/contacto" class="pie__enlace">Soporte</a>
+      </nav>
+    </div>
+  </footer>
+
+  <script src="/js/vendors/supabase.min.js"></script>
+  <script type="module" src="/js/referidos.js"></script>
+
+</body>
+</html>
