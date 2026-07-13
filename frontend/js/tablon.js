@@ -1,10 +1,14 @@
 // tablon.js
-// Lógica de la página tablon.html ("El Tablón").
+// Lógica de la página tablon.html ("El Tablón"): publicar casos (cliente) y
+// listar casos activos con filtros (abogado verificado). El detalle de un
+// caso puntual (aplicar, elegir, cerrar) vive en tablon-caso.html/tablon-caso.js.
 // Importa todo desde api.js — nunca consulta Supabase directamente.
 
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
 import { toast, mensajeAmigable, rutaPanelPropio } from './utils.js';
+import { inicializarNotificaciones } from './notificaciones.js';
+import { inicializarMenuPerfil } from './menu-perfil.js';
 
 // ─── Etiquetas y estilos por estado ───────────────────────────────────────────
 const ETIQUETAS_ESTADO_CASO = {
@@ -36,10 +40,7 @@ let perfilActual = null;             // fila propia de la tabla perfiles
 let esAbogadoVerificado = false;
 let misCasosActuales = [];           // vista cliente
 let casosActivosActuales = [];       // vista abogado
-let aplicacionesActuales = [];       // aplicaciones del caso seleccionado (vista cliente)
-let casoSeleccionadoId = null;       // caso cuyo detalle de aplicaciones se está viendo
 let formPublicarAbierto = false;
-let casoConAplicarAbierto = null;    // id del caso con el formulario de aplicar visible (vista abogado)
 let filtroEspecialidad = '';
 let filtroCasoComun = '';
 
@@ -71,8 +72,20 @@ async function inicializar() {
     return;
   }
 
-  document.getElementById('nombreUsuario').textContent = perfilActual.nombre_completo;
   document.getElementById('logoHeader').href = rutaPanelPropio(perfilActual.rol);
+
+  let urlPerfilPublico;
+  if (perfilActual.rol === 'abogado') {
+    const abogadoActual = await api.abogados.getPerfilPropio();
+    urlPerfilPublico = abogadoActual ? `/pages/perfil-abogado?id=${abogadoActual.id}` : undefined;
+  }
+  inicializarMenuPerfil({
+    rol: perfilActual.rol,
+    nombre: perfilActual.nombre_completo,
+    fotoPath: perfilActual.foto_url,
+    urlPerfilPublico,
+  });
+  inicializarNotificaciones();
 
   if (perfilActual.rol === 'cliente') {
     document.getElementById('subtituloTablon').textContent =
@@ -110,11 +123,6 @@ function mostrarContenido() {
 
 // ─── Configuración de eventos ─────────────────────────────────────────────────
 function configurarEventos() {
-  document.getElementById('btnCerrarSesion').addEventListener('click', async () => {
-    await api.auth.cerrarSesion();
-    window.location.href = '/';
-  });
-
   if (perfilActual.rol === 'cliente') {
     document.getElementById('btnPublicarCaso').addEventListener('click', () => {
       formPublicarAbierto = true;
@@ -128,10 +136,6 @@ function configurarEventos() {
     document.getElementById('descripcionCaso').addEventListener('input', (e) => {
       document.getElementById('contadorDescripcionCaso').textContent = `${e.target.value.length} / 600`;
     });
-
-    document.getElementById('misCasosLista').addEventListener('click', manejarClickMisCasos);
-    document.getElementById('btnCerrarAplicaciones').addEventListener('click', cerrarAplicaciones);
-    document.getElementById('aplicacionesLista').addEventListener('click', manejarClickAplicaciones);
   }
 
   if (perfilActual.rol === 'abogado' && esAbogadoVerificado) {
@@ -143,10 +147,6 @@ function configurarEventos() {
       filtroCasoComun = e.target.value;
       renderizarCasosActivos();
     });
-
-    document.getElementById('casosActivosLista').addEventListener('click', manejarClickCasosActivos);
-    document.getElementById('casosActivosLista').addEventListener('submit', manejarSubmitAplicar);
-    document.getElementById('casosActivosLista').addEventListener('input', manejarInputCasosActivos);
   }
 }
 
@@ -187,120 +187,26 @@ function generarCasoClienteCard(c) {
   const casoComunHtml = c.caso_comun
     ? `<p class="solicitud-item__detalle"><span class="solicitud-item__detalle-etiqueta">Caso común:</span> ${escaparHtml(c.caso_comun)}</p>`
     : '';
+  const ubicacionHtml = generarUbicacionTexto(c.provincia, c.ciudad);
 
   return `
     <article class="solicitud-item">
       <div class="solicitud-item__header">
         <div>
           <p class="solicitud-item__nombre">${escaparHtml(c.titulo)}</p>
-          <p class="solicitud-item__fecha">${formatearFecha(c.created_at)} · ${escaparHtml(c.especialidad)}${c.anonimo ? ' · Anónimo' : ''}</p>
+          <p class="solicitud-item__fecha">${formatearFecha(c.created_at)} · ${escaparHtml(c.especialidad)}${ubicacionHtml}${c.anonimo ? ' · Anónimo' : ''}</p>
         </div>
         <span class="badge ${claseEstado}">${etiquetaEstado}</span>
       </div>
       <p class="solicitud-item__detalle">${escaparHtml(c.descripcion)}</p>
       ${casoComunHtml}
       <div class="solicitud-item__acciones">
-        <button class="btn btn--secundario btn--sm" type="button" data-accion="ver-aplicaciones" data-id="${idSeguro}">
-          Ver aplicaciones (${c.total_aplicaciones})
-        </button>
+        <a href="/pages/tablon-caso?id=${idSeguro}" class="btn btn--secundario btn--sm">
+          Ver caso (${c.total_aplicaciones} ${c.total_aplicaciones === 1 ? 'aplicación' : 'aplicaciones'})
+        </a>
       </div>
     </article>
   `;
-}
-
-function manejarClickMisCasos(e) {
-  const btn = e.target.closest('[data-accion="ver-aplicaciones"]');
-  if (!btn) return;
-  abrirAplicaciones(btn.dataset.id);
-}
-
-async function abrirAplicaciones(casoId) {
-  casoSeleccionadoId = casoId;
-  aplicacionesActuales = await api.tablon.getAplicaciones(casoId);
-  renderizarAplicaciones();
-  document.getElementById('seccionAplicacionesCaso').hidden = false;
-  document.getElementById('seccionAplicacionesCaso').scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
-
-function cerrarAplicaciones() {
-  casoSeleccionadoId = null;
-  aplicacionesActuales = [];
-  document.getElementById('seccionAplicacionesCaso').hidden = true;
-}
-
-function renderizarAplicaciones() {
-  const contenedor = document.getElementById('aplicacionesLista');
-  const vacio = document.getElementById('estadoSinAplicaciones');
-
-  if (aplicacionesActuales.length === 0) {
-    contenedor.innerHTML = '';
-    vacio.hidden = false;
-    return;
-  }
-
-  vacio.hidden = true;
-  contenedor.innerHTML = aplicacionesActuales.map(generarAplicacionCard).join('');
-}
-
-function generarAplicacionCard(ap) {
-  const idSeguro = escaparAtrib(ap.id);
-  const abogadoIdSeguro = escaparAtrib(ap.abogado_id);
-  const avatarHtml = generarAvatarHtml(ap.abogado_foto, ap.abogado_nombre);
-  const claseEstado = CLASE_ESTADO_APLICACION[ap.estado] ?? 'badge--estado-pendiente';
-  const etiquetaEstado = ETIQUETAS_ESTADO_APLICACION[ap.estado] ?? ap.estado;
-
-  const mensajeHtml = ap.mensaje
-    ? `<p class="solicitud-item__detalle"><span class="solicitud-item__detalle-etiqueta">Mensaje:</span> ${escaparHtml(ap.mensaje)}</p>`
-    : '';
-
-  const accionesHtml = ap.estado === 'PENDIENTE' ? `
-    <div class="solicitud-item__acciones">
-      <button class="btn btn--primario btn--sm" type="button" data-accion="elegir" data-id="${idSeguro}">
-        Elegir a este abogado
-      </button>
-    </div>
-  ` : '';
-
-  return `
-    <article class="solicitud-item">
-      <div class="solicitud-item__header">
-        <div class="solicitud-item__cliente">
-          <div class="solicitud-item__avatar">${avatarHtml}</div>
-          <div>
-            <p class="solicitud-item__nombre"><a href="/pages/perfil-abogado?id=${abogadoIdSeguro}">${escaparHtml(ap.abogado_nombre)}</a></p>
-            <p class="solicitud-item__fecha">${formatearFecha(ap.created_at)} · ${generarEstrellasTexto(ap.abogado_rating, ap.abogado_total_resenas)}</p>
-          </div>
-        </div>
-        <span class="badge ${claseEstado}">${etiquetaEstado}</span>
-      </div>
-      ${mensajeHtml}
-      ${accionesHtml}
-    </article>
-  `;
-}
-
-function manejarClickAplicaciones(e) {
-  const btn = e.target.closest('[data-accion="elegir"]');
-  if (!btn) return;
-  manejarElegirAbogado(btn.dataset.id);
-}
-
-async function manejarElegirAbogado(aplicacionId) {
-  const confirmado = window.confirm('¿Elegir a este abogado? Se creará una solicitud de consulta con él.');
-  if (!confirmado) return;
-
-  const { data, error } = await api.tablon.elegirAbogado(aplicacionId);
-
-  if (error) {
-    const mensaje = mensajeAmigable(error, 'No se pudo elegir al abogado. Intente de nuevo.');
-    toast.error(mensaje);
-    return;
-  }
-
-  const entrada = aplicacionesActuales.find(a => a.id === aplicacionId);
-  if (entrada) Object.assign(entrada, data);
-  renderizarAplicaciones();
-  toast.exito('Abogado elegido. Se creó una solicitud de consulta con él.');
 }
 
 // ─── Vista cliente: publicar caso ─────────────────────────────────────────────
@@ -326,6 +232,8 @@ async function manejarSubmitPublicarCaso(e) {
     descripcion: document.getElementById('descripcionCaso').value,
     especialidad: document.getElementById('especialidadCaso').value,
     caso_comun: document.getElementById('casoComunCaso').value,
+    provincia: document.getElementById('provinciaCaso').value,
+    ciudad: document.getElementById('ciudadCaso').value,
     anonimo: document.getElementById('anonimoCaso').checked,
   };
 
@@ -385,8 +293,7 @@ function generarCasoAbogadoCard(c) {
   const casoComunHtml = c.caso_comun
     ? `<p class="solicitud-item__detalle"><span class="solicitud-item__detalle-etiqueta">Caso común:</span> ${escaparHtml(c.caso_comun)}</p>`
     : '';
-
-  const formularioAbierto = casoConAplicarAbierto === c.id;
+  const ubicacionHtml = generarUbicacionTexto(c.provincia, c.ciudad);
 
   const accionesHtml = c.mi_aplicacion_estado
     ? `
@@ -394,29 +301,13 @@ function generarCasoAbogadoCard(c) {
         <span class="badge ${CLASE_ESTADO_APLICACION[c.mi_aplicacion_estado] ?? 'badge--estado-pendiente'}">
           Su aplicación: ${ETIQUETAS_ESTADO_APLICACION[c.mi_aplicacion_estado] ?? c.mi_aplicacion_estado}
         </span>
+        <a href="/pages/tablon-caso?id=${idSeguro}" class="btn btn--secundario btn--sm">Ver caso</a>
       </div>
     `
     : `
       <div class="solicitud-item__acciones">
-        <button class="btn btn--primario btn--sm" type="button" data-accion="mostrar-aplicar" data-id="${idSeguro}">
-          Aplicar
-        </button>
+        <a href="/pages/tablon-caso?id=${idSeguro}" class="btn btn--primario btn--sm">Ver caso y aplicar</a>
       </div>
-      <form class="formulario-edicion" id="formAplicar-${idSeguro}" data-id="${idSeguro}" ${formularioAbierto ? '' : 'hidden'}>
-        <div class="campo">
-          <label for="mensajeAplicar-${idSeguro}" class="campo__etiqueta">Mensaje (opcional)</label>
-          <textarea id="mensajeAplicar-${idSeguro}" class="campo__input" rows="3" maxlength="300"
-            placeholder="Preséntese brevemente al cliente..."></textarea>
-          <p class="campo__contador" id="contadorAplicar-${idSeguro}">0 / 300</p>
-        </div>
-        <p class="campo__error" id="errorAplicar-${idSeguro}" role="alert" aria-live="polite"></p>
-        <div class="solicitud-item__acciones">
-          <button type="submit" class="btn btn--primario btn--sm">Enviar aplicación</button>
-          <button type="button" class="btn btn--secundario btn--sm" data-accion="cancelar-aplicar" data-id="${idSeguro}">
-            Cancelar
-          </button>
-        </div>
-      </form>
     `;
 
   return `
@@ -424,7 +315,7 @@ function generarCasoAbogadoCard(c) {
       <div class="solicitud-item__header">
         <div>
           <p class="solicitud-item__nombre">${escaparHtml(c.titulo)}</p>
-          <p class="solicitud-item__fecha">${formatearFecha(c.created_at)} · ${escaparHtml(c.especialidad)} · ${escaparHtml(c.cliente_nombre)}</p>
+          <p class="solicitud-item__fecha">${formatearFecha(c.created_at)} · ${escaparHtml(c.especialidad)}${ubicacionHtml} · ${escaparHtml(c.cliente_nombre)}</p>
         </div>
         <span class="badge badge--pendiente">${c.total_aplicaciones} ${c.total_aplicaciones === 1 ? 'aplicación' : 'aplicaciones'}</span>
       </div>
@@ -435,87 +326,10 @@ function generarCasoAbogadoCard(c) {
   `;
 }
 
-function manejarClickCasosActivos(e) {
-  const btn = e.target.closest('[data-accion]');
-  if (!btn) return;
-
-  const { accion, id } = btn.dataset;
-  if (accion === 'mostrar-aplicar') {
-    casoConAplicarAbierto = id;
-    renderizarCasosActivos();
-  }
-  if (accion === 'cancelar-aplicar') {
-    casoConAplicarAbierto = null;
-    renderizarCasosActivos();
-  }
-}
-
-function manejarInputCasosActivos(e) {
-  const textarea = e.target.closest('.formulario-edicion textarea');
-  if (!textarea) return;
-
-  const form = textarea.closest('.formulario-edicion');
-  const contador = document.getElementById(`contadorAplicar-${form.dataset.id}`);
-  if (contador) contador.textContent = `${textarea.value.length} / 300`;
-}
-
-async function manejarSubmitAplicar(e) {
-  const form = e.target.closest('.formulario-edicion');
-  if (!form) return;
-  e.preventDefault();
-
-  const casoId = form.dataset.id;
-  const errorEl = document.getElementById(`errorAplicar-${casoId}`);
-  const btnEnviar = form.querySelector('button[type="submit"]');
-  errorEl.textContent = '';
-
-  const mensaje = document.getElementById(`mensajeAplicar-${casoId}`).value;
-
-  btnEnviar.disabled = true;
-  btnEnviar.textContent = 'Enviando...';
-
-  const { data, error } = await api.tablon.aplicar(casoId, mensaje);
-
-  if (error) {
-    const mensajeError = mensajeAmigable(error, 'No se pudo enviar la aplicación. Intente de nuevo.');
-    errorEl.textContent = mensajeError;
-    toast.error(mensajeError);
-    btnEnviar.disabled = false;
-    btnEnviar.textContent = 'Enviar aplicación';
-    return;
-  }
-
-  const entrada = casosActivosActuales.find(c => c.id === casoId);
-  if (entrada) {
-    entrada.mi_aplicacion_estado = data.estado;
-    entrada.total_aplicaciones += 1;
-  }
-  casoConAplicarAbierto = null;
-  renderizarCasosActivos();
-  toast.exito('Aplicación enviada.');
-}
-
 // ─── Helpers de presentación ──────────────────────────────────────────────────
-function generarAvatarHtml(fotoPath, nombre) {
-  const fotoUrl = fotoPath ? api.storage.getPublicUrl('avatares', fotoPath) : null;
-  return fotoUrl
-    ? `<img src="${escaparAtrib(fotoUrl)}" alt="Foto de ${escaparAtrib(nombre)}">`
-    : `<div class="avatar-placeholder" aria-hidden="true">${escaparHtml(obtenerIniciales(nombre))}</div>`;
-}
-
-function generarEstrellasTexto(rating, total) {
-  if (!total || total === 0) return 'Sin reseñas';
-  return `${Number(rating).toFixed(1)} &#9733; (${total})`;
-}
-
-function obtenerIniciales(nombre) {
-  if (!nombre) return '?';
-  return nombre
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map(p => p[0]?.toUpperCase() ?? '')
-    .join('');
+function generarUbicacionTexto(provincia, ciudad) {
+  const partes = [provincia, ciudad].filter(Boolean).map(escaparHtml);
+  return partes.length ? ` · ${partes.join(', ')}` : '';
 }
 
 function formatearFecha(fechaIso) {

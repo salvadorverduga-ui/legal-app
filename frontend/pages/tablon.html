@@ -15,13 +15,7 @@
       <a href="/pages/panel-cliente" class="logo" id="logoHeader" aria-label="LegalEC — Mi panel">
         <span class="logo__nombre">LegalEC</span>
       </a>
-      <nav class="nav-usuario" aria-label="Menú de usuario">
-        <span class="nav-usuario__nombre" id="nombreUsuario" aria-live="polite"></span>
-        <button class="btn btn--secundario btn--sm" id="btnCerrarSesion" type="button"
-          style="border-color: rgba(255,255,255,0.4); color: rgba(255,255,255,0.85);">
-          Salir
-        </button>
-      </nav>
+      <nav class="nav-usuario" aria-label="Menú de usuario"></nav>
     </div>
   </header>
 
@@ -119,6 +113,42 @@
             </div>
 
             <div class="campo">
+              <label for="provinciaCaso" class="campo__etiqueta">Provincia (opcional)</label>
+              <select id="provinciaCaso" class="campo__input">
+                <option value="">Seleccione una provincia</option>
+                <option value="Azuay">Azuay</option>
+                <option value="Bolívar">Bolívar</option>
+                <option value="Cañar">Cañar</option>
+                <option value="Carchi">Carchi</option>
+                <option value="Chimborazo">Chimborazo</option>
+                <option value="Cotopaxi">Cotopaxi</option>
+                <option value="El Oro">El Oro</option>
+                <option value="Esmeraldas">Esmeraldas</option>
+                <option value="Galápagos">Galápagos</option>
+                <option value="Guayas">Guayas</option>
+                <option value="Imbabura">Imbabura</option>
+                <option value="Loja">Loja</option>
+                <option value="Los Ríos">Los Ríos</option>
+                <option value="Manabí">Manabí</option>
+                <option value="Morona Santiago">Morona Santiago</option>
+                <option value="Napo">Napo</option>
+                <option value="Orellana">Orellana</option>
+                <option value="Pastaza">Pastaza</option>
+                <option value="Pichincha">Pichincha</option>
+                <option value="Santa Elena">Santa Elena</option>
+                <option value="Santo Domingo de los Tsáchilas">Santo Domingo de los Tsáchilas</option>
+                <option value="Sucumbíos">Sucumbíos</option>
+                <option value="Tungurahua">Tungurahua</option>
+                <option value="Zamora Chinchipe">Zamora Chinchipe</option>
+              </select>
+            </div>
+
+            <div class="campo">
+              <label for="ciudadCaso" class="campo__etiqueta">Ciudad (opcional)</label>
+              <input type="text" id="ciudadCaso" class="campo__input" maxlength="100" placeholder="Ej: Cuenca">
+            </div>
+
+            <div class="campo">
               <label>
                 <input type="checkbox" id="anonimoCaso">
                 Publicar anónimamente (los abogados verán "Cliente anónimo" hasta que elija a uno)
@@ -139,18 +169,6 @@
             <p class="estado-vacio__titulo">Aún no ha publicado casos</p>
             <p>Publique un caso para que abogados verificados apliquen a atenderlo.</p>
           </div>
-
-          <!-- Aplicaciones recibidas en un caso -->
-          <section id="seccionAplicacionesCaso" hidden>
-            <div class="tablon-seccion__header">
-              <h2 class="auth__titulo">Aplicaciones recibidas</h2>
-              <button class="btn btn--secundario btn--sm" id="btnCerrarAplicaciones" type="button">Volver</button>
-            </div>
-            <div class="solicitudes-lista" id="aplicacionesLista"></div>
-            <div class="estado-vacio" id="estadoSinAplicaciones" hidden>
-              <p>Todavía no hay abogados aplicando a este caso.</p>
-            </div>
-          </section>
         </div>
 
         <!-- ═══════════════ VISTA ABOGADO ═══════════════ -->

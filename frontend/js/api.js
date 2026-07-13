@@ -1512,11 +1512,32 @@ export const tablon = {
   },
 
   /**
+   * Retorna el detalle de un caso de El Tablón desde tablon_caso_detalle
+   * (migración 041) — misma vista para el cliente dueño o un abogado con
+   * acceso (verificado con el caso ACTIVO, o que ya aplicó a él). Incluye
+   * cliente_nombre (respeta anonimato) y total_aplicaciones.
+   * Retorna null si el caso no existe o no es visible para quien consulta.
+   */
+  async getCasoDetalle(casoId) {
+    const { data, error } = await _cliente
+      .from('tablon_caso_detalle')
+      .select('*')
+      .eq('id', casoId)
+      .single();
+
+    if (error) {
+      console.error('[api.tablon.getCasoDetalle]', error.message);
+      return null;
+    }
+    return data;
+  },
+
+  /**
    * Publica un nuevo caso en El Tablón. Solo clientes con rol='cliente'
    * (política RLS de INSERT). El trigger fn_verificar_limite_casos_tablon
    * rechaza el INSERT si el cliente ya publicó 2 casos hoy (hint
    * LIMITE_CASOS_TABLON).
-   * datos: { titulo, descripcion, especialidad, caso_comun?: string, anonimo?: boolean }
+   * datos: { titulo, descripcion, especialidad, caso_comun?: string, provincia?: string, ciudad?: string, anonimo?: boolean }
    * Retorna { data, error }.
    */
   async publicarCaso(datos) {
@@ -1533,6 +1554,8 @@ export const tablon = {
         descripcion: datos.descripcion?.trim(),
         especialidad: datos.especialidad,
         caso_comun: datos.caso_comun || null,
+        provincia: datos.provincia || null,
+        ciudad: datos.ciudad?.trim() || null,
         anonimo: !!datos.anonimo,
       })
       .select()
@@ -1549,6 +1572,28 @@ export const tablon = {
       return { data: null, error };
     }
 
+    return { data, error: null };
+  },
+
+  /**
+   * El cliente cierra su propio caso (ACTIVO -> CERRADO) sin elegir a más
+   * abogados. La política RLS "cliente_cierra_caso_tablon" (migración 041)
+   * exige que el caso siga ACTIVO y bloquea cualquier otra columna.
+   * Retorna { data, error }.
+   */
+  async cerrarCaso(casoId) {
+    const { data, error } = await _cliente
+      .from('casos_tablon')
+      .update({ estado: 'CERRADO' })
+      .eq('id', casoId)
+      .eq('estado', 'ACTIVO')
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[api.tablon.cerrarCaso]', error.message);
+      return { data: null, error };
+    }
     return { data, error: null };
   },
 
@@ -1621,9 +1666,12 @@ export const tablon = {
   /**
    * Elige a un abogado aplicante. La política RLS restringe la operación
    * al cliente dueño del caso. El trigger fn_crear_solicitud_desde_tablon
-   * crea automáticamente la solicitud mediada normal; si ya existía una
-   * solicitud activa entre ambos, el caso se marca ELEGIDO igual sin
-   * duplicarla.
+   * crea automáticamente la solicitud mediada — a diferencia del flujo
+   * normal de búsqueda, acá el contacto se revela de inmediato (la
+   * solicitud se crea ya en estado ACEPTADA, migración 041): el cliente ya
+   * comparó varios aplicantes antes de elegir, no hace falta que el
+   * abogado acepte. Si ya existía una solicitud activa entre ambos, el
+   * caso se marca ELEGIDO igual sin duplicarla.
    * Retorna { data, error }.
    */
   async elegirAbogado(aplicacionId) {

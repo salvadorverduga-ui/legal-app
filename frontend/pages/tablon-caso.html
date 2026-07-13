@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Detalle de un caso de El Tablón en LegalEC.">
+  <title>Caso — El Tablón — LegalEC</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+
+  <header class="encabezado">
+    <div class="contenedor encabezado__contenedor">
+      <a href="/pages/panel-cliente" class="logo" id="logoHeader" aria-label="LegalEC — Mi panel">
+        <span class="logo__nombre">LegalEC</span>
+      </a>
+      <nav class="nav-usuario" aria-label="Menú de usuario"></nav>
+    </div>
+  </header>
+
+  <main>
+    <div class="contenedor panel-cliente__contenido">
+
+      <!-- Estado: cargando -->
+      <div class="pantalla-carga" id="estadoCargando">
+        <div class="spinner" aria-hidden="true"></div>
+        <p class="pantalla-carga__texto">Cargando caso...</p>
+      </div>
+
+      <!-- Estado: error / sin acceso -->
+      <div class="estado-vacio" id="estadoError" hidden>
+        <p class="estado-vacio__titulo">No pudimos cargar este caso</p>
+        <p>Puede que ya no exista o que no tenga acceso a él.</p>
+        <a href="/pages/tablon" class="btn btn--primario estado-vacio__cta">Volver a El Tablón</a>
+      </div>
+
+      <!-- Contenido -->
+      <div id="contenidoPanel" hidden>
+
+        <div class="tablon-toolbar">
+          <a href="/pages/tablon" class="btn btn--secundario btn--sm">Volver a El Tablón</a>
+        </div>
+
+        <section class="panel-cabecera">
+          <div class="panel-cabecera__identidad">
+            <div>
+              <h1 class="panel-cabecera__nombre" id="casoTitulo"></h1>
+              <p class="panel-cabecera__subtitulo" id="casoMeta"></p>
+            </div>
+          </div>
+          <span class="badge" id="casoEstadoBadge"></span>
+        </section>
+
+        <article class="solicitud-item">
+          <p class="solicitud-item__detalle" id="casoDescripcion"></p>
+          <p class="solicitud-item__detalle" id="casoCasoComun" hidden>
+            <span class="solicitud-item__detalle-etiqueta">Caso común:</span>
+            <span id="casoCasoComunValor"></span>
+          </p>
+          <p class="solicitud-item__detalle" id="casoUbicacion" hidden>
+            <span class="solicitud-item__detalle-etiqueta">Ubicación:</span>
+            <span id="casoUbicacionValor"></span>
+          </p>
+          <p class="solicitud-item__tiempo-restante" id="casoTiempoRestante" hidden></p>
+        </article>
+
+        <!-- ═══════════════ VISTA CLIENTE (dueño del caso) ═══════════════ -->
+        <div id="vistaClienteCaso" hidden>
+          <div class="tablon-seccion__header">
+            <h2 class="auth__titulo">Abogados que aplicaron</h2>
+            <button class="btn btn--secundario btn--sm" id="btnCerrarCaso" type="button">Cerrar caso</button>
+          </div>
+
+          <div class="solicitudes-lista" id="aplicacionesLista"></div>
+
+          <div class="estado-vacio" id="estadoSinAplicaciones" hidden>
+            <p>Todavía no hay abogados aplicando a este caso.</p>
+          </div>
+        </div>
+
+        <!-- ═══════════════ VISTA ABOGADO ═══════════════ -->
+        <div id="vistaAbogadoCaso" hidden>
+          <article class="solicitud-item">
+            <p class="solicitud-item__detalle" id="casoTotalAplicaciones"></p>
+
+            <div id="miAplicacionEstado" hidden>
+              <div class="solicitud-item__acciones">
+                <span class="badge" id="miAplicacionBadge"></span>
+              </div>
+            </div>
+
+            <form class="formulario-edicion" id="formAplicar">
+              <div class="campo">
+                <label for="mensajeAplicar" class="campo__etiqueta">Mensaje (opcional)</label>
+                <textarea id="mensajeAplicar" class="campo__input" rows="3" maxlength="300"
+                  placeholder="Preséntese brevemente al cliente..."></textarea>
+                <p class="campo__contador" id="contadorAplicar">0 / 300</p>
+              </div>
+              <p class="campo__error" id="errorAplicar" role="alert" aria-live="polite"></p>
+              <div class="solicitud-item__acciones">
+                <button type="submit" class="btn btn--primario btn--sm">Enviar aplicación</button>
+              </div>
+            </form>
+          </article>
+        </div>
+
+      </div>
+    </div>
+  </main>
+
+  <footer class="pie">
+    <div class="contenedor pie__contenedor">
+      <p class="pie__aviso">
+        LegalEC es un servicio de conexión y no un proveedor de servicios jurídicos.
+      </p>
+      <nav class="pie__nav" aria-label="Páginas legales">
+        <a href="#" class="pie__enlace">Términos y condiciones</a>
+        <span class="pie__separador" aria-hidden="true">·</span>
+        <a href="#" class="pie__enlace">Política de privacidad (LOPDP)</a>
+        <span class="pie__separador" aria-hidden="true">·</span>
+        <a href="/pages/contacto" class="pie__enlace">Soporte</a>
+      </nav>
+    </div>
+  </footer>
+
+  <script src="/js/vendors/supabase.min.js"></script>
+  <script type="module" src="/js/tablon-caso.js"></script>
+
+</body>
+</html>
