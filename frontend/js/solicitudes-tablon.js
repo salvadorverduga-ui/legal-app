@@ -189,15 +189,20 @@ function generarSolicitudCardAbogado(s) {
     : '';
 
   const telefonoHtml = s.cliente_telefono
-    ? `Teléfono: <strong>${escaparHtml(s.cliente_telefono)}</strong>`
-    : 'El cliente no registró teléfono — puede contactarlo por email.';
+    ? `<p class="solicitud-item__detalle"><span class="solicitud-item__detalle-etiqueta">Teléfono:</span> ${escaparHtml(s.cliente_telefono)}</p>`
+    : '<p class="solicitud-item__detalle">El cliente no registró teléfono.</p>';
+
+  const notaAnonimoHtml = s.caso_tablon_anonimo
+    ? '<p class="solicitud-item__detalle">Este cliente publicó su caso de forma anónima. Sus datos se revelan únicamente a los abogados elegidos.</p>'
+    : '';
 
   const contactoHtml = s.estado === 'ACEPTADA'
     ? `
       <div class="solicitud-item__contacto">
-        Contacto revelado — nombre completo: <strong>${escaparHtml(s.cliente_nombre)}</strong>.
-        Correo: <strong>${escaparHtml(s.cliente_email ?? 'No registrado')}</strong>.
+        <p class="solicitud-item__detalle"><span class="solicitud-item__detalle-etiqueta">Nombre completo:</span> ${escaparHtml(s.cliente_nombre)}</p>
+        <p class="solicitud-item__detalle"><span class="solicitud-item__detalle-etiqueta">Email:</span> ${escaparHtml(s.cliente_email ?? 'No registrado')}</p>
         ${telefonoHtml}
+        ${notaAnonimoHtml}
       </div>
     `
     : '';

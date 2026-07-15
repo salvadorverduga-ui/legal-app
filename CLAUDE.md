@@ -598,7 +598,12 @@ Ambas páginas son de rol dual (cliente o abogado, igual que `tablon.html`) y co
 
 ### Frontend
 - `frontend/js/solicitudes-directas.js` y `frontend/js/solicitudes-tablon.js` son independientes entre sí (mismo criterio de páginas autocontenidas que `tablon.js`/`tablon-caso.js`, §17): cada uno resuelve el rol (`perfiles.rol`) al cargar y renderiza la tarjeta de solicitud correspondiente (abogado ve datos del cliente y acciones sobre la solicitud entrante; cliente ve datos del abogado y acciones sobre su propia solicitud).
-- En `solicitudes-tablon.js`, cada tarjeta agrega un enlace "Ver caso en El Tablón" (`/pages/tablon-caso?id=<caso_tablon_id>`) y, del lado del abogado, revela nombre completo/correo/teléfono del cliente en cuanto la solicitud está `ACEPTADA` (siempre lo está, salvo el instante de creación) — mismo bloque de contacto que ya usaba `panel-abogado.js`.
+- En `solicitudes-tablon.js`, cada tarjeta agrega un enlace "Ver caso en El Tablón" (`/pages/tablon-caso?id=<caso_tablon_id>`) y, del lado del abogado, revela nombre completo/email/teléfono del cliente en cuanto la solicitud está `ACEPTADA` (siempre lo está, salvo el instante de creación) — con una nota adicional si el caso se publicó como anónimo (`caso_tablon_anonimo`, ver abajo).
+
+### Datos de contacto en tablon-caso.html (migración `20260714_050_contacto_tablon_caso_detalle.sql`)
+`tablon_caso_detalle` nunca expuso teléfono/email del cliente, solo `cliente_nombre` (con la regla de anonimato de §17). La 050 agrega `cliente_telefono`/`cliente_email` vía subquery contra `solicitudes` (`WHERE s.caso_tablon_id = c.id AND s.abogado_id = auth.uid()`) — solo resuelve datos cuando quien consulta es el abogado elegido para ese caso (esa es la única situación en la que existe una fila de `solicitudes` con ese par caso/abogado); para el cliente dueño y para cualquier otro abogado ambas columnas son NULL. `panel_solicitudes_abogado` se extiende igual con `caso_tablon_anonimo` (subquery a `casos_tablon.anonimo` vía `caso_tablon_id`), para que `solicitudes-tablon.js` pueda mostrar la nota de anonimato sin una query aparte.
+
+`tablon-caso.js` renderiza la sección "Datos de contacto" (`#seccionContactoCaso`) solo cuando `casoActual.mi_aplicacion_estado === 'ELEGIDO'` — coincide exactamente con cuándo esas dos columnas tienen valor, así que no hace falta ninguna otra condición.
 
 ---
 

@@ -332,6 +332,28 @@ function renderizarVistaAbogado() {
   } else {
     formulario.hidden = false;
   }
+
+  renderizarContactoCaso();
+}
+
+// Sección "Datos de contacto": visible solo para el abogado elegido
+// (tablon_caso_detalle solo completa cliente_telefono/cliente_email cuando
+// auth.uid() es ese abogado — ver migración 20260714_050).
+function renderizarContactoCaso() {
+  const elegido = casoActual.mi_aplicacion_estado === 'ELEGIDO';
+  const seccion = document.getElementById('seccionContactoCaso');
+  seccion.hidden = !elegido;
+  if (!elegido) return;
+
+  document.getElementById('contactoCasoNombre').textContent = casoActual.cliente_nombre;
+  document.getElementById('contactoCasoEmail').textContent = casoActual.cliente_email ?? 'No registrado';
+
+  const telefonoEl = document.getElementById('contactoCasoTelefono');
+  telefonoEl.innerHTML = casoActual.cliente_telefono
+    ? `<span class="solicitud-item__detalle-etiqueta">Teléfono:</span> ${escaparHtml(casoActual.cliente_telefono)}`
+    : 'El cliente no registró teléfono.';
+
+  document.getElementById('contactoCasoNotaAnonimo').hidden = !casoActual.anonimo;
 }
 
 async function manejarToggleSeguimientoPropio() {
