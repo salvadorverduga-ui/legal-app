@@ -2060,15 +2060,15 @@ p {
 }
 
 .acceso-rapido {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-1);
   width: 100%;
   text-align: left;
   background-color: var(--color-fondo-card);
   border: 1px solid var(--color-borde);
   border-radius: var(--radio-lg);
   padding: var(--esp-4) var(--esp-5);
-  font-weight: var(--peso-semibold);
-  color: var(--color-primario);
   box-shadow: var(--sombra-sm);
   transition: border-color var(--transicion), box-shadow var(--transicion);
 }
@@ -2077,6 +2077,16 @@ p {
 .acceso-rapido:focus-visible {
   border-color: var(--color-primario);
   box-shadow: var(--sombra-md);
+}
+
+.acceso-rapido__titulo {
+  font-weight: var(--peso-semibold);
+  color: var(--color-primario);
+}
+
+.acceso-rapido__descripcion {
+  font-size: var(--texto-sm);
+  color: var(--color-texto-suave);
 }
 
 @media (min-width: 640px) {

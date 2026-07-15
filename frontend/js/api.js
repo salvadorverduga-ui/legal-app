@@ -1982,3 +1982,36 @@ export const referidos = {
   },
 
 };
+
+
+// ════════════════════════════════════════════════════════════
+// CLIENTES
+// Consultas propias del panel del cliente que no encajan en el resto de
+// namespaces (por perspectiva, no por tabla — a diferencia de solicitudes,
+// tablon, etc.).
+// ════════════════════════════════════════════════════════════
+export const clientes = {
+
+  /**
+   * Retorna hasta 3 abogados con los que el cliente autenticado trabajó
+   * (solicitud ACEPTADA, COMPLETADA o RESEÑADA, directa o de El Tablón —
+   * misma vista panel_abogados_contactados que usa la pestaña "Mis
+   * abogados", solo que acá limitada a los 3 más recientes para el
+   * dashboard de Inicio). Retorna array (puede estar vacío).
+   */
+  async getUltimosAbogados() {
+    const { data, error } = await _cliente
+      .from('panel_abogados_contactados')
+      .select('*')
+      .order('tiene_solicitud_activa', { ascending: false })
+      .order('ultima_interaccion', { ascending: false })
+      .limit(3);
+
+    if (error) {
+      console.error('[api.clientes.getUltimosAbogados]', error.message);
+      return [];
+    }
+    return data ?? [];
+  },
+
+};

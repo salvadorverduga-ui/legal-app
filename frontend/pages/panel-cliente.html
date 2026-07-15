@@ -87,9 +87,18 @@
           <h2 class="panel-inicio__saludo" id="inicioSaludo"></h2>
 
           <div class="accesos-rapidos">
-            <a href="/pages/busqueda" class="acceso-rapido">Buscar abogado</a>
-            <a href="/pages/tablon" class="acceso-rapido">El Tablón</a>
-            <button class="acceso-rapido" type="button" data-ir-a-tab="Solicitudes">Mis solicitudes</button>
+            <a href="/pages/busqueda" class="acceso-rapido">
+              <span class="acceso-rapido__titulo">Buscar abogado</span>
+              <span class="acceso-rapido__descripcion">Encuentre abogados verificados por especialidad, caso o zona</span>
+            </a>
+            <a href="/pages/tablon" class="acceso-rapido">
+              <span class="acceso-rapido__titulo">El Tablón</span>
+              <span class="acceso-rapido__descripcion">Publique su caso y reciba propuestas de abogados interesados</span>
+            </a>
+            <button class="acceso-rapido" type="button" data-ir-a-tab="Solicitudes">
+              <span class="acceso-rapido__titulo">Mis solicitudes</span>
+              <span class="acceso-rapido__descripcion">Revise el estado de sus consultas directas y del Tablón</span>
+            </button>
           </div>
 
           <div class="metricas-grid">
@@ -101,6 +110,13 @@
               <p class="metrica-tarjeta__valor" id="inicioNotificacionesNoLeidas">0</p>
               <p class="metrica-tarjeta__etiqueta">Notificaciones sin leer</p>
             </div>
+          </div>
+
+          <h2 class="panel-inicio__seccion-titulo">Últimos abogados con los que trabajó</h2>
+          <div class="grid-resultados" id="ultimosAbogadosLista"></div>
+          <div class="estado-vacio" id="estadoSinUltimosAbogados" hidden>
+            <p>Aún no ha trabajado con ningún abogado. Busque uno para comenzar.</p>
+            <a href="/pages/busqueda" class="btn btn--primario estado-vacio__cta">Buscar un abogado</a>
           </div>
         </section>
 

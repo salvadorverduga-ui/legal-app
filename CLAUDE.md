@@ -607,4 +607,14 @@ Ambas páginas son de rol dual (cliente o abogado, igual que `tablon.html`) y co
 
 ---
 
+## 23. Dashboard cliente: accesos rápidos y últimos abogados
+
+`panel-cliente.html`, pestaña "Inicio": los tres botones de `.accesos-rapidos` ahora envuelven título y descripción en `<span class="acceso-rapido__titulo">`/`<span class="acceso-rapido__descripcion">` (antes era texto plano) — `.acceso-rapido` pasó de `display: block` a `display: flex; flex-direction: column` para apilarlos.
+
+Debajo se agregó "Últimos abogados con los que trabajó": hasta 3 abogados con solicitud `ACEPTADA`/`COMPLETADA`/`RESEÑADA` (directa o de El Tablón, sin distinción — misma condición que la pestaña "Mis abogados"). `api.clientes.getUltimosAbogados()` (`frontend/js/api.js`) reutiliza la vista `panel_abogados_contactados` (migración 034) con `.limit(3)`, sin necesidad de una vista ni migración nueva. `renderizarUltimosAbogados()` (`frontend/js/panel-cliente.js`) reutiliza `generarCardAbogadoContactado()`, la misma tarjeta que ya usaba "Mis abogados" — cubre de sobra "foto/iniciales, nombre clickeable, especialidad, botón 'Nueva consulta'" sin duplicar el render.
+
+`clientes` es un namespace nuevo en `api.js` (junto a `solicitudes`, `tablon`, etc.) para consultas organizadas por perspectiva del panel en vez de por tabla — hoy solo tiene esta función.
+
+---
+
 *Actualizar este archivo con cada decisión técnica relevante*

@@ -87,15 +87,17 @@ async function inicializar() {
   inicializarMenuPerfil({ rol: 'cliente', nombre: perfilActual.nombre_completo, fotoPath: perfilActual.foto_url });
   inicializarNotificaciones();
 
-  const [resenas, abogadosContactados, notificacionesNoLeidas, misSeguimientos] = await Promise.all([
+  const [resenas, abogadosContactados, ultimosAbogados, notificacionesNoLeidas, misSeguimientos] = await Promise.all([
     api.resenas.getMisResenas(),
     api.solicitudes.getAbogadosContactados(),
+    api.clientes.getUltimosAbogados(),
     api.notificaciones.getNoLeidas(),
     api.seguimiento.getMisSeguimientos(),
     cargarSolicitudes(),
   ]);
   renderizarResenas(resenas);
   renderizarAbogadosContactados(abogadosContactados);
+  renderizarUltimosAbogados(ultimosAbogados);
   renderizarResumenInicio(notificacionesNoLeidas.length);
   renderizarSeguimiento(misSeguimientos);
 
@@ -515,6 +517,23 @@ function generarCasoSeguimientoCard(c) {
       </div>
     </article>
   `;
+}
+
+// ─── Inicio: últimos abogados con los que trabajó ─────────────────────────────
+// Reutiliza generarCardAbogadoContactado() (misma tarjeta que "Mis abogados"),
+// solo que aquí la lista ya viene limitada a 3 por api.clientes.getUltimosAbogados().
+function renderizarUltimosAbogados(lista) {
+  const contenedor = document.getElementById('ultimosAbogadosLista');
+  const vacio = document.getElementById('estadoSinUltimosAbogados');
+
+  if (!lista || lista.length === 0) {
+    contenedor.innerHTML = '';
+    vacio.hidden = false;
+    return;
+  }
+
+  vacio.hidden = true;
+  contenedor.innerHTML = lista.map(generarCardAbogadoContactado).join('');
 }
 
 // ─── Mis abogados ─────────────────────────────────────────────────────────────
