@@ -50,6 +50,12 @@ async function inicializar() {
     }
     document.getElementById('btnCerrarSesion').hidden = false;
     document.querySelector('.logo').href = rutaPanelPropio(perfil?.rol);
+    if (perfil?.rol === 'cliente' || perfil?.rol === 'abogado') {
+      document.getElementById('btnTablon').hidden = false;
+      const btnSeguimiento = document.getElementById('btnSeguimiento');
+      btnSeguimiento.href = `${rutaPanelPropio(perfil.rol)}?tab=seguimiento`;
+      btnSeguimiento.hidden = false;
+    }
   } else {
     document.getElementById('btnIniciarSesion').hidden = false;
     document.querySelector('.logo').href = '/';

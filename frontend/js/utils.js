@@ -8,6 +8,12 @@
 //   toast.error('No se pudo guardar. Intente de nuevo.');
 //   toast.info('Disponibilidad actualizada.');
 
+// Mensaje del toast al marcar una solicitud o aplicación como "en
+// seguimiento" — mismo texto en los botones de seguimiento de paneles,
+// solicitudes-directas/tablon.js y tablon-caso.js/tablon.js.
+export const MENSAJE_AGREGADO_SEGUIMIENTO =
+  'Agregado a seguimiento. En esta sección puede hacer un seguimiento rápido de sus solicitudes y casos más importantes.';
+
 const DURACION_MS = 4000;
 
 let contenedorToasts = null;

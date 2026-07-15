@@ -461,7 +461,7 @@ Al elegir un abogado se crea automáticamente una solicitud mediada — pero a d
 `solicitudes.en_seguimiento_cliente`/`en_seguimiento_abogado` (también agregadas en la 041) son del flujo normal de solicitudes, no de El Tablón — ver §19.
 
 ### Reglas de negocio y dónde viven
-- **Máximo 2 casos publicados por cliente por día**: trigger `fn_verificar_limite_casos_tablon` (BEFORE INSERT en `casos_tablon`), no en RLS, para poder devolver un mensaje de error legible.
+- **Máximo de casos publicados por cliente por día**: trigger `fn_verificar_limite_casos_tablon` (BEFORE INSERT en `casos_tablon`), no en RLS, para poder devolver un mensaje de error legible. Configurable desde `panel-admin.html` vía `config_tablon.limite_publicaciones_diarias_cliente` (valor inicial `2`, `NULL` = sin límite — migración 051, ver §24), mismo patrón que el límite de aplicaciones de abogado de abajo.
 - **Expiración a los 15 días**: `expires_at` se calcula en el trigger `fn_set_expires_at_caso_tablon`; un job de `pg_cron` (`expirar-casos-tablon`, cada hora) transiciona `ACTIVO → EXPIRADO` vía `fn_expirar_casos_tablon`.
 - **Cierre manual**: el cliente puede cerrar su propio caso `ACTIVO → CERRADO` sin elegir a nadie más (botón "Cerrar caso" en `tablon-caso.html`). Política RLS `cliente_cierra_caso_tablon` (041): solo esa transición exacta, ninguna otra columna puede cambiar.
 - **Solo abogados con `verificacion = 'VERIFICADO'` ven y aplican a casos**: condición en las políticas RLS de `casos_tablon`/`aplicaciones_tablon` y en las vistas `tablon_casos_abogado`/`tablon_caso_detalle` (doble capa, igual que la regla de visibilidad de búsqueda en §4.1). `tablon_caso_detalle` (041) además deja ver el caso a cualquier abogado que ya haya aplicado a él, aunque el caso haya cerrado o expirado desde entonces — para que pueda seguir viendo el resultado de su propia aplicación.
@@ -614,6 +614,31 @@ Ambas páginas son de rol dual (cliente o abogado, igual que `tablon.html`) y co
 Debajo se agregó "Últimos abogados con los que trabajó": hasta 3 abogados con solicitud `ACEPTADA`/`COMPLETADA`/`RESEÑADA` (directa o de El Tablón, sin distinción — misma condición que la pestaña "Mis abogados"). `api.clientes.getUltimosAbogados()` (`frontend/js/api.js`) reutiliza la vista `panel_abogados_contactados` (migración 034) con `.limit(3)`, sin necesidad de una vista ni migración nueva. `renderizarUltimosAbogados()` (`frontend/js/panel-cliente.js`) reutiliza `generarCardAbogadoContactado()`, la misma tarjeta que ya usaba "Mis abogados" — cubre de sobra "foto/iniciales, nombre clickeable, especialidad, botón 'Nueva consulta'" sin duplicar el render.
 
 `clientes` es un namespace nuevo en `api.js` (junto a `solicitudes`, `tablon`, etc.) para consultas organizadas por perspectiva del panel en vez de por tabla — hoy solo tiene esta función.
+
+---
+
+## 24. Accesos rápidos de header, toast de seguimiento y límite diario configurable
+
+### El Tablón / En seguimiento en el header
+`inicializarMenuPerfil()` (`frontend/js/menu-perfil.js`) inserta ahora dos enlaces ("El Tablón", "En seguimiento") al inicio de `.nav-usuario` antes de armar el avatar — visibles en toda página que llama a esta función (paneles, `tablon.html`, `tablon-caso.html`, `solicitudes-directas.html`, `solicitudes-tablon.html`). "En seguimiento" apunta a `${rutaPanelPropio(rol)}?tab=seguimiento` (mismo mecanismo `aplicarTabDesdeUrl()` de §18). Esto reemplaza el enlace "El Tablón" que antes vivía hardcodeado en el HTML de `panel-cliente.html`/`panel-abogado.html` — se centralizó para no duplicarlo página por página.
+
+`busqueda.html` y `perfil-abogado.html` no usan `menu-perfil.js` (son accesibles sin sesión, con un header más simple de `nav-usuario__nombre` + botón Salir/Iniciar sesión — ver §7 de la migración de menú de perfil, §18). Ahí los dos enlaces se agregaron directo en el HTML como `hidden` y `busqueda.js`/`perfil-abogado.js` los revela solo si hay sesión y el rol es `cliente` o `abogado`.
+
+### Acceso rápido "Publicar en El Tablón"
+Cuarto botón en `.accesos-rapidos` de `panel-cliente.html` → `/pages/tablon?accion=publicar`. `tablon.js` extrajo la apertura del formulario a `abrirFormularioPublicar()` (antes inline en el listener de `btnPublicarCaso`) para poder reutilizarla: al final de `inicializar()`, si el rol es cliente, `?accion=publicar` está presente y el botón no está deshabilitado por el límite diario, se abre el formulario automáticamente.
+
+### Toast de seguimiento
+`MENSAJE_AGREGADO_SEGUIMIENTO` (`frontend/js/utils.js`) centraliza el texto que antes era el literal `'Agregado a seguimiento.'`, repetido en los 7 lugares donde se hace toggle de seguimiento (paneles, `solicitudes-directas.js`, `solicitudes-tablon.js`, `tablon.js`, `tablon-caso.js` ×2). El mensaje de "quitar" (`'Quitado de seguimiento.'`) no cambió — sigue inline en cada call site, no ameritaba su propia constante.
+
+### "Volver a solicitudes" en las páginas de solicitudes
+`solicitudes-directas.html`/`solicitudes-tablon.html` agregaron `btnVolverSolicitudes` junto al `btnVolverPanel` existente, apuntando a `${rutaPanelPropio(rolActual)}?tab=solicitudes` (pestaña "Mis solicitudes" del panel, no la portada).
+
+### Límite diario de publicaciones en El Tablón (configurable)
+CLAUDE.md §17 documentaba el límite de 2 casos/día como hardcodeado en el trigger `fn_verificar_limite_casos_tablon`. La migración `20260714_051_config_limite_publicaciones_tablon.sql` lo vuelve configurable, con el mismo patrón que `limite_aplicaciones_abogado` (migración 040, §17): agrega la clave `limite_publicaciones_diarias_cliente` a `config_tablon` (valor inicial `'2'`, preserva el comportamiento previo) y reescribe la función para leer el límite de ahí — `NULL` = sin límite. No hizo falta ningún GRANT nuevo: la tabla y la función ya existían con sus permisos (§12).
+
+`panel-admin.html`/`panel-admin.js`, pestaña "Configuración", agregan un segundo campo al mismo `formConfigTablon` ya existente para "El Tablón" — reutiliza `api.tablon.getConfigTablon()`/`actualizarConfigTablon(clave, valor)` (ya genéricos por clave desde la migración 040) en vez de crear un namespace `admin.getConfig()/setConfig()` nuevo que hubiera duplicado exactamente esas dos funciones.
+
+`tablon.js` deja de asumir el límite en 2: `cargarMisCasos()` trae `config_tablon` en paralelo con `getMisCasos()` y guarda `limitePublicacionesDiarias` (`null` = sin límite). `actualizarAvisoLimiteCasos()` arma el texto del aviso con ese valor en vez de un string fijo en el HTML. `api.tablon.publicarCaso()` ya no hardcodea el mensaje de error del hint `LIMITE_CASOS_TABLON` — usa `error.message` tal cual lo devuelve el trigger (que ya interpola el límite configurado con `%`).
 
 ---
 

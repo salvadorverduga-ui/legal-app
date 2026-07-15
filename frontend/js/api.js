@@ -1575,8 +1575,8 @@ export const tablon = {
   /**
    * Publica un nuevo caso en El Tablón. Solo clientes con rol='cliente'
    * (política RLS de INSERT). El trigger fn_verificar_limite_casos_tablon
-   * rechaza el INSERT si el cliente ya publicó 2 casos hoy (hint
-   * LIMITE_CASOS_TABLON).
+   * rechaza el INSERT si el cliente ya alcanzó config_tablon.limite_publicaciones_diarias_cliente
+   * casos hoy (hint LIMITE_CASOS_TABLON; NULL = sin límite — migración 051).
    * datos: { titulo, descripcion, especialidad, caso_comun?: string, provincia?: string, ciudad?: string, anonimo?: boolean }
    * Retorna { data, error }.
    */
@@ -1606,7 +1606,7 @@ export const tablon = {
       if (error.hint === 'LIMITE_CASOS_TABLON') {
         return {
           data: null,
-          error: { message: 'Ya publicó el máximo de 2 casos hoy. Intente de nuevo mañana.', codigo: 'LIMITE_CASOS_TABLON' },
+          error: { message: error.message, codigo: 'LIMITE_CASOS_TABLON' },
         };
       }
       return { data: null, error };

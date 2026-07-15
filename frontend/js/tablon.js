@@ -6,7 +6,7 @@
 
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
-import { toast, mensajeAmigable, rutaPanelPropio } from './utils.js';
+import { toast, mensajeAmigable, rutaPanelPropio, MENSAJE_AGREGADO_SEGUIMIENTO } from './utils.js';
 import { inicializarNotificaciones } from './notificaciones.js';
 import { inicializarMenuPerfil } from './menu-perfil.js';
 
@@ -41,6 +41,7 @@ let esAbogadoVerificado = false;
 let misCasosActuales = [];           // vista cliente
 let casosActivosActuales = [];       // vista abogado
 let formPublicarAbierto = false;
+let limitePublicacionesDiarias = null; // config_tablon.limite_publicaciones_diarias_cliente; null = sin límite
 let filtroEspecialidad = '';
 let filtroCasoComun = '';
 
@@ -108,6 +109,12 @@ async function inicializar() {
 
   mostrarContenido();
   configurarEventos();
+
+  // Acceso rápido "Publicar en El Tablón" del dashboard cliente (panel-cliente.html).
+  const accion = new URLSearchParams(window.location.search).get('accion');
+  if (perfilActual.rol === 'cliente' && accion === 'publicar' && !document.getElementById('btnPublicarCaso').disabled) {
+    abrirFormularioPublicar();
+  }
 }
 
 // ─── Control de estados visuales ─────────────────────────────────────────────
@@ -124,11 +131,7 @@ function mostrarContenido() {
 // ─── Configuración de eventos ─────────────────────────────────────────────────
 function configurarEventos() {
   if (perfilActual.rol === 'cliente') {
-    document.getElementById('btnPublicarCaso').addEventListener('click', () => {
-      formPublicarAbierto = true;
-      document.getElementById('formPublicarCaso').hidden = false;
-      document.getElementById('btnPublicarCaso').hidden = true;
-    });
+    document.getElementById('btnPublicarCaso').addEventListener('click', abrirFormularioPublicar);
 
     document.getElementById('btnCancelarPublicarCaso').addEventListener('click', cerrarFormularioPublicar);
     document.getElementById('formPublicarCaso').addEventListener('submit', manejarSubmitPublicarCaso);
@@ -169,23 +172,40 @@ async function manejarToggleSeguimiento(aplicacionId) {
   const entrada = casosActivosActuales.find(c => c.mi_aplicacion_id === aplicacionId);
   if (entrada) entrada.mi_seguimiento = data.en_seguimiento_abogado;
   renderizarCasosActivos();
-  toast.info(data.en_seguimiento_abogado ? 'Agregado a seguimiento.' : 'Quitado de seguimiento.');
+  toast.info(data.en_seguimiento_abogado ? MENSAJE_AGREGADO_SEGUIMIENTO : 'Quitado de seguimiento.');
 }
 
 // ─── Vista cliente: mis casos ─────────────────────────────────────────────────
 async function cargarMisCasos() {
-  misCasosActuales = await api.tablon.getMisCasos();
+  const [casos, config] = await Promise.all([
+    api.tablon.getMisCasos(),
+    api.tablon.getConfigTablon(),
+  ]);
+  misCasosActuales = casos;
+  const limite = config.find(c => c.clave === 'limite_publicaciones_diarias_cliente');
+  limitePublicacionesDiarias = limite?.valor != null ? Number(limite.valor) : null;
+
   renderizarMisCasos();
   actualizarAvisoLimiteCasos();
 }
 
 function actualizarAvisoLimiteCasos() {
+  const aviso = document.getElementById('avisoLimiteCasos');
+  const btnPublicar = document.getElementById('btnPublicarCaso');
+
+  if (limitePublicacionesDiarias == null) {
+    aviso.hidden = true;
+    btnPublicar.disabled = false;
+    return;
+  }
+
   const hoy = new Date().toDateString();
   const publicadosHoy = misCasosActuales.filter(c => new Date(c.created_at).toDateString() === hoy).length;
-  const alcanzoLimite = publicadosHoy >= 2;
+  const alcanzoLimite = publicadosHoy >= limitePublicacionesDiarias;
 
-  document.getElementById('avisoLimiteCasos').hidden = !alcanzoLimite;
-  document.getElementById('btnPublicarCaso').disabled = alcanzoLimite;
+  aviso.textContent = `Ya publicó el máximo de ${limitePublicacionesDiarias} casos hoy. Podrá publicar de nuevo mañana.`;
+  aviso.hidden = !alcanzoLimite;
+  btnPublicar.disabled = alcanzoLimite;
 }
 
 function renderizarMisCasos() {
@@ -232,6 +252,14 @@ function generarCasoClienteCard(c) {
 }
 
 // ─── Vista cliente: publicar caso ─────────────────────────────────────────────
+// Reutilizada por el click en "Publicar caso" y por el acceso rápido del
+// dashboard cliente (?accion=publicar, ver panel-cliente.html).
+function abrirFormularioPublicar() {
+  formPublicarAbierto = true;
+  document.getElementById('formPublicarCaso').hidden = false;
+  document.getElementById('btnPublicarCaso').hidden = true;
+}
+
 function cerrarFormularioPublicar() {
   formPublicarAbierto = false;
   const form = document.getElementById('formPublicarCaso');

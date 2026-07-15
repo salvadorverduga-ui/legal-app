@@ -20,6 +20,8 @@ export function inicializarMenuPerfil({ rol, nombre, fotoPath, urlPerfilPublico 
   const nav = document.querySelector('.nav-usuario');
   if (!nav) return;
 
+  nav.insertAdjacentHTML('afterbegin', generarEnlacesRapidos(rol));
+
   const contenedor = document.createElement('div');
   contenedor.className = 'menu-desplegable menu-perfil';
   contenedor.id = 'menuPerfil';
@@ -77,6 +79,22 @@ export function actualizarAvatarMenuPerfil(fotoPath, nombre) {
   const el = document.getElementById('menuPerfilAvatar');
   if (!el) return;
   el.innerHTML = generarAvatarHtml(fotoPath, nombre);
+}
+
+// Estilo inline usado en todo el header para botones secundarios sobre el
+// fondo oscuro de .encabezado (mismo criterio que btnCerrarSesion/
+// btnIniciarSesion en busqueda.html y perfil-abogado.html).
+const ESTILO_BOTON_HEADER = 'border-color: rgba(255,255,255,0.4); color: rgba(255,255,255,0.85);';
+
+// El Tablón y En seguimiento son accesos comunes a cliente y abogado — se
+// insertan antes del avatar en cada página que usa este menú.
+function generarEnlacesRapidos(rol) {
+  if (rol !== 'cliente' && rol !== 'abogado') return '';
+  const rutaSeguimiento = `${rutaPanelPropio(rol)}?tab=seguimiento`;
+  return `
+    <a class="btn btn--secundario btn--sm" href="/pages/tablon" style="${ESTILO_BOTON_HEADER}">El Tablón</a>
+    <a class="btn btn--secundario btn--sm" href="${escaparAtrib(rutaSeguimiento)}" style="${ESTILO_BOTON_HEADER}">En seguimiento</a>
+  `;
 }
 
 function generarItems(rol, urlPerfilPublico) {

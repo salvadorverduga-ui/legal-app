@@ -5,7 +5,7 @@
 
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
-import { toast, mensajeAmigable, rutaPanelPropio, confirmar } from './utils.js';
+import { toast, mensajeAmigable, rutaPanelPropio, confirmar, MENSAJE_AGREGADO_SEGUIMIENTO } from './utils.js';
 import { inicializarNotificaciones } from './notificaciones.js';
 import { inicializarMenuPerfil } from './menu-perfil.js';
 
@@ -266,7 +266,7 @@ async function manejarToggleSeguimientoAplicacion(aplicacionId) {
   const entrada = aplicacionesActuales.find(a => a.id === aplicacionId);
   if (entrada) entrada.en_seguimiento_cliente = data.en_seguimiento_cliente;
   renderizarAplicaciones();
-  toast.info(data.en_seguimiento_cliente ? 'Agregado a seguimiento.' : 'Quitado de seguimiento.');
+  toast.info(data.en_seguimiento_cliente ? MENSAJE_AGREGADO_SEGUIMIENTO : 'Quitado de seguimiento.');
 }
 
 async function manejarElegirAbogado(aplicacionId) {
@@ -366,7 +366,7 @@ async function manejarToggleSeguimientoPropio() {
 
   casoActual.mi_seguimiento = data.en_seguimiento_abogado;
   renderizarVistaAbogado();
-  toast.info(data.en_seguimiento_abogado ? 'Agregado a seguimiento.' : 'Quitado de seguimiento.');
+  toast.info(data.en_seguimiento_abogado ? MENSAJE_AGREGADO_SEGUIMIENTO : 'Quitado de seguimiento.');
 }
 
 async function manejarSubmitAplicar(e) {

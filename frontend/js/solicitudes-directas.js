@@ -6,7 +6,7 @@
 
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
-import { toast, mensajeAmigable, rutaPanelPropio, confirmar } from './utils.js';
+import { toast, mensajeAmigable, rutaPanelPropio, confirmar, MENSAJE_AGREGADO_SEGUIMIENTO } from './utils.js';
 import { inicializarNotificaciones } from './notificaciones.js';
 import { inicializarMenuPerfil } from './menu-perfil.js';
 
@@ -70,6 +70,7 @@ async function inicializar() {
   rolActual = perfilActual.rol;
 
   document.getElementById('logoHeader').href = rutaPanelPropio(rolActual);
+  document.getElementById('btnVolverSolicitudes').href = `${rutaPanelPropio(rolActual)}?tab=solicitudes`;
   document.getElementById('btnVolverPanel').href = rutaPanelPropio(rolActual);
 
   let urlPerfilPublico;
@@ -127,6 +128,7 @@ async function cargarSolicitudes() {
   solicitudesActuales = rolActual === 'abogado'
     ? await api.solicitudes.getSolicitudesAbogado(ORIGEN)
     : await api.solicitudes.getSolicitudesCliente(ORIGEN);
+
   renderizarSolicitudes();
 }
 
@@ -483,7 +485,7 @@ async function manejarToggleSeguimiento(id) {
   renderizarSolicitudes();
   toast.info(
     (rolActual === 'abogado' ? data.en_seguimiento_abogado : data.en_seguimiento_cliente)
-      ? 'Agregado a seguimiento.'
+      ? MENSAJE_AGREGADO_SEGUIMIENTO
       : 'Quitado de seguimiento.'
   );
 }

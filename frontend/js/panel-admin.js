@@ -442,8 +442,10 @@ function generarLogItem(l) {
 // ─── Configuración: El Tablón ───────────────────────────────────────────────
 async function cargarConfigTablon() {
   const config = await api.tablon.getConfigTablon();
-  const limite = config.find(c => c.clave === 'limite_aplicaciones_abogado');
-  document.getElementById('limiteAplicacionesAbogado').value = limite?.valor ?? '';
+  const limiteAplicaciones = config.find(c => c.clave === 'limite_aplicaciones_abogado');
+  const limitePublicaciones = config.find(c => c.clave === 'limite_publicaciones_diarias_cliente');
+  document.getElementById('limiteAplicacionesAbogado').value = limiteAplicaciones?.valor ?? '';
+  document.getElementById('limitePublicacionesDiariasCliente').value = limitePublicaciones?.valor ?? '';
 }
 
 async function manejarSubmitConfigTablon(e) {
@@ -455,18 +457,21 @@ async function manejarSubmitConfigTablon(e) {
   errorEl.textContent = '';
   exitoEl.hidden = true;
 
-  const valorCampo = document.getElementById('limiteAplicacionesAbogado').value.trim();
-  const valor = valorCampo === '' ? null : valorCampo;
+  const valorAplicaciones = document.getElementById('limiteAplicacionesAbogado').value.trim() || null;
+  const valorPublicaciones = document.getElementById('limitePublicacionesDiariasCliente').value.trim() || null;
 
   btnGuardar.disabled = true;
   btnGuardar.textContent = 'Guardando...';
 
-  const { error } = await api.tablon.actualizarConfigTablon('limite_aplicaciones_abogado', valor);
+  const [{ error: errorAplicaciones }, { error: errorPublicaciones }] = await Promise.all([
+    api.tablon.actualizarConfigTablon('limite_aplicaciones_abogado', valorAplicaciones),
+    api.tablon.actualizarConfigTablon('limite_publicaciones_diarias_cliente', valorPublicaciones),
+  ]);
 
   btnGuardar.disabled = false;
   btnGuardar.textContent = 'Guardar';
 
-  if (error) {
+  if (errorAplicaciones || errorPublicaciones) {
     errorEl.textContent = 'No se pudo guardar la configuración. Intente de nuevo.';
     toast.error(errorEl.textContent);
     return;

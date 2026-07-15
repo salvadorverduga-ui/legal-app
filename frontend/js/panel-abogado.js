@@ -4,7 +4,7 @@
 
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
-import { toast, mensajeAmigable, rutaPanelPropio } from './utils.js';
+import { toast, mensajeAmigable, rutaPanelPropio, MENSAJE_AGREGADO_SEGUIMIENTO } from './utils.js';
 import { inicializarNotificaciones } from './notificaciones.js';
 import { inicializarMenuPerfil, actualizarAvatarMenuPerfil } from './menu-perfil.js';
 
@@ -696,7 +696,7 @@ async function manejarToggleSeguimiento(id) {
   const misSeguimientos = await api.seguimiento.getMisSeguimientos();
   renderizarSeguimiento(misSeguimientos);
 
-  toast.info(data.en_seguimiento_abogado ? 'Agregado a seguimiento.' : 'Quitado de seguimiento.');
+  toast.info(data.en_seguimiento_abogado ? MENSAJE_AGREGADO_SEGUIMIENTO : 'Quitado de seguimiento.');
 }
 
 // ─── En seguimiento ───────────────────────────────────────────────────────────
