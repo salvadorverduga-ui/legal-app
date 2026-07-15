@@ -59,8 +59,7 @@ const SECCIONES = ['Inicio', 'Solicitudes', 'Resenas', 'Suscripcion', 'Seguimien
 // ─── Estado de la página ──────────────────────────────────────────────────────
 let perfilActual = null;         // fila propia de la tabla perfiles
 let abogadoActual = null;        // fila propia de la tabla abogados
-let solicitudesActuales = [];    // caché local; las acciones actualizan sin refetch
-let estadoFiltroActivo = '';     // '' = todas
+let solicitudesActuales = [];    // caché local: cuenta de pendientes en Inicio y estado de seguimiento
 let provinciasCache = [];        // catálogo de provincias, cargado una vez
 let zonasServicioSeleccionadas = new Map(); // provincia_id -> canton_id|null de las zonas adicionales marcadas
 let cantonesPorProvinciaCache = new Map();  // provincia_id -> cantones[], evita refetch al re-renderizar
@@ -176,12 +175,6 @@ function configurarEventos() {
 
   document.getElementById('perfilProvincia').addEventListener('change', manejarCambioProvinciaPrincipal);
   document.getElementById('zonasServicioPerfil').addEventListener('change', manejarCambioZonaServicio);
-
-  document.querySelectorAll('#seccionSolicitudes .filtro-tipo__btn').forEach(btn => {
-    btn.addEventListener('click', () => cambiarFiltroSolicitudes(btn.dataset.estado));
-  });
-
-  document.getElementById('solicitudesLista').addEventListener('click', manejarClickSolicitudes);
 
   document.getElementById('seccionSeguimiento').addEventListener('click', manejarClickSeguimiento);
 }
@@ -585,32 +578,11 @@ async function manejarGuardarPerfil() {
 }
 
 // ─── Solicitudes ──────────────────────────────────────────────────────────────
+// Solo alimenta el conteo de pendientes en Inicio y la caché usada por el
+// toggle de seguimiento — el listado y las acciones (aceptar/rechazar) viven
+// ahora en solicitudes-directas.html/solicitudes-tablon.html (ver CLAUDE.md §17/módulo 1).
 async function cargarSolicitudes() {
   solicitudesActuales = await api.solicitudes.getSolicitudesAbogado();
-  renderizarSolicitudes();
-}
-
-function cambiarFiltroSolicitudes(estado) {
-  estadoFiltroActivo = estado;
-  document.querySelectorAll('#seccionSolicitudes .filtro-tipo__btn').forEach(btn => {
-    btn.classList.toggle('filtro-tipo__btn--activo', btn.dataset.estado === estado);
-  });
-  renderizarSolicitudes();
-}
-
-function renderizarSolicitudes() {
-  const lista = solicitudesActuales.filter(s => !estadoFiltroActivo || s.estado === estadoFiltroActivo);
-  const contenedor = document.getElementById('solicitudesLista');
-  const vacio = document.getElementById('estadoSinSolicitudes');
-
-  if (lista.length === 0) {
-    contenedor.innerHTML = '';
-    vacio.hidden = false;
-    return;
-  }
-
-  vacio.hidden = true;
-  contenedor.innerHTML = lista.map(generarSolicitudCard).join('');
 }
 
 function generarSolicitudCard(s) {
@@ -700,56 +672,6 @@ function generarSolicitudCard(s) {
   `;
 }
 
-function manejarClickSolicitudes(e) {
-  const btn = e.target.closest('[data-accion]');
-  if (!btn) return;
-
-  const { accion, id } = btn.dataset;
-
-  if (accion === 'aceptar') manejarAceptarSolicitud(id);
-  if (accion === 'mostrar-rechazo') document.getElementById(`rechazo-${id}`).hidden = false;
-  if (accion === 'cancelar-rechazo') document.getElementById(`rechazo-${id}`).hidden = true;
-  if (accion === 'confirmar-rechazo') {
-    const motivo = document.getElementById(`motivo-${id}`).value;
-    manejarRechazarSolicitud(id, motivo);
-  }
-  if (accion === 'toggle-seguimiento') manejarToggleSeguimiento(id);
-}
-
-async function manejarAceptarSolicitud(id) {
-  const errorEl = document.getElementById('errorSolicitudes');
-  errorEl.textContent = '';
-
-  const { data, error } = await api.solicitudes.aceptarSolicitud(id);
-  if (error) {
-    const mensaje = mensajeAmigable(error, 'No se pudo aceptar la solicitud. Intente de nuevo.');
-    errorEl.textContent = mensaje;
-    toast.error(mensaje);
-    return;
-  }
-
-  actualizarSolicitudLocal(id, data);
-  renderizarSolicitudes();
-  toast.exito('Solicitud aceptada.');
-}
-
-async function manejarRechazarSolicitud(id, motivo) {
-  const errorEl = document.getElementById('errorSolicitudes');
-  errorEl.textContent = '';
-
-  const { data, error } = await api.solicitudes.rechazarSolicitud(id, motivo);
-  if (error) {
-    const mensaje = mensajeAmigable(error, 'No se pudo rechazar la solicitud. Intente de nuevo.');
-    errorEl.textContent = mensaje;
-    toast.error(mensaje);
-    return;
-  }
-
-  actualizarSolicitudLocal(id, data);
-  renderizarSolicitudes();
-  toast.info('Solicitud rechazada.');
-}
-
 function actualizarSolicitudLocal(id, datosActualizados) {
   const entrada = solicitudesActuales.find(s => s.id === id);
   if (entrada) Object.assign(entrada, datosActualizados);
@@ -770,7 +692,6 @@ async function manejarToggleSeguimiento(id) {
   }
 
   actualizarSolicitudLocal(id, data);
-  renderizarSolicitudes();
 
   const misSeguimientos = await api.seguimiento.getMisSeguimientos();
   renderizarSeguimiento(misSeguimientos);

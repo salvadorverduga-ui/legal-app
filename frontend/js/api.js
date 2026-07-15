@@ -861,16 +861,23 @@ export const solicitudes = {
   },
 
   /**
-   * Retorna todas las solicitudes del cliente autenticado.
+   * Retorna las solicitudes del cliente autenticado.
    * Usa la vista panel_solicitudes_cliente para incluir datos públicos del abogado.
+   * origen: 'directa' (caso_tablon_id NULL), 'tablon' (caso_tablon_id NOT NULL)
+   * o undefined (todas, sin filtrar por origen).
    * Ordenadas por created_at DESC.
    * Retorna array de solicitudes con estado, abogado_nombre, abogado_rating, tiene_resena.
    */
-  async getSolicitudesCliente() {
-    const { data, error } = await _cliente
+  async getSolicitudesCliente(origen) {
+    let query = _cliente
       .from('panel_solicitudes_cliente')
       .select('*')
       .order('created_at', { ascending: false });
+
+    if (origen === 'directa') query = query.is('caso_tablon_id', null);
+    if (origen === 'tablon') query = query.not('caso_tablon_id', 'is', null);
+
+    const { data, error } = await query;
 
     if (error) {
       console.error('[api.solicitudes.getSolicitudesCliente]', error.message);
@@ -880,17 +887,24 @@ export const solicitudes = {
   },
 
   /**
-   * Retorna todas las solicitudes dirigidas al abogado autenticado.
+   * Retorna las solicitudes dirigidas al abogado autenticado.
    * Usa la vista panel_solicitudes_abogado.
    * cliente_telefono y cliente_email son null en estado PENDIENTE;
    * el trigger fn_revelar_contacto_al_aceptar los completa al aceptar.
+   * origen: 'directa' (caso_tablon_id NULL), 'tablon' (caso_tablon_id NOT NULL)
+   * o undefined (todas, sin filtrar por origen).
    * Ordenadas por created_at DESC.
    */
-  async getSolicitudesAbogado() {
-    const { data, error } = await _cliente
+  async getSolicitudesAbogado(origen) {
+    let query = _cliente
       .from('panel_solicitudes_abogado')
       .select('*')
       .order('created_at', { ascending: false });
+
+    if (origen === 'directa') query = query.is('caso_tablon_id', null);
+    if (origen === 'tablon') query = query.not('caso_tablon_id', 'is', null);
+
+    const { data, error } = await query;
 
     if (error) {
       console.error('[api.solicitudes.getSolicitudesAbogado]', error.message);

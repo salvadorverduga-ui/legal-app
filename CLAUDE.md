@@ -70,8 +70,10 @@ legal-app/
 │   │   ├── cambiar-contrasena.js   ← lógica de cambiar-contrasena.html (usuario ya autenticado, ver §18)
 │   │   ├── contacto.js        ← lógica de contacto.html (sin Supabase; envía a /api/contacto)
 │   │   ├── tablon.js          ← lógica de tablon.html: publicar casos y listar casos activos (ver §17)
-│   │   ├── tablon-caso.js     ← lógica de tablon-caso.html: detalle de un caso puntual (ver §17)
-│   │   └── referidos.js       ← lógica de referidos.html: programa de referidos (ver §20)
+│   │   ├── tablon-caso.js     ← lógica de tablon-caso.html: detalle de un caso puntual (ver §17/§22)
+│   │   ├── referidos.js       ← lógica de referidos.html: programa de referidos (ver §20)
+│   │   ├── solicitudes-directas.js ← lógica de solicitudes-directas.html (ver §22)
+│   │   └── solicitudes-tablon.js   ← lógica de solicitudes-tablon.html (ver §22)
 │   └── pages/
 │       ├── busqueda.html
 │       ├── perfil-abogado.html
@@ -84,8 +86,10 @@ legal-app/
 │       ├── cambiar-contrasena.html ← cambio de contraseña desde el panel (usuario ya autenticado, ver §18)
 │       ├── contacto.html
 │       ├── tablon.html        ← "El Tablón": publicar casos, listado de casos activos (ver §17)
-│       ├── tablon-caso.html   ← detalle de un caso puntual: aplicantes, elegir, aplicar, cerrar (ver §17)
-│       └── referidos.html     ← programa de referidos, solo abogados (ver §20)
+│       ├── tablon-caso.html   ← detalle de un caso puntual: aplicantes, elegir, aplicar, cerrar (ver §17/§22)
+│       ├── referidos.html     ← programa de referidos, solo abogados (ver §20)
+│       ├── solicitudes-directas.html ← listado con filtros de solicitudes normales, cliente o abogado (ver §22)
+│       └── solicitudes-tablon.html   ← listado con filtros de solicitudes originadas en El Tablón (ver §22)
 ├── supabase/
 │   ├── config.toml            ← project_id para el Supabase CLI (link/deploy)
 │   ├── migrations/            ← archivos SQL en orden cronológico
@@ -572,6 +576,29 @@ Mismo patrón que `20260707_025_notificaciones.sql` (§ módulo 5 en §15): trig
 - El badge de la campana cuenta únicamente las no leídas (`api.notificaciones.getNoLeidas().length`, sigue siendo una consulta separada e independiente de la lista de 7 — puede haber más no leídas de las que caben en el dropdown).
 - El botón "Marcar todas como leídas" se movió del header del dropdown a un pie fijo debajo de la lista (`#notificacionesPie`), oculto si no hay ninguna notificación.
 - Las URLs de destino (tabla de arriba) las genera cada trigger de la base de datos directamente en `url_destino` al insertar — `notificaciones.js` nunca mapea `tipo → URL` en el cliente, solo navega a `n.url_destino` tal cual (mismo patrón que ya usaban `nueva_solicitud`/`solicitud_aceptada`/etc. desde la migración 025).
+
+---
+
+## 22. Solicitudes directas vs. solicitudes de El Tablón
+
+### Qué es
+La pestaña "Solicitudes" de `panel-cliente.html`/`panel-abogado.html` ya no lista solicitudes con filtros de estado inline — ahora muestra dos tarjetas grandes ("Solicitudes directas" / "Solicitudes del Tablón") que llevan a páginas independientes:
+- `frontend/pages/solicitudes-directas.html` (`/pages/solicitudes-directas`) — solicitudes normales, enviadas desde búsqueda/perfil público.
+- `frontend/pages/solicitudes-tablon.html` (`/pages/solicitudes-tablon`) — solicitudes originadas al elegir un aplicante en El Tablón (§17).
+
+Ambas páginas son de rol dual (cliente o abogado, igual que `tablon.html`) y conservan el listado completo con filtros de estado, acciones y el toggle de seguimiento que antes vivían en la pestaña del panel.
+
+### Modelo de datos (migración `20260714_049_caso_tablon_id_solicitudes.sql`)
+`solicitudes` no tenía ninguna columna que la vinculara de vuelta al caso de El Tablón que la originó — `fn_crear_solicitud_desde_tablon` (047) solo copiaba título/descripción como texto libre en `descripcion_caso`. La 049 agrega `solicitudes.caso_tablon_id` (FK a `casos_tablon`, NULL para solicitudes directas) y la completa en el mismo INSERT del trigger. `panel_solicitudes_abogado`/`panel_solicitudes_cliente` exponen la columna (agregada al final del SELECT — `CREATE OR REPLACE VIEW` exige conservar nombre/orden/tipo de las columnas existentes, mismo criterio que la migración 039).
+
+`api.solicitudes.getSolicitudesAbogado(origen)`/`getSolicitudesCliente(origen)` (`frontend/js/api.js`) aceptan `'directa'` (`.is('caso_tablon_id', null)`), `'tablon'` (`.not('caso_tablon_id', 'is', null)`) o ningún argumento (sin filtrar — así es como `panel-abogado.js`/`panel-cliente.js` siguen usándolo para el conteo de pendientes/activas en Inicio).
+
+### Por qué una solicitud de El Tablón nunca puede estar PENDIENTE/RECHAZADA/EXPIRADA/CANCELADA
+`fn_crear_solicitud_desde_tablon` inserta la fila y en el mismo trigger la mueve a `ACEPTADA` (fix 047, para reutilizar `fn_revelar_contacto_al_aceptar`). Como nunca pasa por `PENDIENTE`, ninguna de las transiciones que dependen de ese estado (`abogado_responde_solicitud` → RECHAZADA, el cron de expiración → EXPIRADA, `cliente_cancela_solicitud` → CANCELADA, ni la edición de `descripcion_caso`/`disponibilidad_horaria` vía `cliente_edita_solicitud_pendiente`) es alcanzable. Por eso `solicitudes-tablon.js` no incluye botones de aceptar/rechazar/cancelar/editar en ninguna de las dos vistas de rol — existen solo en `solicitudes-directas.js`, donde sí aplican.
+
+### Frontend
+- `frontend/js/solicitudes-directas.js` y `frontend/js/solicitudes-tablon.js` son independientes entre sí (mismo criterio de páginas autocontenidas que `tablon.js`/`tablon-caso.js`, §17): cada uno resuelve el rol (`perfiles.rol`) al cargar y renderiza la tarjeta de solicitud correspondiente (abogado ve datos del cliente y acciones sobre la solicitud entrante; cliente ve datos del abogado y acciones sobre su propia solicitud).
+- En `solicitudes-tablon.js`, cada tarjeta agrega un enlace "Ver caso en El Tablón" (`/pages/tablon-caso?id=<caso_tablon_id>`) y, del lado del abogado, revela nombre completo/correo/teléfono del cliente en cuanto la solicitud está `ACEPTADA` (siempre lo está, salvo el instante de creación) — mismo bloque de contacto que ya usaba `panel-abogado.js`.
 
 ---
 

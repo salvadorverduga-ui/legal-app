@@ -175,26 +175,15 @@
         <!-- ═══════════════ SECCIÓN: MIS SOLICITUDES ═══════════════ -->
         <section class="panel-seccion" id="seccionSolicitudes" role="tabpanel" aria-labelledby="tabSolicitudes" hidden>
 
-          <div class="filtro-tipo" role="group" aria-label="Filtrar solicitudes por estado">
-            <span class="filtro-tipo__label">Estado:</span>
-            <button class="filtro-tipo__btn filtro-tipo__btn--activo" data-estado="" type="button">Todas</button>
-            <button class="filtro-tipo__btn" data-estado="PENDIENTE" type="button">Pendientes</button>
-            <button class="filtro-tipo__btn" data-estado="ACEPTADA" type="button">Aceptadas</button>
-            <button class="filtro-tipo__btn" data-estado="COMPLETADA" type="button">Completadas</button>
-            <button class="filtro-tipo__btn" data-estado="RESEÑADA" type="button">Reseñadas</button>
-            <button class="filtro-tipo__btn" data-estado="RECHAZADA" type="button">Rechazadas</button>
-            <button class="filtro-tipo__btn" data-estado="EXPIRADA" type="button">Expiradas</button>
-            <button class="filtro-tipo__btn" data-estado="CANCELADA" type="button">Canceladas</button>
-          </div>
-
-          <p class="campo__error" id="errorSolicitudes" role="alert" aria-live="polite"></p>
-
-          <div class="solicitudes-lista" id="solicitudesLista"></div>
-
-          <div class="estado-vacio" id="estadoSinSolicitudes" hidden>
-            <p class="estado-vacio__titulo">Aún no ha enviado ninguna solicitud</p>
-            <p>Busque un abogado para comenzar.</p>
-            <a href="/pages/busqueda" class="btn btn--primario estado-vacio__cta">Buscar un abogado</a>
+          <div class="opciones-solicitudes">
+            <a href="/pages/solicitudes-directas" class="opcion-solicitudes">
+              <span class="opcion-solicitudes__titulo">Solicitudes directas</span>
+              <span class="opcion-solicitudes__descripcion">Consultas que envió directamente a un abogado</span>
+            </a>
+            <a href="/pages/solicitudes-tablon" class="opcion-solicitudes">
+              <span class="opcion-solicitudes__titulo">Solicitudes del Tablón</span>
+              <span class="opcion-solicitudes__descripcion">Casos del Tablón donde eligió un abogado</span>
+            </a>
           </div>
         </section>
 

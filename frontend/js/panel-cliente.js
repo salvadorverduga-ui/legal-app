@@ -4,7 +4,7 @@
 
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
-import { toast, mensajeAmigable, rutaPanelPropio, confirmar } from './utils.js';
+import { toast, mensajeAmigable, rutaPanelPropio } from './utils.js';
 import { inicializarNotificaciones } from './notificaciones.js';
 import { inicializarMenuPerfil, actualizarAvatarMenuPerfil } from './menu-perfil.js';
 
@@ -45,10 +45,12 @@ const SECCIONES = ['Inicio', 'Solicitudes', 'Abogados', 'Resenas', 'Seguimiento'
 
 // ─── Estado de la página ──────────────────────────────────────────────────────
 let perfilActual = null;         // fila propia de la tabla perfiles
-let solicitudesActuales = [];    // caché local; las acciones actualizan sin refetch
-let estadoFiltroActivo = '';     // '' = todas
-let solicitudConFormularioAbierto = null; // id de la solicitud con el form de reseña visible
-let solicitudConEdicionAbierta = null;    // id de la solicitud con el form de edición visible
+let solicitudesActuales = [];    // caché local: cuenta de activas en Inicio y estado de seguimiento
+// generarSolicitudCard() (compartida con la pestaña "En seguimiento") revisa estos dos
+// valores para decidir si el form de reseña/edición va abierto; en este archivo nunca
+// se les asigna otra cosa que null, así que esas tarjetas siempre nacen cerradas.
+const solicitudConFormularioAbierto = null;
+const solicitudConEdicionAbierta = null;
 
 // ─── Entry point ─────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', inicializar);
@@ -122,15 +124,6 @@ function configurarEventos() {
   document.querySelectorAll('[data-ir-a-tab]').forEach(el => {
     el.addEventListener('click', () => cambiarTab(el.dataset.irATab));
   });
-
-  document.querySelectorAll('#seccionSolicitudes .filtro-tipo__btn').forEach(btn => {
-    btn.addEventListener('click', () => cambiarFiltroSolicitudes(btn.dataset.estado));
-  });
-
-  document.getElementById('solicitudesLista').addEventListener('click', manejarClickSolicitudes);
-  document.getElementById('solicitudesLista').addEventListener('submit', manejarSubmitResena);
-  document.getElementById('solicitudesLista').addEventListener('submit', manejarSubmitEditar);
-  document.getElementById('solicitudesLista').addEventListener('input', manejarInputSolicitudes);
 
   document.getElementById('seccionSeguimiento').addEventListener('click', manejarClickSeguimiento);
 
@@ -278,32 +271,12 @@ async function manejarGuardarPerfil() {
 }
 
 // ─── Solicitudes ──────────────────────────────────────────────────────────────
+// Solo alimenta el conteo de activas en Inicio y la caché usada por el
+// toggle de seguimiento — el listado y las acciones (completar/cancelar/editar/
+// reseñar) viven ahora en solicitudes-directas.html/solicitudes-tablon.html
+// (ver CLAUDE.md §17/módulo 1).
 async function cargarSolicitudes() {
   solicitudesActuales = await api.solicitudes.getSolicitudesCliente();
-  renderizarSolicitudes();
-}
-
-function cambiarFiltroSolicitudes(estado) {
-  estadoFiltroActivo = estado;
-  document.querySelectorAll('#seccionSolicitudes .filtro-tipo__btn').forEach(btn => {
-    btn.classList.toggle('filtro-tipo__btn--activo', btn.dataset.estado === estado);
-  });
-  renderizarSolicitudes();
-}
-
-function renderizarSolicitudes() {
-  const lista = solicitudesActuales.filter(s => !estadoFiltroActivo || s.estado === estadoFiltroActivo);
-  const contenedor = document.getElementById('solicitudesLista');
-  const vacio = document.getElementById('estadoSinSolicitudes');
-
-  if (lista.length === 0) {
-    contenedor.innerHTML = '';
-    vacio.hidden = false;
-    return;
-  }
-
-  vacio.hidden = true;
-  contenedor.innerHTML = lista.map(generarSolicitudCard).join('');
 }
 
 function generarSolicitudCard(s) {
@@ -475,33 +448,6 @@ function generarOpcionesDisponibilidad(idSeguro, seleccionActual) {
   }).join('');
 }
 
-function manejarClickSolicitudes(e) {
-  const btn = e.target.closest('[data-accion]');
-  if (!btn) return;
-
-  const { accion, id } = btn.dataset;
-
-  if (accion === 'marcar-completada') manejarMarcarCompletada(id);
-  if (accion === 'cancelar-solicitud') manejarCancelarSolicitud(id);
-  if (accion === 'mostrar-resena') {
-    solicitudConFormularioAbierto = id;
-    renderizarSolicitudes();
-  }
-  if (accion === 'cancelar-resena') {
-    solicitudConFormularioAbierto = null;
-    renderizarSolicitudes();
-  }
-  if (accion === 'mostrar-editar') {
-    solicitudConEdicionAbierta = id;
-    renderizarSolicitudes();
-  }
-  if (accion === 'cancelar-editar') {
-    solicitudConEdicionAbierta = null;
-    renderizarSolicitudes();
-  }
-  if (accion === 'toggle-seguimiento') manejarToggleSeguimiento(id);
-}
-
 function manejarClickSeguimiento(e) {
   const btn = e.target.closest('[data-accion="toggle-seguimiento"]');
   if (!btn) return;
@@ -518,7 +464,6 @@ async function manejarToggleSeguimiento(id) {
 
   const entrada = solicitudesActuales.find(s => s.id === id);
   if (entrada) Object.assign(entrada, data);
-  renderizarSolicitudes();
 
   const misSeguimientos = await api.seguimiento.getMisSeguimientos();
   renderizarSeguimiento(misSeguimientos);
@@ -570,134 +515,6 @@ function generarCasoSeguimientoCard(c) {
       </div>
     </article>
   `;
-}
-
-function manejarInputSolicitudes(e) {
-  const textarea = e.target.closest('.formulario-edicion textarea');
-  if (!textarea) return;
-
-  const form = textarea.closest('.formulario-edicion');
-  const contador = document.getElementById(`contadorEditar-${form.dataset.id}`);
-  if (contador) contador.textContent = `${textarea.value.length} / 500`;
-}
-
-async function manejarMarcarCompletada(id) {
-  const errorEl = document.getElementById('errorSolicitudes');
-  errorEl.textContent = '';
-
-  const { data, error } = await api.solicitudes.completarSolicitud(id);
-  if (error) {
-    const mensaje = mensajeAmigable(error, 'No se pudo marcar la consulta como completada. Intente de nuevo.');
-    errorEl.textContent = mensaje;
-    toast.error(mensaje);
-    return;
-  }
-
-  const entrada = solicitudesActuales.find(s => s.id === id);
-  if (entrada) Object.assign(entrada, data);
-  renderizarSolicitudes();
-  toast.exito('Consulta marcada como completada.');
-}
-
-async function manejarCancelarSolicitud(id) {
-  const confirmado = await confirmar('¿Cancelar esta solicitud? Esta acción no se puede deshacer.');
-  if (!confirmado) return;
-
-  const errorEl = document.getElementById('errorSolicitudes');
-  errorEl.textContent = '';
-
-  const { data, error } = await api.solicitudes.cancelar(id);
-  if (error) {
-    const mensaje = mensajeAmigable(error, 'No se pudo cancelar la solicitud. Intente de nuevo.');
-    errorEl.textContent = mensaje;
-    toast.error(mensaje);
-    return;
-  }
-
-  const entrada = solicitudesActuales.find(s => s.id === id);
-  if (entrada) Object.assign(entrada, data);
-  renderizarSolicitudes();
-  toast.exito('Solicitud cancelada.');
-}
-
-async function manejarSubmitResena(e) {
-  const form = e.target.closest('.formulario-resena');
-  if (!form) return;
-  e.preventDefault();
-
-  const id = form.dataset.id;
-  const errorEl = document.getElementById(`errorResena-${id}`);
-  const btnEnviar = form.querySelector('button[type="submit"]');
-  errorEl.textContent = '';
-
-  const calificacionSeleccionada = form.querySelector(`input[name="calificacion-${id}"]:checked`);
-  if (!calificacionSeleccionada) {
-    errorEl.textContent = 'Seleccione una calificación de 1 a 5 estrellas.';
-    return;
-  }
-
-  const calificacion = Number(calificacionSeleccionada.value);
-  const comentario = document.getElementById(`comentario-${id}`).value.trim();
-
-  btnEnviar.disabled = true;
-  btnEnviar.textContent = 'Enviando...';
-
-  const { data, error } = await api.resenas.crearResena(id, { calificacion, comentario });
-
-  if (error) {
-    const mensaje = mensajeAmigable(error, 'No se pudo enviar la reseña. Intente de nuevo.');
-    errorEl.textContent = mensaje;
-    toast.error(mensaje);
-    btnEnviar.disabled = false;
-    btnEnviar.textContent = 'Enviar reseña';
-    return;
-  }
-
-  const entrada = solicitudesActuales.find(s => s.id === id);
-  if (entrada) {
-    entrada.tiene_resena = true;
-    entrada.estado = 'RESEÑADA';
-  }
-  solicitudConFormularioAbierto = null;
-  renderizarSolicitudes();
-  toast.exito('Reseña enviada.');
-
-  const resenas = await api.resenas.getMisResenas();
-  renderizarResenas(resenas);
-}
-
-async function manejarSubmitEditar(e) {
-  const form = e.target.closest('.formulario-edicion');
-  if (!form) return;
-  e.preventDefault();
-
-  const id = form.dataset.id;
-  const errorEl = document.getElementById(`errorEditar-${id}`);
-  const btnGuardar = form.querySelector('button[type="submit"]');
-  errorEl.textContent = '';
-
-  const descripcion_caso = document.getElementById(`descripcion-editar-${id}`).value.trim();
-  const disponibilidad_horaria = form.querySelector(`input[name="disponibilidad-editar-${id}"]:checked`)?.value ?? '';
-
-  btnGuardar.disabled = true;
-  btnGuardar.textContent = 'Guardando...';
-
-  const { data, error } = await api.solicitudes.editar(id, { descripcion_caso, disponibilidad_horaria });
-
-  if (error) {
-    const mensaje = mensajeAmigable(error, 'No se pudo guardar la solicitud. Intente de nuevo.');
-    errorEl.textContent = mensaje;
-    toast.error(mensaje);
-    btnGuardar.disabled = false;
-    btnGuardar.textContent = 'Guardar cambios';
-    return;
-  }
-
-  const entrada = solicitudesActuales.find(s => s.id === id);
-  if (entrada) Object.assign(entrada, data);
-  solicitudConEdicionAbierta = null;
-  renderizarSolicitudes();
-  toast.exito('Solicitud actualizada.');
 }
 
 // ─── Mis abogados ─────────────────────────────────────────────────────────────

@@ -142,23 +142,15 @@
         <!-- ═══════════════ SECCIÓN: SOLICITUDES ═══════════════ -->
         <section class="panel-seccion" id="seccionSolicitudes" role="tabpanel" aria-labelledby="tabSolicitudes" hidden>
 
-          <div class="filtro-tipo" role="group" aria-label="Filtrar solicitudes por estado">
-            <span class="filtro-tipo__label">Estado:</span>
-            <button class="filtro-tipo__btn filtro-tipo__btn--activo" data-estado="" type="button">Todas</button>
-            <button class="filtro-tipo__btn" data-estado="PENDIENTE" type="button">Pendientes</button>
-            <button class="filtro-tipo__btn" data-estado="ACEPTADA" type="button">Aceptadas</button>
-            <button class="filtro-tipo__btn" data-estado="COMPLETADA" type="button">Completadas</button>
-            <button class="filtro-tipo__btn" data-estado="RECHAZADA" type="button">Rechazadas</button>
-            <button class="filtro-tipo__btn" data-estado="EXPIRADA" type="button">Expiradas</button>
-            <button class="filtro-tipo__btn" data-estado="CANCELADA" type="button">Canceladas</button>
-          </div>
-
-          <p class="campo__error" id="errorSolicitudes" role="alert" aria-live="polite"></p>
-
-          <div class="solicitudes-lista" id="solicitudesLista"></div>
-
-          <div class="estado-vacio" id="estadoSinSolicitudes" hidden>
-            <p>No hay solicitudes en este estado.</p>
+          <div class="opciones-solicitudes">
+            <a href="/pages/solicitudes-directas" class="opcion-solicitudes">
+              <span class="opcion-solicitudes__titulo">Solicitudes directas</span>
+              <span class="opcion-solicitudes__descripcion">Consultas que los clientes le enviaron directamente</span>
+            </a>
+            <a href="/pages/solicitudes-tablon" class="opcion-solicitudes">
+              <span class="opcion-solicitudes__titulo">Solicitudes del Tablón</span>
+              <span class="opcion-solicitudes__descripcion">Casos del Tablón en los que fue elegido</span>
+            </a>
           </div>
         </section>
 

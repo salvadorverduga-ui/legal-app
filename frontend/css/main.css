@@ -2085,6 +2085,47 @@ p {
   }
 }
 
+/* ── Pestaña "Solicitudes": elegir directas vs. El Tablón ──── */
+.opciones-solicitudes {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--esp-4);
+}
+
+.opcion-solicitudes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-2);
+  background-color: var(--color-fondo-card);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-lg);
+  padding: var(--esp-5) var(--esp-6);
+  box-shadow: var(--sombra-sm);
+  transition: border-color var(--transicion), box-shadow var(--transicion);
+}
+
+.opcion-solicitudes:hover,
+.opcion-solicitudes:focus-visible {
+  border-color: var(--color-primario);
+  box-shadow: var(--sombra-md);
+}
+
+.opcion-solicitudes__titulo {
+  font-size: var(--texto-lg);
+  font-weight: var(--peso-semibold);
+  color: var(--color-primario);
+}
+
+.opcion-solicitudes__descripcion {
+  color: var(--color-texto-suave);
+}
+
+@media (min-width: 640px) {
+  .opciones-solicitudes {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 .panel-inicio__seccion-titulo {
   font-size: var(--texto-base);
   font-weight: var(--peso-semibold);
