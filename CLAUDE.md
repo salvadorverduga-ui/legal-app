@@ -77,7 +77,8 @@ legal-app/
 │   │   ├── solicitudes-tablon.js   ← lógica de solicitudes-tablon.html (ver §22)
 │   │   ├── editar-perfil-cliente.js ← lógica de editar-perfil-cliente.html, página independiente (ver §27)
 │   │   ├── editar-perfil-abogado.js ← lógica de editar-perfil-abogado.html, página independiente (ver §27)
-│   │   └── notificaciones-pagina.js ← lógica de notificaciones.html: todas las notificaciones, agrupadas y paginadas (ver §31)
+│   │   ├── notificaciones-pagina.js ← lógica de notificaciones.html: todas las notificaciones, agrupadas y paginadas (ver §31)
+│   │   └── configuracion-cuenta.js  ← lógica de configuracion-cuenta.html: usuarios bloqueados y preferencias (ver §38)
 │   └── pages/
 │       ├── busqueda.html
 │       ├── perfil-abogado.html
@@ -97,7 +98,8 @@ legal-app/
 │       ├── solicitudes-tablon.html   ← listado con filtros de solicitudes originadas en El Tablón (ver §22)
 │       ├── editar-perfil-cliente.html ← edición de perfil de cliente, página independiente (ver §27)
 │       ├── editar-perfil-abogado.html ← edición de perfil de abogado, página independiente (ver §27)
-│       └── notificaciones.html        ← todas las notificaciones del usuario, agrupadas por fecha y paginadas (ver §31)
+│       ├── notificaciones.html        ← todas las notificaciones del usuario, agrupadas por fecha y paginadas (ver §31)
+│       └── configuracion-cuenta.html  ← usuarios bloqueados (desbloquear) y preferencias (placeholder) (ver §38)
 ├── supabase/
 │   ├── config.toml            ← project_id para el Supabase CLI (link/deploy)
 │   ├── migrations/            ← archivos SQL en orden cronológico
@@ -900,6 +902,18 @@ Mismos seis lugares del corazón (§36), con las opciones que tiene sentido en c
 
 ### CSS: `.card-abogado__acciones-esquina` y `.solicitud-item__header-derecha`
 `.card-abogado .btn-favorito` ya no se posiciona `absolute` por sí solo — ahora hay un wrapper `.card-abogado__acciones-esquina` (flex, position:absolute en la esquina superior derecha) que agrupa el corazón y el menú para que no se superpongan. `.perfil-header .btn-favorito` no cambió (ese layout de esquinas opuestas, corazón/menú, es específico de esa página y ya funcionaba). `.solicitud-item__header-derecha` (nueva en §36) ahora también agrupa el menú junto al badge y al corazón cuando los tres coexisten.
+
+---
+
+## 38. Página de configuración de cuenta ("Mis bloqueos")
+
+### Migración `20260724_059_mis_bloqueos_vista.sql`
+`api.bloqueos.getMisBloqueos()` (§33) solo consultaba la tabla `bloqueos` directamente (`SELECT *`) — retornaba `bloqueador_id`/`bloqueado_id`/`created_at`, sin nombre ni foto del usuario bloqueado, que la nueva sección "Usuarios bloqueados" sí necesita. Nueva vista `mis_bloqueos`, mismo patrón que `admin_bloqueos` (migración 056): join a `perfiles` con el filtro (`bloqueador_id = auth.uid()`) en el propio `WHERE` de la vista, porque las vistas de este proyecto son `SECURITY DEFINER` y no heredan el RLS de `bloqueos`. `api.bloqueos.getMisBloqueos()` pasa a consultar esta vista en vez de la tabla — ya no necesita resolver `auth.getUser()` a mano, la vista lo hace vía `auth.uid()`.
+
+### `frontend/pages/configuracion-cuenta.html`
+Accesible para cualquier rol autenticado desde "Configuración de cuenta" en el menú de avatar del header (`header.js`, nueva entrada al final de `generarItems()`, antes de "Cerrar sesión"). Dos secciones apiladas (sin tabs, dado que hoy solo hay una con contenido real):
+- **"Usuarios bloqueados":** tarjetas con foto/iniciales, nombre y fecha de bloqueo (reutiliza las clases `.card-abogado` genéricas, no específicas de abogado), con botón "Desbloquear" → `api.bloqueos.desbloquear(usuarioId)` (ya existía, sin cambios) y el toast pedido ("Se ha desbloqueado a [nombre]. Ahora puede volver a ver su perfil y enviarle solicitudes.").
+- **"Preferencias":** placeholder ("Próximamente"), sin lógica en `configuracion-cuenta.js` todavía — queda documentado para cuando se defina qué preferencias va a tener.
 
 ---
 

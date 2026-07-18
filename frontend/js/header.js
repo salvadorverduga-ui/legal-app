@@ -220,6 +220,7 @@ function generarItems(rol, urlPerfilPublico) {
     ${itemEditarPerfil}
     ${itemReferir}
     <li role="none"><a role="menuitem" class="menu-desplegable__item" href="/pages/cambiar-contrasena">Cambiar contraseña</a></li>
+    <li role="none"><a role="menuitem" class="menu-desplegable__item" href="/pages/configuracion-cuenta">Configuración de cuenta</a></li>
     <li role="none"><button role="menuitem" class="menu-desplegable__item" id="btnCerrarSesionMenu" type="button">Cerrar sesión</button></li>
   `;
 }

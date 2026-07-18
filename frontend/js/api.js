@@ -2166,15 +2166,15 @@ export const bloqueos = {
 
   /**
    * Retorna los bloqueos creados por el usuario autenticado (no los que
-   * recibió), más recientes primero.
+   * recibió), más recientes primero, desde la vista mis_bloqueos (migración
+   * 059): incluye bloqueado_id, bloqueado_nombre, bloqueado_foto,
+   * bloqueado_rol y created_at — para la sección "Usuarios bloqueados" de
+   * configuracion-cuenta.html.
    * Retorna array (puede estar vacío).
    */
   async getMisBloqueos() {
-    const { data: { user }, error: errUser } = await _cliente.auth.getUser();
-    if (errUser || !user) return [];
-
     const { data, error } = await _cliente
-      .from('bloqueos')
+      .from('mis_bloqueos')
       .select('*')
       .order('created_at', { ascending: false });
 
