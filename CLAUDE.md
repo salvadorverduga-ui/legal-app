@@ -836,4 +836,17 @@ Además de los tres pedidos (`bloquear`, `desbloquear`, `getMisBloqueos`), se ag
 
 ---
 
+## 34. Fix: seguimiento en El Tablón desde el cliente
+
+### Diagnóstico
+El bug reportado ("aparece error y el caso no aparece en 'En seguimiento'" al marcar seguimiento desde el cliente) tiene la misma firma que el que la migración `20260712_046_fix_recursion_definitiva_tablon.sql` ya resolvió para otras dos políticas de `aplicaciones_tablon`/`casos_tablon`: `infinite recursion detected in policy` (Postgres 42P17). Esa migración deja documentado, tras una investigación extensa en producción, que el detector de recursión de RLS **no es determinístico** — es una guardia estructural en tiempo de planeación que puede dispararse según el plan exacto que elija el optimizador, no un análisis semántico confiable. Reproducir el flujo completo hoy (`BEGIN` + `SET LOCAL ROLE authenticated` + `request.jwt.claims` + `ROLLBACK`, mismo método que usó la 046) no disparó el error — pero `cliente_elige_aplicacion_tablon` (la política detrás de `api.seguimiento.toggleTablon()` del lado del cliente) y `cliente_ve_aplicaciones_de_sus_casos` (detrás del `SELECT` de `getMisSeguimientos()`) seguían usando exactamente el patrón fágil que la 046 ya había señalado como la causa raíz en esta misma tabla: una subconsulta correlacionada contra `casos_tablon` embebida directamente en la política.
+
+### Migración `20260723_058_fix_seguimiento_tablon.sql`
+`fn_cliente_dueno_caso_tablon(uuid)` — SECURITY DEFINER, mismo principio que `fn_rol_perfil`/`es_admin`/`fn_existe_bloqueo` (bypassea el RLS de `casos_tablon` por completo al evaluarse, así que no hay ninguna subconsulta correlacionada dentro de la política en sí). Reemplaza la subconsulta embebida en `cliente_elige_aplicacion_tablon` (UPDATE) y `cliente_ve_aplicaciones_de_sus_casos` (SELECT) — mismo alcance de acceso que antes, solo cambia el mecanismo de verificación por uno estructuralmente inmune a esta clase de bug, en vez de esperar a que un cambio de plan la vuelva a disparar en producción.
+
+### Verificación
+Se probó en vivo, contra la base de datos de producción, la secuencia completa que ejecuta el frontend: `UPDATE aplicaciones_tablon SET en_seguimiento_cliente = true` → `SELECT id, caso_id FROM aplicaciones_tablon WHERE en_seguimiento_cliente = true` → `SELECT ... FROM tablon_caso_detalle WHERE id = ...` (las tres consultas de `toggleTablon()` + `getMisSeguimientos()`), y por separado el flujo de "elegir abogado" (`UPDATE aplicaciones_tablon SET estado = 'ELEGIDO'`, que también depende de `cliente_elige_aplicacion_tablon`) — ambos sin errores después del fix. No se hizo una verificación de UI end-to-end (sin acceso a navegador en esta sesión); la verificación a nivel SQL reproduce exactamente las mismas consultas que emite el frontend vía PostgREST, con el JWT de un cliente real.
+
+---
+
 *Actualizar este archivo con cada decisión técnica relevante*
