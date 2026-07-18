@@ -8,6 +8,8 @@
 //   toast.error('No se pudo guardar. Intente de nuevo.');
 //   toast.info('Disponibilidad actualizada.');
 
+import * as api from './api.js';
+
 // Mensaje del toast al marcar una solicitud o aplicación como "en
 // seguimiento" — mismo texto en los botones de seguimiento de paneles,
 // solicitudes-directas/tablon.js y tablon-caso.js/tablon.js.
@@ -51,6 +53,257 @@ export function generarBotonFavorito(idSeguro, esFavorito) {
       </svg>
     </button>
   `;
+}
+
+// ─── Sincronizar corazón + ítem de menú de un mismo abogado ────────────────
+// generarBotonFavorito() (el corazón) y el ítem "Marcar/Quitar de
+// favoritos" del menú de tres puntos (generarMenuTarjeta()) representan el
+// mismo estado para el mismo abogado, y pueden coexistir en la misma
+// tarjeta. En vez de sincronizarlos a mano en cada call site, esta función
+// busca en todo el documento cualquier control de favorito para ese
+// abogado_id (puede haber 0, 1 o 2) y actualiza cada uno según su tipo.
+export function actualizarControlesFavorito(abogadoId, esFavorito) {
+  document
+    .querySelectorAll(`[data-accion="toggle-favorito"][data-id="${abogadoId}"]`)
+    .forEach(el => {
+      const svgPath = el.querySelector('svg path');
+      if (svgPath) {
+        // Es el corazón (generarBotonFavorito).
+        el.classList.toggle('btn-favorito--activo', esFavorito);
+        el.setAttribute('aria-pressed', String(esFavorito));
+        el.setAttribute('aria-label', esFavorito ? 'Quitar de favoritos' : 'Agregar a favoritos');
+        svgPath.setAttribute('fill', esFavorito ? 'currentColor' : 'none');
+      } else {
+        // Es el ítem de texto del menú de tres puntos.
+        el.textContent = esFavorito ? 'Quitar de favoritos' : 'Marcar como favorito';
+      }
+    });
+}
+
+// ─── Menú de tres puntos (⋮) en tarjetas ────────────────────────────────────
+// Reutilizado en cualquier tarjeta de abogado o de cliente que necesite un
+// menú de opciones (Ver perfil, favorito, bloquear...). Cada opción es
+// { texto, href?, target?, accion?, id? } — con href genera un <a> (para
+// navegación simple, ej. "Ver perfil"); sin href genera un <button> con
+// data-accion/data-id para que el listener delegado de cada página decida
+// qué hacer (mismo patrón que el resto de las tarjetas: toggle-favorito,
+// toggle-seguimiento, bloquear-abogado, etc.).
+export function generarMenuTarjeta(opciones) {
+  const itemsHtml = opciones.map(o => {
+    if (o.href) {
+      const targetAttrs = o.target ? ` target="${o.target}" rel="noopener noreferrer"` : '';
+      return `<li role="none"><a role="menuitem" class="menu-desplegable__item" href="${o.href}"${targetAttrs}>${o.texto}</a></li>`;
+    }
+    return `
+      <li role="none">
+        <button role="menuitem" class="menu-desplegable__item" type="button"
+          data-accion="${o.accion}" data-id="${o.id ?? ''}"${o.dataNombre ? ` data-nombre="${o.dataNombre}"` : ''}>
+          ${o.texto}
+        </button>
+      </li>
+    `;
+  }).join('');
+
+  return `
+    <div class="menu-desplegable menu-tarjeta">
+      <button class="btn-icono-sutil menu-tarjeta__boton" type="button"
+        aria-haspopup="true" aria-expanded="false" aria-label="Más opciones">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
+          <circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/>
+        </svg>
+      </button>
+      <ul class="menu-desplegable__lista" role="menu" hidden>
+        ${itemsHtml}
+      </ul>
+    </div>
+  `;
+}
+
+// Engancha, una sola vez por página (guardia interna), la apertura/cierre de
+// CUALQUIER menú de tarjeta vía delegación de eventos en document — las
+// tarjetas se re-renderizan seguido (nuevo favorito, nuevo seguimiento...),
+// así que no tiene sentido enganchar un listener por instancia. Llamar una
+// vez desde configurarEventos() de cada página que use generarMenuTarjeta().
+let menuTarjetaInicializado = false;
+
+export function inicializarMenuTarjeta() {
+  if (menuTarjetaInicializado) return;
+  menuTarjetaInicializado = true;
+
+  document.addEventListener('click', (e) => {
+    const boton = e.target.closest('.menu-tarjeta__boton');
+    if (boton) {
+      const lista = boton.nextElementSibling;
+      const yaAbierto = !lista.hidden;
+      cerrarMenusTarjeta();
+      if (!yaAbierto) {
+        lista.hidden = false;
+        boton.setAttribute('aria-expanded', 'true');
+      }
+      return;
+    }
+
+    // Cualquier otro click (afuera de un menú, o sobre uno de sus ítems)
+    // cierra los menús abiertos. Los listeners delegados de cada página
+    // (sobre contenedores más específicos, más abajo en el árbol) ya
+    // procesaron el data-accion del ítem antes de que este listener en
+    // document se ejecute — el evento burbujea de adentro hacia afuera.
+    cerrarMenusTarjeta();
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') cerrarMenusTarjeta();
+  });
+}
+
+function cerrarMenusTarjeta() {
+  document.querySelectorAll('.menu-tarjeta__boton[aria-expanded="true"]').forEach(boton => {
+    boton.setAttribute('aria-expanded', 'false');
+    if (boton.nextElementSibling) boton.nextElementSibling.hidden = true;
+  });
+}
+
+// ─── Modal de confirmación de bloqueo (countdown 9s) ────────────────────────
+// Reemplaza a frontend/js/bloqueos.js (fusionado acá para que conviva con
+// generarMenuTarjeta(), su principal call site desde esta ronda de cambios).
+const SEGUNDOS_ESPERA_BLOQUEO = 9;
+
+let elementosModalBloqueo = null;
+
+function obtenerModalBloqueo() {
+  if (elementosModalBloqueo) return elementosModalBloqueo;
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-confirmar-overlay';
+  overlay.hidden = true;
+  overlay.innerHTML = `
+    <div class="modal-confirmar" role="alertdialog" aria-modal="true" aria-labelledby="modalBloqueoMensaje">
+      <div class="modal-confirmar__mensaje" id="modalBloqueoMensaje"></div>
+      <div class="modal-confirmar__acciones">
+        <button type="button" class="btn btn--secundario btn--sm" id="modalBloqueoCancelar">Cancelar</button>
+        <button type="button" class="btn btn--primario btn--sm" id="modalBloqueoConfirmar" disabled></button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  elementosModalBloqueo = {
+    overlay,
+    mensaje: overlay.querySelector('#modalBloqueoMensaje'),
+    btnCancelar: overlay.querySelector('#modalBloqueoCancelar'),
+    btnConfirmar: overlay.querySelector('#modalBloqueoConfirmar'),
+  };
+  return elementosModalBloqueo;
+}
+
+/**
+ * Abre el modal de confirmación de bloqueo para `nombre`. El botón
+ * "Confirmar bloqueo" queda deshabilitado con un contador de 9 segundos
+ * ("Confirmar (9)", "Confirmar (8)"... hasta "Confirmar bloqueo" habilitado).
+ * Si se confirma, llama a api.bloqueos.bloquear(usuarioId), muestra un toast
+ * con el resultado y, si tuvo éxito, ejecuta onConfirmar() (opcional) para
+ * que el call site actualice su propia UI (quitar la tarjeta, refrescar una
+ * lista, redirigir, etc.).
+ * Retorna Promise<boolean> — true si el bloqueo se confirmó y se guardó.
+ */
+export function abrirModalBloqueo(nombre, usuarioId, onConfirmar) {
+  const { overlay, mensaje, btnCancelar, btnConfirmar } = obtenerModalBloqueo();
+
+  mensaje.innerHTML = `
+    <p>¿Está seguro de que desea bloquear a ${escaparHtmlModal(nombre)}? Al hacerlo:</p>
+    <ul class="modal-confirmar__lista">
+      <li>No podrá ver su perfil</li>
+      <li>No podrá enviarle solicitudes</li>
+      <li>No aparecerá en sus búsquedas</li>
+      <li>Todas las solicitudes activas entre ustedes serán canceladas automáticamente</li>
+    </ul>
+  `;
+
+  let segundosRestantes = SEGUNDOS_ESPERA_BLOQUEO;
+  btnConfirmar.disabled = true;
+  btnConfirmar.textContent = `Confirmar (${segundosRestantes})`;
+
+  const intervalo = setInterval(() => {
+    segundosRestantes -= 1;
+    if (segundosRestantes <= 0) {
+      clearInterval(intervalo);
+      btnConfirmar.disabled = false;
+      btnConfirmar.textContent = 'Confirmar bloqueo';
+    } else {
+      btnConfirmar.textContent = `Confirmar (${segundosRestantes})`;
+    }
+  }, 1000);
+
+  const elementoConFocoPrevio = document.activeElement;
+
+  return new Promise((resolve) => {
+    function cerrar() {
+      clearInterval(intervalo);
+      overlay.hidden = true;
+      btnCancelar.removeEventListener('click', manejarCancelar);
+      btnConfirmar.removeEventListener('click', manejarConfirmar);
+      overlay.removeEventListener('click', manejarClickOverlay);
+      document.removeEventListener('keydown', manejarTecla);
+      if (elementoConFocoPrevio instanceof HTMLElement) elementoConFocoPrevio.focus();
+    }
+
+    async function manejarConfirmar() {
+      if (btnConfirmar.disabled) return;
+      btnConfirmar.disabled = true;
+
+      const { error } = await api.bloqueos.bloquear(usuarioId);
+      cerrar();
+
+      if (error) {
+        toast.error(mensajeAmigable(error, 'No se pudo bloquear a este usuario. Intente de nuevo.'));
+        resolve(false);
+        return;
+      }
+
+      toast.exito(
+        `Bloqueó a ${nombre}. Ya no podrán verse ni contactarse, y sus solicitudes activas fueron canceladas.`
+      );
+      onConfirmar?.();
+      resolve(true);
+    }
+
+    function manejarCancelar() {
+      cerrar();
+      resolve(false);
+    }
+
+    function manejarClickOverlay(e) {
+      if (e.target === overlay) {
+        cerrar();
+        resolve(false);
+      }
+    }
+
+    function manejarTecla(e) {
+      if (e.key === 'Escape') {
+        cerrar();
+        resolve(false);
+      }
+    }
+
+    btnCancelar.addEventListener('click', manejarCancelar);
+    btnConfirmar.addEventListener('click', manejarConfirmar);
+    overlay.addEventListener('click', manejarClickOverlay);
+    document.addEventListener('keydown', manejarTecla);
+
+    overlay.hidden = false;
+    btnCancelar.focus();
+  });
+}
+
+function escaparHtmlModal(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 const DURACION_MS = 4000;

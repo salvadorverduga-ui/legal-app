@@ -830,6 +830,8 @@ Tabla `bloqueos` (`bloqueador_id`, `bloqueado_id`, `UNIQUE(bloqueador_id, bloque
 Además de los tres pedidos (`bloquear`, `desbloquear`, `getMisBloqueos`), se agregaron `getBloqueosActivos()` y `adminDesbloquear(bloqueoId)` para el panel de administración — el admin no es `bloqueador_id`, así que no puede usar `desbloquear(usuarioId)` (que borra por `bloqueador_id = auth.uid()`); necesita borrar por el id de la fila directamente, cubierto por la política `admin_elimina_bloqueo`.
 
 ### Modal de confirmación con countdown — `frontend/js/bloqueos.js`
+> **Superseded por §37.** `bloqueos.js` se fusionó en `utils.js` como `abrirModalBloqueo()` (orden de argumentos y mensaje con viñetas distintos) — el archivo ya no existe. Esta sección se conserva por el contenido de dónde vivía cada call site en su momento.
+
 `confirmarBloqueo(usuarioId, nombre)` es un módulo nuevo, no una extensión de `confirmar()` (`utils.js`): tiene su propio contador de 9 segundos deshabilitando "Confirmar bloqueo" (`Confirmar (9)` → `Confirmar (8)` → ... → `Confirmar bloqueo` habilitado), llama a `api.bloqueos.bloquear()` directamente y resuelve el toast de resultado — mezclar eso con el `confirmar()` genérico (que solo devuelve `boolean` sin tocar la red) hubiera complicado su única otra responsabilidad. Reutilizado sin cambios en:
 - `perfil-abogado.html`: botón "Bloquear" dentro de un menú de opciones (⋮) nuevo, deliberadamente discreto — esquina opuesta al corazón de favoritos (`.perfil-header__opciones`, clase `.btn-icono-sutil`). Al confirmar, oculta las acciones de esa página y redirige a `/pages/busqueda` a los 2 segundos (el abogado deja de ser visible para este cliente por RLS, así que no tiene sentido seguir en su perfil).
 - `panel-abogado.js` (tarjeta de solicitud de la pestaña "En seguimiento") y `solicitudes-directas.js` (tarjeta de solicitud del abogado, el lugar real donde un abogado revisa sus consultas desde el módulo 1): "Bloquear cliente" como texto de baja prominencia al fondo de la tarjeta (`.btn-enlace-sutil`), nunca un botón primario.
@@ -870,6 +872,34 @@ Verificado en vivo contra producción (`INSERT` de prueba dentro de una transacc
 - **`solicitudes-tablon.html` (vista cliente):** esta vista es por *caso*, no por abogado (§28) — no hay una "tarjeta de abogado" per se salvo cuando el cliente ya eligió a alguien (existe una `solicitud` asociada al caso). `generarAbogadoElegidoCard()` es una función nueva que renderiza esa identidad (avatar, nombre, corazón) solo en ese caso, insertada entre el encabezado del caso y las acciones de la solicitud embebida.
 
 Ningún lugar necesitó tocar `api.favoritos` — `getMisFavoritosIds()` (§32) ya cubría exactamente esta necesidad en cada archivo nuevo.
+
+---
+
+## 37. Menú de tres puntos en tarjetas (favorito + bloqueo)
+
+### `frontend/js/bloqueos.js` se fusionó en `utils.js`
+El pedido de esta ronda quería `utils.abrirModalBloqueo(nombre, usuarioId, onConfirmar)` (antes vivía como `confirmarBloqueo(usuarioId, nombre)` en `bloqueos.js`, §33). Como el nuevo menú de tres puntos es el principal call site nuevo de esa función, y `utils.js` ya no tiene ningún problema de dependencia circular con `api.js` (que no importa nada), se movió la implementación completa a `utils.js` y se borró `bloqueos.js`. Cambios de forma respecto a la versión anterior:
+- Orden de argumentos invertido: `(nombre, usuarioId, onConfirmar?)` en vez de `(usuarioId, nombre)` — se actualizaron los tres call sites existentes (`perfil-abogado.js`, `panel-abogado.js`, `solicitudes-directas.js`).
+- `onConfirmar` es opcional: si se pasa, se ejecuta tras un bloqueo exitoso (para que el call site actualice su propia UI — quitar una tarjeta, refrescar una lista). La función sigue retornando `Promise<boolean>`, así que los call sites que solo necesitan el resultado (como los tres ya existentes) pueden seguir usando `await abrirModalBloqueo(nombre, id)` sin tocar más nada.
+- El mensaje pasó de un párrafo plano a `<p>` + `<ul>` (viñetas) vía `mensaje.innerHTML` — el nombre del usuario se escapa con un `escaparHtmlModal()` interno antes de interpolarse (es el único dato no confiable en ese HTML; el resto del markup es fijo).
+
+### `generarMenuTarjeta(opciones)` y `inicializarMenuTarjeta()`
+`opciones` es un array de `{ texto, href?, target?, accion?, id?, dataNombre? }` — con `href` genera un `<a>` (navegación simple, ej. "Ver perfil"), sin `href` genera un `<button data-accion data-id>` para que el listener delegado de cada página decida qué hacer, reutilizando exactamente los mismos valores de `data-accion` que ya usaban el corazón (`toggle-favorito`) y el bloqueo (`bloquear-abogado`/`bloquear-cliente`) — el menú no inventa una capa de eventos nueva, se conecta a los handlers que cada página ya tenía.
+
+Como una tarjeta puede tener el corazón Y el ítem "Marcar/Quitar de favoritos" del menú apuntando al mismo `abogado_id`, y ambos deben reflejar el mismo estado, los handlers de `toggle-favorito` de cada página dejaron de parchear el botón clickeado directamente (`btn.querySelector('svg path')...`, que además rompía si el elemento clickeado era el ítem de texto del menú, sin `<svg>`) y ahora llaman a **`actualizarControlesFavorito(abogadoId, esFavorito)`** — busca en todo el documento cualquier control con ese `data-id` (puede haber 0, 1 o 2) y actualiza cada uno según corresponda (corazón: clase + `aria-pressed` + `fill` del SVG; ítem de menú: texto).
+
+`inicializarMenuTarjeta()` engancha, con una guardia para llamarse una sola vez por página, la apertura/cierre de *cualquier* menú de tarjeta vía delegación de eventos en `document` — nunca por instancia, porque las tarjetas se re-renderizan seguido (nuevo favorito, nuevo seguimiento, nueva página de resultados) y enganchar un listener por `<button>` obligaría a re-enganchar en cada render. Un solo click en cualquier lugar de la página cierra todos los menús abiertos, salvo que el click haya sido sobre el botón "⋮" de uno de ellos (ahí alterna abrir/cerrar ese en particular). Cada página que use `generarMenuTarjeta()` debe llamar a `inicializarMenuTarjeta()` una vez desde su `configurarEventos()`.
+
+### Dónde se agregó
+Mismos seis lugares del corazón (§36), con las opciones que tiene sentido en cada uno:
+- **`busqueda.html`, `panel-cliente.html` (Mis abogados + Inicio), `solicitudes-directas.html`/`solicitudes-tablon.html` (vista cliente, tarjeta de abogado):** Ver perfil / Marcar-Quitar de favoritos / Bloquear abogado.
+- **`perfil-abogado.html`:** no es una tarjeta de lista — se dejó su menú de opciones ya existente (§33) con solo "Bloquear", sin duplicar "Ver perfil" (ya estamos ahí) ni "favorito" (ya hay un corazón dedicado en el encabezado). Se actualizó su handler de favorito para usar `actualizarControlesFavorito()`, por consistencia, aunque en esa página nunca coexisten dos controles para el mismo abogado.
+- **Tarjetas de cliente vistas por el abogado** (`panel-abogado.js` pestaña "En seguimiento", `solicitudes-directas.js` vista abogado, `solicitudes-tablon.js` vista abogado — esta última no tenía ninguna opción de bloqueo antes): menú con la única opción "Bloquear cliente", reemplazando el link de texto suelto (`.btn-enlace-sutil`, ya retirado del CSS por quedar sin uso) que existía en `panel-abogado.js`/`solicitudes-directas.js` desde el §33 original.
+
+`solicitudes-tablon.js` vista abogado necesitaba `cliente_id` en `panel_solicitudes_abogado`, que ya se había agregado en la migración `20260722_057` (§33) — no hizo falta ninguna migración nueva para este módulo.
+
+### CSS: `.card-abogado__acciones-esquina` y `.solicitud-item__header-derecha`
+`.card-abogado .btn-favorito` ya no se posiciona `absolute` por sí solo — ahora hay un wrapper `.card-abogado__acciones-esquina` (flex, position:absolute en la esquina superior derecha) que agrupa el corazón y el menú para que no se superpongan. `.perfil-header .btn-favorito` no cambió (ese layout de esquinas opuestas, corazón/menú, es específico de esa página y ya funcionaba). `.solicitud-item__header-derecha` (nueva en §36) ahora también agrupa el menú junto al badge y al corazón cuando los tres coexisten.
 
 ---
 

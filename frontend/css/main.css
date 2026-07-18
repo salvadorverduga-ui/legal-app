@@ -1404,11 +1404,22 @@ p {
   transition: color var(--transicion), background-color var(--transicion);
 }
 
-.card-abogado .btn-favorito,
 .perfil-header .btn-favorito {
   position: absolute;
   top: var(--esp-4);
   right: var(--esp-4);
+}
+
+/* Esquina superior derecha de .card-abogado: agrupa el corazón de favorito
+   y el menú de tres puntos (cuando ambos están presentes) para que no se
+   superpongan — CLAUDE.md módulo 3 de la ronda de fixes. */
+.card-abogado__acciones-esquina {
+  position: absolute;
+  top: var(--esp-4);
+  right: var(--esp-4);
+  display: flex;
+  align-items: center;
+  gap: var(--esp-1);
 }
 
 .btn-favorito:hover,
@@ -1443,19 +1454,6 @@ p {
 .btn-icono-sutil:focus-visible {
   color: var(--color-texto-suave);
   background-color: var(--color-primario-suave);
-}
-
-/* "Bloquear cliente"/"Bloquear" como texto de baja prominencia al fondo de
-   una tarjeta de solicitud (CLAUDE.md módulo 8) — nunca un btn--primario. */
-.btn-enlace-sutil {
-  font-size: var(--texto-xs);
-  color: var(--color-texto-muy-suave);
-}
-
-.btn-enlace-sutil:hover,
-.btn-enlace-sutil:focus-visible {
-  color: var(--color-error);
-  text-decoration: underline;
 }
 
 .card-abogado:hover {
@@ -2992,6 +2990,17 @@ p {
   font-size: var(--texto-base);
   line-height: var(--altura-linea-normal);
   margin-bottom: var(--esp-5);
+}
+
+/* Modal de bloqueo (utils.js abrirModalBloqueo): lista de consecuencias
+   dentro de .modal-confirmar__mensaje, que ahora puede contener markup
+   (<p> + <ul>) en vez de solo texto plano. */
+.modal-confirmar__lista {
+  margin: var(--esp-2) 0 0;
+  padding-left: var(--esp-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-1);
 }
 
 .modal-confirmar__acciones {

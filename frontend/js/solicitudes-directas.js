@@ -6,9 +6,8 @@
 
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
-import { toast, mensajeAmigable, rutaPanelPropio, confirmar, generarCheckboxSeguimiento, generarBotonFavorito, MENSAJE_AGREGADO_SEGUIMIENTO } from './utils.js';
+import { toast, mensajeAmigable, rutaPanelPropio, confirmar, generarCheckboxSeguimiento, generarBotonFavorito, generarMenuTarjeta, inicializarMenuTarjeta, actualizarControlesFavorito, abrirModalBloqueo, MENSAJE_AGREGADO_SEGUIMIENTO } from './utils.js';
 import { inicializarHeader } from './header.js';
-import { confirmarBloqueo } from './bloqueos.js';
 
 const ORIGEN = 'directa';
 
@@ -124,6 +123,7 @@ function configurarEventos() {
   contenedor.addEventListener('submit', manejarSubmitResena);
   contenedor.addEventListener('submit', manejarSubmitEditar);
   contenedor.addEventListener('input', manejarInputSolicitudes);
+  inicializarMenuTarjeta();
 }
 
 // ─── Solicitudes ──────────────────────────────────────────────────────────────
@@ -226,15 +226,12 @@ function generarSolicitudCardAbogado(s) {
 
   const seguimientoHtml = generarCheckboxSeguimiento(idSeguro, s.en_seguimiento_abogado);
 
-  // Bloquear cliente: discreto, al fondo de la tarjeta (CLAUDE.md módulo 8).
-  const bloquearHtml = `
-    <div class="solicitud-item__acciones">
-      <button class="btn-enlace-sutil" type="button" data-accion="bloquear-cliente"
-        data-id="${escaparAtrib(s.cliente_id)}" data-nombre="${escaparAtrib(s.cliente_nombre)}">
-        Bloquear cliente
-      </button>
-    </div>
-  `;
+  // Menú de tres puntos: única opción hoy es "Bloquear cliente" (CLAUDE.md
+  // módulo 3 de la ronda de fixes — reemplaza al link de texto suelto).
+  const clienteIdSeguro = escaparAtrib(s.cliente_id);
+  const menuHtml = generarMenuTarjeta([
+    { texto: 'Bloquear cliente', accion: 'bloquear-cliente', id: clienteIdSeguro, dataNombre: escaparAtrib(s.cliente_nombre) },
+  ]);
 
   return `
     <article class="solicitud-item">
@@ -246,14 +243,16 @@ function generarSolicitudCardAbogado(s) {
             <p class="solicitud-item__fecha">${formatearFechaHora(s.created_at)}</p>
           </div>
         </div>
-        <span class="badge ${claseEstado}">${etiquetaEstado}</span>
+        <div class="solicitud-item__header-derecha">
+          <span class="badge ${claseEstado}">${etiquetaEstado}</span>
+          ${menuHtml}
+        </div>
       </div>
       ${detalleHtml}
       ${motivoRechazoHtml}
       ${contactoHtml}
       ${accionesHtml}
       ${seguimientoHtml}
-      ${bloquearHtml}
     </article>
   `;
 }
@@ -368,7 +367,14 @@ function generarSolicitudCardCliente(s) {
     : '';
 
   const seguimientoHtml = generarCheckboxSeguimiento(idSeguro, s.en_seguimiento_cliente);
-  const favoritoHtml = generarBotonFavorito(abogadoIdSeguro, favoritosIds.has(s.abogado_id));
+  const esFavorito = favoritosIds.has(s.abogado_id);
+  const nombreAbogadoSeguro = escaparAtrib(s.abogado_nombre);
+  const favoritoHtml = generarBotonFavorito(abogadoIdSeguro, esFavorito);
+  const menuHtml = generarMenuTarjeta([
+    { texto: 'Ver perfil', href: `/pages/perfil-abogado?id=${abogadoIdSeguro}` },
+    { texto: esFavorito ? 'Quitar de favoritos' : 'Marcar como favorito', accion: 'toggle-favorito', id: abogadoIdSeguro },
+    { texto: 'Bloquear abogado', accion: 'bloquear-abogado', id: abogadoIdSeguro, dataNombre: nombreAbogadoSeguro },
+  ]);
 
   return `
     <article class="solicitud-item">
@@ -384,6 +390,7 @@ function generarSolicitudCardCliente(s) {
         <div class="solicitud-item__header-derecha">
           <span class="badge ${claseEstado}">${etiquetaEstado}</span>
           ${favoritoHtml}
+          ${menuHtml}
         </div>
       </div>
       ${detalleHtml}
@@ -437,6 +444,7 @@ function manejarClickSolicitudes(e) {
 
   if (accion === 'toggle-seguimiento') return manejarToggleSeguimiento(id);
   if (accion === 'bloquear-cliente') return manejarBloquearCliente(id, btn.dataset.nombre);
+  if (accion === 'bloquear-abogado') return manejarBloquearAbogado(id, btn.dataset.nombre);
   if (accion === 'toggle-favorito') return manejarClickFavorito(btn);
 
   if (rolActual === 'abogado') {
@@ -538,12 +546,21 @@ async function manejarRechazarSolicitud(id, motivo) {
 
 // ─── Bloqueos (CLAUDE.md módulo 8) ─────────────────────────────────────────────
 async function manejarBloquearCliente(clienteId, nombreCliente) {
-  const bloqueado = await confirmarBloqueo(clienteId, nombreCliente);
+  const bloqueado = await abrirModalBloqueo(nombreCliente, clienteId);
   if (!bloqueado) return;
 
   // La solicitud fue cancelada automáticamente por el trigger de bloqueos —
   // se refresca desde el servidor en vez de intentar adivinar el nuevo
   // estado local (no tenemos el id de la solicitud acá, solo el del cliente).
+  await cargarSolicitudes();
+}
+
+async function manejarBloquearAbogado(abogadoId, nombreAbogado) {
+  const bloqueado = await abrirModalBloqueo(nombreAbogado, abogadoId);
+  if (!bloqueado) return;
+
+  // Mismo criterio que manejarBloquearCliente: se refresca desde el
+  // servidor en vez de adivinar el estado local de la solicitud.
   await cargarSolicitudes();
 }
 
@@ -562,10 +579,7 @@ async function manejarClickFavorito(btn) {
   if (esFavorito) favoritosIds.add(abogadoId);
   else favoritosIds.delete(abogadoId);
 
-  btn.classList.toggle('btn-favorito--activo', esFavorito);
-  btn.setAttribute('aria-pressed', String(esFavorito));
-  btn.setAttribute('aria-label', esFavorito ? 'Quitar de favoritos' : 'Agregar a favoritos');
-  btn.querySelector('svg path').setAttribute('fill', esFavorito ? 'currentColor' : 'none');
+  actualizarControlesFavorito(abogadoId, esFavorito);
   btn.disabled = false;
 
   toast.info(esFavorito ? 'Agregado a favoritos.' : 'Quitado de favoritos.');

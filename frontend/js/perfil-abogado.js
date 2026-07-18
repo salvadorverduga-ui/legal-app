@@ -4,9 +4,8 @@
 
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
-import { toast, mensajeAmigable, generarBotonFavorito } from './utils.js';
+import { toast, mensajeAmigable, generarBotonFavorito, abrirModalBloqueo, actualizarControlesFavorito } from './utils.js';
 import { inicializarHeader } from './header.js';
-import { confirmarBloqueo } from './bloqueos.js';
 
 // ─── Etiquetas visibles para tipo_badge ───────────────────────────────────────
 const ETIQUETAS_TIPO = {
@@ -239,10 +238,7 @@ async function manejarClickFavorito(e) {
     return;
   }
 
-  btn.classList.toggle('btn-favorito--activo', esFavorito);
-  btn.setAttribute('aria-pressed', String(esFavorito));
-  btn.setAttribute('aria-label', esFavorito ? 'Quitar de favoritos' : 'Agregar a favoritos');
-  btn.querySelector('svg path').setAttribute('fill', esFavorito ? 'currentColor' : 'none');
+  actualizarControlesFavorito(btn.dataset.id, esFavorito);
   btn.disabled = false;
 
   toast.info(esFavorito ? 'Agregado a favoritos.' : 'Quitado de favoritos.');
@@ -275,7 +271,7 @@ function configurarMenuOpciones(abogadoId, nombreAbogado) {
 
   document.getElementById('btnBloquearAbogado').addEventListener('click', async () => {
     cerrarMenu();
-    const bloqueado = await confirmarBloqueo(abogadoId, nombreAbogado);
+    const bloqueado = await abrirModalBloqueo(nombreAbogado, abogadoId);
     if (!bloqueado) return;
 
     // El abogado deja de ser visible para este cliente (RLS) — no tiene

@@ -4,7 +4,7 @@
 
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
-import { toast, mensajeAmigable, generarBotonFavorito } from './utils.js';
+import { toast, mensajeAmigable, generarBotonFavorito, generarMenuTarjeta, inicializarMenuTarjeta, actualizarControlesFavorito, abrirModalBloqueo } from './utils.js';
 import { inicializarHeader } from './header.js';
 
 // ─── Etiquetas visibles para tipo_badge ───────────────────────────────────────
@@ -87,14 +87,20 @@ function configurarEventos() {
     btn.addEventListener('click', () => cambiarTipo(btn.dataset.tipo));
   });
 
-  document.getElementById('gridResultados').addEventListener('click', manejarClickFavorito);
+  document.getElementById('gridResultados').addEventListener('click', manejarClickTarjeta);
+  inicializarMenuTarjeta();
 }
 
-// ─── Favoritos ─────────────────────────────────────────────────────────────
-async function manejarClickFavorito(e) {
-  const btn = e.target.closest('[data-accion="toggle-favorito"]');
-  if (!btn) return;
+// ─── Favoritos y bloqueo ────────────────────────────────────────────────────
+function manejarClickTarjeta(e) {
+  const btnFavorito = e.target.closest('[data-accion="toggle-favorito"]');
+  if (btnFavorito) return manejarToggleFavorito(btnFavorito);
 
+  const btnBloquear = e.target.closest('[data-accion="bloquear-abogado"]');
+  if (btnBloquear) return manejarBloquearAbogado(btnBloquear.dataset.id, btnBloquear.dataset.nombre);
+}
+
+async function manejarToggleFavorito(btn) {
   const abogadoId = btn.dataset.id;
   btn.disabled = true;
 
@@ -109,13 +115,19 @@ async function manejarClickFavorito(e) {
   if (esFavorito) favoritosIds.add(abogadoId);
   else favoritosIds.delete(abogadoId);
 
-  btn.classList.toggle('btn-favorito--activo', esFavorito);
-  btn.setAttribute('aria-pressed', String(esFavorito));
-  btn.setAttribute('aria-label', esFavorito ? 'Quitar de favoritos' : 'Agregar a favoritos');
-  btn.querySelector('svg path').setAttribute('fill', esFavorito ? 'currentColor' : 'none');
+  actualizarControlesFavorito(abogadoId, esFavorito);
   btn.disabled = false;
 
   toast.info(esFavorito ? 'Agregado a favoritos.' : 'Quitado de favoritos.');
+}
+
+async function manejarBloquearAbogado(abogadoId, nombreAbogado) {
+  const bloqueado = await abrirModalBloqueo(nombreAbogado, abogadoId);
+  if (!bloqueado) return;
+
+  // El abogado bloqueado deja de ser visible por RLS — se quita del listado
+  // en vez de esperar a que el usuario vuelva a buscar.
+  document.querySelector(`[data-abogado-id="${abogadoId}"]`)?.remove();
 }
 
 // ─── Filtro por tipo ──────────────────────────────────────────────────────────
@@ -310,13 +322,25 @@ function generarCardAbogado(ab) {
     ? ab.tipo_badge
     : 'individual';
 
-  const favoritoHtml = esCliente
-    ? generarBotonFavorito(escaparAtrib(ab.id), favoritosIds.has(ab.id))
+  const idSeguro = escaparAtrib(ab.id);
+  const nombreSeguro = escaparAtrib(ab.nombre_completo);
+
+  const accionesEsquinaHtml = esCliente
+    ? `
+      <div class="card-abogado__acciones-esquina">
+        ${generarBotonFavorito(idSeguro, favoritosIds.has(ab.id))}
+        ${generarMenuTarjeta([
+          { texto: 'Ver perfil', href: `/pages/perfil-abogado?id=${idSeguro}` },
+          { texto: favoritosIds.has(ab.id) ? 'Quitar de favoritos' : 'Marcar como favorito', accion: 'toggle-favorito', id: idSeguro },
+          { texto: 'Bloquear abogado', accion: 'bloquear-abogado', id: idSeguro, dataNombre: nombreSeguro },
+        ])}
+      </div>
+    `
     : '';
 
   return `
-    <article class="card-abogado" role="listitem">
-      ${favoritoHtml}
+    <article class="card-abogado" role="listitem" data-abogado-id="${idSeguro}">
+      ${accionesEsquinaHtml}
       <div class="card-abogado__header">
         <div class="card-abogado__avatar">${avatarHtml}</div>
         <div class="card-abogado__meta">

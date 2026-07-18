@@ -4,7 +4,7 @@
 
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
-import { toast, mensajeAmigable, generarCheckboxSeguimiento, generarBotonFavorito, MENSAJE_AGREGADO_SEGUIMIENTO } from './utils.js';
+import { toast, mensajeAmigable, generarCheckboxSeguimiento, generarBotonFavorito, generarMenuTarjeta, inicializarMenuTarjeta, actualizarControlesFavorito, abrirModalBloqueo, MENSAJE_AGREGADO_SEGUIMIENTO } from './utils.js';
 import { inicializarHeader } from './header.js';
 
 // ─── Etiquetas y estilos por estado ───────────────────────────────────────────
@@ -130,8 +130,9 @@ function configurarEventos() {
 
   document.getElementById('seccionSeguimiento').addEventListener('click', manejarClickSeguimiento);
   document.getElementById('favoritosLista').addEventListener('click', manejarClickFavorito);
-  document.getElementById('abogadosContactadosLista').addEventListener('click', manejarClickFavoritoGenerico);
-  document.getElementById('ultimosAbogadosLista').addEventListener('click', manejarClickFavoritoGenerico);
+  document.getElementById('abogadosContactadosLista').addEventListener('click', manejarClickTarjetaAbogado);
+  document.getElementById('ultimosAbogadosLista').addEventListener('click', manejarClickTarjetaAbogado);
+  inicializarMenuTarjeta();
 }
 
 // ─── Navegación por secciones ─────────────────────────────────────────────────
@@ -470,11 +471,22 @@ function generarCardAbogadoContactado(ab) {
     ? '<span class="badge badge--estado-aceptada">Consulta activa</span>'
     : '';
 
-  const favoritoHtml = generarBotonFavorito(idSeguro, favoritosIds.has(ab.abogado_id));
+  const esFavorito = favoritosIds.has(ab.abogado_id);
+  const nombreSeguro = escaparAtrib(ab.abogado_nombre);
+  const accionesEsquinaHtml = `
+    <div class="card-abogado__acciones-esquina">
+      ${generarBotonFavorito(idSeguro, esFavorito)}
+      ${generarMenuTarjeta([
+        { texto: 'Ver perfil', href: `/pages/perfil-abogado?id=${idSeguro}` },
+        { texto: esFavorito ? 'Quitar de favoritos' : 'Marcar como favorito', accion: 'toggle-favorito', id: idSeguro },
+        { texto: 'Bloquear abogado', accion: 'bloquear-abogado', id: idSeguro, dataNombre: nombreSeguro },
+      ])}
+    </div>
+  `;
 
   return `
-    <article class="card-abogado" role="listitem">
-      ${favoritoHtml}
+    <article class="card-abogado" role="listitem" data-abogado-id="${idSeguro}">
+      ${accionesEsquinaHtml}
       <div class="card-abogado__header">
         <div class="card-abogado__avatar">${avatarHtml}</div>
         <div class="card-abogado__meta">
@@ -573,14 +585,18 @@ async function manejarClickFavorito(e) {
   toast.info('Quitado de favoritos.');
 }
 
-// Corazón en "Mis abogados" e "Inicio" (Últimos abogados): a diferencia de
-// manejarClickFavorito() de arriba, acá el corazón puede estar vacío o
-// lleno, así que el toggle actualiza el botón en el lugar en vez de asumir
-// que siempre significa "quitar".
-async function manejarClickFavoritoGenerico(e) {
-  const btn = e.target.closest('[data-accion="toggle-favorito"]');
-  if (!btn) return;
+// Click en las tarjetas de "Mis abogados" e "Inicio" (Últimos abogados):
+// corazón de favorito (a diferencia de manejarClickFavorito() de arriba,
+// acá el corazón puede estar vacío o lleno) y menú de tres puntos.
+function manejarClickTarjetaAbogado(e) {
+  const btnFavorito = e.target.closest('[data-accion="toggle-favorito"]');
+  if (btnFavorito) return manejarToggleFavoritoGenerico(btnFavorito);
 
+  const btnBloquear = e.target.closest('[data-accion="bloquear-abogado"]');
+  if (btnBloquear) return manejarBloquearAbogado(btnBloquear.dataset.id, btnBloquear.dataset.nombre);
+}
+
+async function manejarToggleFavoritoGenerico(btn) {
   const abogadoId = btn.dataset.id;
   btn.disabled = true;
   const { esFavorito, error } = await api.favoritos.toggle(abogadoId);
@@ -594,13 +610,19 @@ async function manejarClickFavoritoGenerico(e) {
   if (esFavorito) favoritosIds.add(abogadoId);
   else favoritosIds.delete(abogadoId);
 
-  btn.classList.toggle('btn-favorito--activo', esFavorito);
-  btn.setAttribute('aria-pressed', String(esFavorito));
-  btn.setAttribute('aria-label', esFavorito ? 'Quitar de favoritos' : 'Agregar a favoritos');
-  btn.querySelector('svg path').setAttribute('fill', esFavorito ? 'currentColor' : 'none');
+  actualizarControlesFavorito(abogadoId, esFavorito);
   btn.disabled = false;
 
   toast.info(esFavorito ? 'Agregado a favoritos.' : 'Quitado de favoritos.');
+}
+
+async function manejarBloquearAbogado(abogadoId, nombreAbogado) {
+  const bloqueado = await abrirModalBloqueo(nombreAbogado, abogadoId);
+  if (!bloqueado) return;
+
+  // El abogado bloqueado deja de ser visible por RLS — se quita de ambas
+  // listas en vez de esperar a la próxima carga completa de la página.
+  document.querySelectorAll(`[data-abogado-id="${abogadoId}"]`).forEach(el => el.remove());
 }
 
 // ─── Reseñas ──────────────────────────────────────────────────────────────────

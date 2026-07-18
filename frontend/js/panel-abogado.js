@@ -4,9 +4,8 @@
 
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
-import { toast, mensajeAmigable, generarCheckboxSeguimiento, MENSAJE_AGREGADO_SEGUIMIENTO } from './utils.js';
+import { toast, mensajeAmigable, generarCheckboxSeguimiento, generarMenuTarjeta, inicializarMenuTarjeta, abrirModalBloqueo, MENSAJE_AGREGADO_SEGUIMIENTO } from './utils.js';
 import { inicializarHeader } from './header.js';
-import { confirmarBloqueo } from './bloqueos.js';
 
 // ─── Etiquetas y estilos por estado ───────────────────────────────────────────
 const ETIQUETAS_ESTADO_SOLICITUD = {
@@ -151,6 +150,7 @@ function configurarEventos() {
   });
 
   document.getElementById('seccionSeguimiento').addEventListener('click', manejarClickSeguimiento);
+  inicializarMenuTarjeta();
 }
 
 // ─── Navegación por secciones ─────────────────────────────────────────────────
@@ -361,15 +361,11 @@ function generarSolicitudCard(s) {
 
   const seguimientoHtml = generarCheckboxSeguimiento(idSeguro, s.en_seguimiento_abogado);
 
-  // Bloquear cliente: discreto, al fondo de la tarjeta (CLAUDE.md módulo 8).
-  const bloquearHtml = `
-    <div class="solicitud-item__acciones">
-      <button class="btn-enlace-sutil" type="button" data-accion="bloquear-cliente"
-        data-id="${escaparAtrib(s.cliente_id)}" data-nombre="${escaparAtrib(s.cliente_nombre)}">
-        Bloquear cliente
-      </button>
-    </div>
-  `;
+  // Menú de tres puntos: única opción hoy es "Bloquear cliente" (CLAUDE.md
+  // módulo 3 de la ronda de fixes — reemplaza al link de texto suelto).
+  const menuHtml = generarMenuTarjeta([
+    { texto: 'Bloquear cliente', accion: 'bloquear-cliente', id: escaparAtrib(s.cliente_id), dataNombre: escaparAtrib(s.cliente_nombre) },
+  ]);
 
   return `
     <article class="solicitud-item">
@@ -381,14 +377,16 @@ function generarSolicitudCard(s) {
             <p class="solicitud-item__fecha">${formatearFechaHora(s.created_at)}</p>
           </div>
         </div>
-        <span class="badge ${claseEstado}">${etiquetaEstado}</span>
+        <div class="solicitud-item__header-derecha">
+          <span class="badge ${claseEstado}">${etiquetaEstado}</span>
+          ${menuHtml}
+        </div>
       </div>
       ${detalleHtml}
       ${motivoRechazoHtml}
       ${contactoHtml}
       ${accionesHtml}
       ${seguimientoHtml}
-      ${bloquearHtml}
     </article>
   `;
 }
@@ -410,7 +408,7 @@ function manejarClickSeguimiento(e) {
 }
 
 async function manejarBloquearCliente(clienteId, nombreCliente) {
-  const bloqueado = await confirmarBloqueo(clienteId, nombreCliente);
+  const bloqueado = await abrirModalBloqueo(nombreCliente, clienteId);
   if (!bloqueado) return;
 
   // La solicitud fue cancelada automáticamente por el trigger de bloqueos —
