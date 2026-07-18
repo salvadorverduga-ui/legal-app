@@ -720,4 +720,19 @@ Ambas páginas nuevas suben la foto con `api.perfiles.subirFotoPerfil()` (sin ca
 
 ---
 
+## 28. Todos los casos del Tablón visibles en "Solicitudes del Tablón" (vista cliente)
+
+### Problema
+`solicitudes-tablon.html` (vista cliente) mostraba solo las `solicitudes` con `caso_tablon_id` — es decir, únicamente los casos donde el cliente ya había elegido a un abogado (§17: la elección crea la solicitud directamente en `ACEPTADA`). Un caso `ACTIVO` sin aplicaciones, o incluso con aplicaciones pero sin ningún elegido, o ya `CERRADO`/`EXPIRADO` sin elección, no aparecía en ningún lado de "Solicitudes del Tablón" — el cliente solo podía verlo desde `tablon.html` mientras estuviera entre "Mis casos".
+
+### Solución
+La vista cliente de `solicitudes-tablon.js` pasa de listar `solicitudes` a listar `casos_tablon` propios vía `api.tablon.getMisCasos()` (vista `tablon_casos_cliente`, migración 040) — **sin necesidad de ninguna migración**: esa vista ya devuelve todos los estados (`ACTIVO`/`CERRADO`/`EXPIRADO`) y ya incluye `total_aplicaciones`; el filtro por estado nunca existió ahí. Los filtros de la página pasan de ser por estado de solicitud (`PENDIENTE`/`ACEPTADA`/...) a estado de caso (`Todos`/`Activos`/`Cerrados`/`Expirados`) — `renderizarFiltros()` ahora arma los botones de `.filtro-tipo` dinámicamente según el rol en vez de tenerlos hardcodeados en el HTML, porque abogado y cliente necesitan opciones distintas en el mismo contenedor (`#filtrosEstado`).
+
+La vista abogado no cambia: sigue listando `solicitudes` con origen Tablón y sus filtros por estado de solicitud, sin tocar.
+
+### Se preservó "marcar completada" / "dejar reseña"
+El cambio de fuente de datos (de `solicitudes` a `casos_tablon`) por sí solo hubiera eliminado la única superficie de la app donde un cliente puede cerrar y reseñar una consulta iniciada desde El Tablón (`tablon-caso.html` nunca tuvo esas acciones). Para no perder esa funcionalidad, `cargarMisCasos()` trae en paralelo `getMisCasos()` y `getSolicitudesCliente('tablon')`, arma un mapa `caso_tablon_id → solicitud` y `generarCasoClienteCard()` embebe las acciones de esa solicitud (si existe) dentro de la tarjeta del caso vía `generarAccionesSolicitudCliente()` — mismo markup y lógica que tenía la tarjeta de solicitud que se eliminó, solo que ahora vive dentro de la tarjeta del caso en lugar de ser una tarjeta aparte.
+
+---
+
 *Actualizar este archivo con cada decisión técnica relevante*

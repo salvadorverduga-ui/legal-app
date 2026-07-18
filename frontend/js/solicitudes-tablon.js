@@ -1,7 +1,16 @@
 // solicitudes-tablon.js
-// Lógica de la página solicitudes-tablon.html: listado con filtros de estado
-// de las solicitudes originadas en El Tablón (caso_tablon_id NOT NULL — ver
-// migración 20260714_049), para cliente o abogado según el rol autenticado.
+// Lógica de la página solicitudes-tablon.html.
+//
+// Vista abogado: listado con filtros de estado de las solicitudes originadas
+// en El Tablón (caso_tablon_id NOT NULL — ver migración 20260714_049).
+//
+// Vista cliente: a diferencia del abogado, acá se muestran TODOS los casos
+// que el cliente publicó en El Tablón (tabla casos_tablon vía
+// api.tablon.getMisCasos(), que ya devuelve todos los estados — CLAUDE.md
+// módulo 3), no solo los que derivaron en una solicitud. Antes de este
+// cambio, un caso sin aplicaciones o sin abogado elegido no aparecía en
+// ningún lado de "Solicitudes del Tablón".
+//
 // Importa todo desde api.js — nunca consulta Supabase directamente.
 
 import * as api from './api.js';
@@ -11,7 +20,7 @@ import { inicializarHeader } from './header.js';
 
 const ORIGEN = 'tablon';
 
-// ─── Etiquetas y estilos por estado ───────────────────────────────────────────
+// ─── Etiquetas y estilos por estado: solicitudes (vista abogado) ─────────────
 const ETIQUETAS_ESTADO_SOLICITUD = {
   PENDIENTE:  'Pendiente',
   ACEPTADA:   'Aceptada',
@@ -32,12 +41,45 @@ const CLASE_ESTADO_SOLICITUD = {
   CANCELADA:  'badge--estado-cancelada',
 };
 
+const FILTROS_ESTADO_SOLICITUD = [
+  { estado: '',          etiqueta: 'Todas' },
+  { estado: 'PENDIENTE', etiqueta: 'Pendientes' },
+  { estado: 'ACEPTADA',  etiqueta: 'Aceptadas' },
+  { estado: 'COMPLETADA', etiqueta: 'Completadas' },
+  { estado: 'RESEÑADA',  etiqueta: 'Reseñadas' },
+  { estado: 'RECHAZADA', etiqueta: 'Rechazadas' },
+  { estado: 'EXPIRADA',  etiqueta: 'Expiradas' },
+  { estado: 'CANCELADA', etiqueta: 'Canceladas' },
+];
+
+// ─── Etiquetas y estilos por estado: casos (vista cliente) ───────────────────
+const ETIQUETAS_ESTADO_CASO = {
+  ACTIVO:   'Activo',
+  EXPIRADO: 'Expirado',
+  CERRADO:  'Cerrado',
+};
+
+const CLASE_ESTADO_CASO = {
+  ACTIVO:   'badge--estado-aceptada',
+  EXPIRADO: 'badge--estado-expirada',
+  CERRADO:  'badge--estado-cancelada',
+};
+
+const FILTROS_ESTADO_CASO = [
+  { estado: '',         etiqueta: 'Todos' },
+  { estado: 'ACTIVO',   etiqueta: 'Activos' },
+  { estado: 'CERRADO',  etiqueta: 'Cerrados' },
+  { estado: 'EXPIRADO', etiqueta: 'Expirados' },
+];
+
 // ─── Estado de la página ──────────────────────────────────────────────────────
 let perfilActual = null;
 let rolActual = null;                 // 'cliente' | 'abogado'
-let solicitudesActuales = [];         // caché local; las acciones actualizan sin refetch
-let estadoFiltroActivo = '';          // '' = todas
-let solicitudConFormularioAbierto = null; // cliente: id con el form de reseña visible
+let solicitudesActuales = [];         // vista abogado; caché local, las acciones actualizan sin refetch
+let misCasosActuales = [];            // vista cliente: todos los casos publicados (todos los estados)
+let estadoFiltroActivo = '';          // '' = todos/todas
+let solicitudConFormularioAbierto = null; // vista cliente: id de solicitud con el form de reseña visible
+let solicitudPorCasoId = new Map();       // vista cliente: caso_tablon_id -> solicitud (para completar/reseñar embebido en la tarjeta del caso)
 
 // ─── Entry point ───────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', inicializar);
@@ -82,12 +124,18 @@ async function inicializar() {
 
   document.getElementById('subtituloSolicitudes').textContent = rolActual === 'abogado'
     ? 'Casos del Tablón en los que fue elegido.'
-    : 'Casos del Tablón donde eligió un abogado.';
+    : 'Todos los casos que publicó en El Tablón.';
   document.getElementById('textoSinSolicitudes').textContent = rolActual === 'abogado'
     ? 'Cuando un cliente lo elija en un caso de El Tablón, aparecerá aquí.'
-    : 'Elija a un abogado aplicante en uno de sus casos de El Tablón para verlo aquí.';
+    : 'Aún no ha publicado ningún caso en El Tablón.';
 
-  await cargarSolicitudes();
+  renderizarFiltros();
+
+  if (rolActual === 'abogado') {
+    await cargarSolicitudes();
+  } else {
+    await cargarMisCasos();
+  }
 
   mostrarContenido();
   configurarEventos();
@@ -106,8 +154,9 @@ function mostrarContenido() {
 
 // ─── Configuración de eventos ─────────────────────────────────────────────────
 function configurarEventos() {
-  document.querySelectorAll('.filtro-tipo__btn').forEach(btn => {
-    btn.addEventListener('click', () => cambiarFiltroSolicitudes(btn.dataset.estado));
+  document.getElementById('filtrosEstado').addEventListener('click', (e) => {
+    const btn = e.target.closest('.filtro-tipo__btn');
+    if (btn) cambiarFiltro(btn.dataset.estado);
   });
 
   const contenedor = document.getElementById('solicitudesLista');
@@ -115,20 +164,30 @@ function configurarEventos() {
   contenedor.addEventListener('submit', manejarSubmitResena);
 }
 
-// ─── Solicitudes ──────────────────────────────────────────────────────────────
-async function cargarSolicitudes() {
-  solicitudesActuales = rolActual === 'abogado'
-    ? await api.solicitudes.getSolicitudesAbogado(ORIGEN)
-    : await api.solicitudes.getSolicitudesCliente(ORIGEN);
+// ─── Filtros (distintos por rol: estado de solicitud vs. estado de caso) ─────
+function renderizarFiltros() {
+  const opciones = rolActual === 'abogado' ? FILTROS_ESTADO_SOLICITUD : FILTROS_ESTADO_CASO;
+  const contenedor = document.getElementById('filtrosEstado');
 
-  renderizarSolicitudes();
+  contenedor.querySelectorAll('.filtro-tipo__btn').forEach(btn => btn.remove());
+  contenedor.insertAdjacentHTML('beforeend', opciones.map((o, i) => `
+    <button class="filtro-tipo__btn${i === 0 ? ' filtro-tipo__btn--activo' : ''}" data-estado="${o.estado}" type="button">
+      ${o.etiqueta}
+    </button>
+  `).join(''));
 }
 
-function cambiarFiltroSolicitudes(estado) {
+function cambiarFiltro(estado) {
   estadoFiltroActivo = estado;
   document.querySelectorAll('.filtro-tipo__btn').forEach(btn => {
     btn.classList.toggle('filtro-tipo__btn--activo', btn.dataset.estado === estado);
   });
+  rolActual === 'abogado' ? renderizarSolicitudes() : renderizarMisCasos();
+}
+
+// ─── Solicitudes (vista abogado) ───────────────────────────────────────────────
+async function cargarSolicitudes() {
+  solicitudesActuales = await api.solicitudes.getSolicitudesAbogado(ORIGEN);
   renderizarSolicitudes();
 }
 
@@ -148,11 +207,81 @@ function renderizarSolicitudes() {
   }
 
   vacio.hidden = true;
-  contenedor.innerHTML = lista.map(generarSolicitudCard).join('');
+  contenedor.innerHTML = lista.map(generarSolicitudCardAbogado).join('');
 }
 
-function generarSolicitudCard(s) {
-  return rolActual === 'abogado' ? generarSolicitudCardAbogado(s) : generarSolicitudCardCliente(s);
+// ─── Mis casos (vista cliente) — CLAUDE.md módulo 3: todos los casos ─────────
+// publicados, con o sin aplicaciones y con o sin abogado elegido. Se cargan
+// junto con las solicitudes de origen Tablón para poder embeber "marcar
+// completada"/"dejar reseña" en la tarjeta del caso correspondiente.
+async function cargarMisCasos() {
+  const [casos, solicitudes] = await Promise.all([
+    api.tablon.getMisCasos(),
+    api.solicitudes.getSolicitudesCliente(ORIGEN),
+  ]);
+  misCasosActuales = casos;
+  solicitudesActuales = solicitudes;
+  solicitudPorCasoId = new Map(solicitudes.filter(s => s.caso_tablon_id).map(s => [s.caso_tablon_id, s]));
+  renderizarMisCasos();
+}
+
+function renderizarMisCasos() {
+  const lista = misCasosActuales.filter(c => !estadoFiltroActivo || c.estado === estadoFiltroActivo);
+  const contenedor = document.getElementById('solicitudesLista');
+  const vacio = document.getElementById('estadoSinSolicitudes');
+  const textoVacio = document.getElementById('textoSinSolicitudes');
+
+  if (lista.length === 0) {
+    contenedor.innerHTML = '';
+    vacio.hidden = false;
+    textoVacio.textContent = misCasosActuales.length === 0
+      ? textoVacio.textContent
+      : 'No hay casos en este estado.';
+    return;
+  }
+
+  vacio.hidden = true;
+  contenedor.innerHTML = lista.map(generarCasoClienteCard).join('');
+}
+
+function generarCasoClienteCard(c) {
+  const idSeguro = escaparAtrib(c.id);
+  const claseEstado = CLASE_ESTADO_CASO[c.estado] ?? 'badge--estado-expirada';
+  const etiquetaEstado = ETIQUETAS_ESTADO_CASO[c.estado] ?? c.estado;
+  const especialidadTexto = c.especialidad ? escaparHtml(c.especialidad) : 'Sin especialidad definida';
+  const tiempoRestanteHtml = c.estado === 'ACTIVO'
+    ? `<p class="solicitud-item__fecha">${formatearTiempoRestanteCaso(c.expires_at)}</p>`
+    : '';
+
+  const solicitud = solicitudPorCasoId.get(c.id);
+  const accionesSolicitudHtml = solicitud ? generarAccionesSolicitudCliente(solicitud) : '';
+
+  return `
+    <article class="solicitud-item">
+      <div class="solicitud-item__header">
+        <div>
+          <p class="caso-tablon-card__titulo"><a href="/pages/tablon-caso?id=${idSeguro}">${escaparHtml(c.titulo)}</a></p>
+          <p class="solicitud-item__fecha">Publicado el ${formatearFecha(c.created_at)} · ${especialidadTexto}</p>
+          ${tiempoRestanteHtml}
+        </div>
+        <span class="badge ${claseEstado}">${etiquetaEstado}</span>
+      </div>
+      ${accionesSolicitudHtml}
+      <div class="solicitud-item__acciones">
+        ${c.anonimo ? '<span class="badge badge--anonimo">Publicado como anónimo</span>' : ''}
+        <a href="/pages/tablon-caso?id=${idSeguro}" class="btn btn--secundario btn--sm">
+          Ver caso (${c.total_aplicaciones} ${c.total_aplicaciones === 1 ? 'aplicación' : 'aplicaciones'})
+        </a>
+      </div>
+    </article>
+  `;
+}
+
+function formatearTiempoRestanteCaso(expiresAtIso) {
+  if (!expiresAtIso) return '';
+  const diasRestantes = Math.ceil((new Date(expiresAtIso).getTime() - Date.now()) / 86400000);
+  if (diasRestantes <= 0) return 'Expira hoy.';
+  return `Expira en ${diasRestantes} ${diasRestantes === 1 ? 'día' : 'días'}.`;
 }
 
 // Link opcional al caso de origen en El Tablón (caso_tablon_id, migración 049).
@@ -231,23 +360,13 @@ function generarSolicitudCardAbogado(s) {
   `;
 }
 
-// ─── Tarjeta: vista cliente ─────────────────────────────────────────────────────
-function generarSolicitudCardCliente(s) {
-  const avatarHtml = generarAvatarHtml(s.abogado_foto, s.abogado_nombre);
-  const claseEstado = CLASE_ESTADO_SOLICITUD[s.estado] ?? 'badge--estado-expirada';
-  const etiquetaEstado = ETIQUETAS_ESTADO_SOLICITUD[s.estado] ?? s.estado;
+// Acciones de la solicitud aceptada asociada a un caso (marcar completada /
+// dejar reseña) — se insertan dentro de la tarjeta del caso cuando existe una
+// solicitud vinculada (ver solicitudPorCasoId). Antes vivían en su propia
+// tarjeta de solicitud; se conservan para no perder la posibilidad de cerrar
+// y reseñar una consulta iniciada desde El Tablón (CLAUDE.md módulo 3).
+function generarAccionesSolicitudCliente(s) {
   const idSeguro = escaparAtrib(s.id);
-  const abogadoIdSeguro = escaparAtrib(s.abogado_id);
-
-  const detalleHtml = [
-    s.descripcion_caso
-      ? `<p class="solicitud-item__detalle"><span class="solicitud-item__detalle-etiqueta">Caso:</span> ${escaparHtml(s.descripcion_caso)}</p>`
-      : '',
-    s.disponibilidad_horaria
-      ? `<p class="solicitud-item__detalle"><span class="solicitud-item__detalle-etiqueta">Disponibilidad:</span> ${escaparHtml(s.disponibilidad_horaria)}</p>`
-      : '',
-  ].join('');
-
   const puedeCompletar = s.estado === 'ACEPTADA';
   const puedeReseñar = s.estado === 'COMPLETADA' && !s.tiene_resena;
   const formularioAbierto = solicitudConFormularioAbierto === s.id;
@@ -288,27 +407,7 @@ function generarSolicitudCardCliente(s) {
     </form>
   ` : '';
 
-  const seguimientoHtml = generarCheckboxSeguimiento(idSeguro, s.en_seguimiento_cliente);
-
-  return `
-    <article class="solicitud-item">
-      <div class="solicitud-item__header">
-        <div class="solicitud-item__cliente">
-          <div class="solicitud-item__avatar">${avatarHtml}</div>
-          <div>
-            <p class="solicitud-item__nombre"><a href="/pages/perfil-abogado?id=${abogadoIdSeguro}">${escaparHtml(s.abogado_nombre)}</a></p>
-            <p class="solicitud-item__fecha">Enviada ${formatearTiempoTranscurrido(s.created_at)} · ${formatearFechaHora(s.created_at)}</p>
-          </div>
-        </div>
-        <span class="badge ${claseEstado}">${etiquetaEstado}</span>
-      </div>
-      ${detalleHtml}
-      ${completarHtml}
-      ${accionesHtml}
-      ${generarLinkCasoTablon(s.caso_tablon_id)}
-      ${seguimientoHtml}
-    </article>
-  `;
+  return `${completarHtml}${accionesHtml}`;
 }
 
 // Orden 5→1 en el DOM: junto con flex-direction: row-reverse en CSS, esto
@@ -343,11 +442,11 @@ function manejarClickSolicitudes(e) {
   if (accion === 'marcar-completada') manejarMarcarCompletada(id);
   if (accion === 'mostrar-resena') {
     solicitudConFormularioAbierto = id;
-    renderizarSolicitudes();
+    renderizarMisCasos();
   }
   if (accion === 'cancelar-resena') {
     solicitudConFormularioAbierto = null;
-    renderizarSolicitudes();
+    renderizarMisCasos();
   }
 }
 
@@ -387,7 +486,7 @@ async function manejarMarcarCompletada(id) {
   }
 
   actualizarSolicitudLocal(id, data);
-  renderizarSolicitudes();
+  renderizarMisCasos();
   toast.exito('Consulta marcada como completada.');
 }
 
@@ -430,7 +529,7 @@ async function manejarSubmitResena(e) {
     entrada.estado = 'RESEÑADA';
   }
   solicitudConFormularioAbierto = null;
-  renderizarSolicitudes();
+  renderizarMisCasos();
   toast.exito('Reseña enviada.');
 }
 
@@ -467,22 +566,6 @@ function formatearFechaHora(fechaIso) {
   const hora = String(fecha.getHours()).padStart(2, '0');
   const minutos = String(fecha.getMinutes()).padStart(2, '0');
   return `${formatearFecha(fechaIso)}, ${hora}:${minutos}`;
-}
-
-// Tiempo transcurrido desde que se envió la solicitud (created_at), en
-// unidades legibles ("hace unos minutos", "hace 3 horas", "hace 2 días").
-function formatearTiempoTranscurrido(fechaIso) {
-  if (!fechaIso) return '';
-  const minutos = Math.floor((Date.now() - new Date(fechaIso).getTime()) / 60000);
-
-  if (minutos < 1) return 'hace unos instantes';
-  if (minutos < 60) return `hace ${minutos} ${minutos === 1 ? 'minuto' : 'minutos'}`;
-
-  const horas = Math.floor(minutos / 60);
-  if (horas < 24) return `hace ${horas} ${horas === 1 ? 'hora' : 'horas'}`;
-
-  const dias = Math.floor(horas / 24);
-  return `hace ${dias} ${dias === 1 ? 'día' : 'días'}`;
 }
 
 // ─── Seguridad: escapado de HTML ──────────────────────────────────────────────
