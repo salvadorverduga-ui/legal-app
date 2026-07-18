@@ -1158,6 +1158,17 @@ export const resenas = {
       if (error.code === '23505') {
         return { data: null, error: { message: 'Ya dejó una reseña para esta solicitud.' } };
       }
+      // 42501 = insufficient_privilege: la política RLS "cliente_inserta_resena"
+      // rechazó el INSERT. En este flujo, la única causa posible es que aún no
+      // pasaron las 24h desde solicitudes.completada_at (CLAUDE.md módulo 5) —
+      // el resto de las condiciones de esa política ya las garantiza la UI
+      // (solo se llega acá desde una solicitud propia en estado COMPLETADA).
+      if (error.code === '42501') {
+        return {
+          data: null,
+          error: { message: 'Podrá dejar su reseña 24 horas después de completada la consulta.', codigo: 'RESENA_MUY_TEMPRANO' },
+        };
+      }
       return { data: null, error };
     }
 

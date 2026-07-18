@@ -200,7 +200,11 @@ function generarSolicitudCard(s) {
     : '';
 
   const puedeCompletar = s.estado === 'ACEPTADA';
-  const puedeReseñar = s.estado === 'COMPLETADA' && !s.tiene_resena;
+  const sinResenaAun = s.estado === 'COMPLETADA' && !s.tiene_resena;
+  const puedeReseñar = sinResenaAun && haPasadoTiempoMinimoResena(s.completada_at);
+  const esperaResenaHtml = (sinResenaAun && !puedeReseñar)
+    ? '<p class="campo__ayuda">Podrá dejar su reseña 24 horas después de completada la consulta.</p>'
+    : '';
   const puedeCancelar = s.estado === 'PENDIENTE';
   const formularioAbierto = solicitudConFormularioAbierto === s.id;
   const edicionAbierta = solicitudConEdicionAbierta === s.id;
@@ -303,6 +307,7 @@ function generarSolicitudCard(s) {
       ${completarHtml}
       ${cancelarHtml}
       ${buscarOtroHtml}
+      ${esperaResenaHtml}
       ${accionesHtml}
       ${seguimientoHtml}
     </article>
@@ -622,6 +627,14 @@ function esTiempoRestanteUrgente(expiresAtIso) {
   if (!expiresAtIso) return false;
   const horasRestantes = (new Date(expiresAtIso).getTime() - Date.now()) / 3600000;
   return horasRestantes < 6;
+}
+
+// CLAUDE.md módulo 5: espejo del mínimo de 24h que exige la política RLS
+// "cliente_inserta_resena" (solo controla la visibilidad del botón; la
+// validación real vive en la base de datos).
+function haPasadoTiempoMinimoResena(completadaAtIso) {
+  if (!completadaAtIso) return false;
+  return Date.now() - new Date(completadaAtIso).getTime() >= 24 * 60 * 60 * 1000;
 }
 
 // ─── Seguridad: escapado de HTML ──────────────────────────────────────────────

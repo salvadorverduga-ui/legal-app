@@ -368,7 +368,11 @@ function generarSolicitudCardAbogado(s) {
 function generarAccionesSolicitudCliente(s) {
   const idSeguro = escaparAtrib(s.id);
   const puedeCompletar = s.estado === 'ACEPTADA';
-  const puedeReseñar = s.estado === 'COMPLETADA' && !s.tiene_resena;
+  const sinResenaAun = s.estado === 'COMPLETADA' && !s.tiene_resena;
+  const puedeReseñar = sinResenaAun && haPasadoTiempoMinimoResena(s.completada_at);
+  const esperaResenaHtml = (sinResenaAun && !puedeReseñar)
+    ? '<p class="campo__ayuda">Podrá dejar su reseña 24 horas después de completada la consulta.</p>'
+    : '';
   const formularioAbierto = solicitudConFormularioAbierto === s.id;
 
   const completarHtml = puedeCompletar ? `
@@ -407,7 +411,7 @@ function generarAccionesSolicitudCliente(s) {
     </form>
   ` : '';
 
-  return `${completarHtml}${accionesHtml}`;
+  return `${completarHtml}${esperaResenaHtml}${accionesHtml}`;
 }
 
 // Orden 5→1 en el DOM: junto con flex-direction: row-reverse en CSS, esto
@@ -566,6 +570,14 @@ function formatearFechaHora(fechaIso) {
   const hora = String(fecha.getHours()).padStart(2, '0');
   const minutos = String(fecha.getMinutes()).padStart(2, '0');
   return `${formatearFecha(fechaIso)}, ${hora}:${minutos}`;
+}
+
+// CLAUDE.md módulo 5: espejo del mínimo de 24h que exige la política RLS
+// "cliente_inserta_resena" (solo controla la visibilidad del botón; la
+// validación real vive en la base de datos).
+function haPasadoTiempoMinimoResena(completadaAtIso) {
+  if (!completadaAtIso) return false;
+  return Date.now() - new Date(completadaAtIso).getTime() >= 24 * 60 * 60 * 1000;
 }
 
 // ─── Seguridad: escapado de HTML ──────────────────────────────────────────────

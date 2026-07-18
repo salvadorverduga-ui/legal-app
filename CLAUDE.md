@@ -752,4 +752,14 @@ El campo `disponibilidad_horaria` se pedía bajo el título "Disponibilidad hora
 
 ---
 
+## 30. Tiempo mínimo de 24h para reseñar
+
+### Migración `20260720_054_resena_minimo_24h.sql`
+`solicitudes.completada_at` ya existía desde la migración 006 y ya se setea con `now()` en `fn_revelar_contacto_al_aceptar` al transicionar `ACEPTADA → COMPLETADA` (única transición posible hacia `COMPLETADA`) — no hizo falta agregar ninguna columna ni tocar ningún trigger de `solicitudes`. Solo se extendió la política RLS `cliente_inserta_resena` (tabla `resenas`, migración 007) para exigir además `s.completada_at IS NOT NULL AND s.completada_at <= now() - INTERVAL '24 hours'`.
+
+### Frontend: gate proactivo + mensaje de error
+En vez de mostrar siempre el botón "Dejar reseña" y depender solo del error de la base de datos, `panel-cliente.js`, `solicitudes-directas.js` y `solicitudes-tablon.js` calculan `haPasadoTiempoMinimoResena(s.completada_at)` (duplicada en los tres archivos, igual que el resto de los helpers de fecha de cada uno) para decidir si mostrar el botón o, en su lugar, el texto "Podrá dejar su reseña 24 horas después de completada la consulta." Esto es solo UX — la validación real sigue viviendo en la política RLS, así que si igual se intenta el INSERT antes de tiempo (reloj desincronizado, sesión vieja abierta), `api.resenas.crearResena()` (`frontend/js/api.js`) detecta `error.code === '42501'` (`insufficient_privilege`, RLS `WITH CHECK` rechazado) y devuelve ese mismo mensaje — agregado a `MENSAJES_ERROR_CONOCIDOS` en `utils.js` para que se muestre tal cual.
+
+---
+
 *Actualizar este archivo con cada decisión técnica relevante*

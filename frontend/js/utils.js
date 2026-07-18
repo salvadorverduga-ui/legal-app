@@ -100,6 +100,7 @@ const MENSAJES_ERROR_CONOCIDOS = new Set([
   'Ya dejó una reseña para esta solicitud.',
   'No se encontró la solicitud.',
   'Ya tiene 3 solicitudes activas con este abogado. Espere una respuesta o cancele alguna antes de enviar una nueva.',
+  'Podrá dejar su reseña 24 horas después de completada la consulta.',
 ]);
 
 export function mensajeAmigable(error, mensajePorDefecto) {
