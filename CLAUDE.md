@@ -849,4 +849,16 @@ Se probó en vivo, contra la base de datos de producción, la secuencia completa
 
 ---
 
+## 35. Fix: no se podía publicar en El Tablón
+
+### Diagnóstico
+`casos_tablon.especialidad` es `NULL`-able desde la migración 052 (§25: el cliente puede no saber a qué especialidad corresponde su caso), pero el `CHECK (especialidad IN (lista))` original (migración 040) nunca cambió — un `CHECK ... IN (...)` evalúa a `NULL` (válido) cuando el valor es `NULL`, pero a `FALSE` (constraint violado) cuando el valor es una cadena vacía `''`, porque `'' IN (lista)` no es lo mismo que `NULL IN (lista)`. `tablon-publicar.html` ofrece la opción "No estoy seguro / No aplica" con `value=""` — el cliente eligiéndola manda `''`, no `null`. `api.tablon.publicarCaso()` (`frontend/js/api.js`) ya convertía `caso_comun`/`provincia` vacíos a `null` antes de insertar, pero a `especialidad` se le olvidó el mismo tratamiento en la migración 052 — quedó insertando `''` tal cual, y el `INSERT` fallaba contra el `CHECK` en cualquier publicación sin especialidad seleccionada.
+
+Verificado en vivo contra producción (`INSERT` de prueba dentro de una transacción con `ROLLBACK`, como cliente real): `especialidad = ''` dispara `23514 check constraint "casos_tablon_especialidad_check"`; `especialidad = NULL` inserta sin error. `config_tablon` y `fn_verificar_limite_casos_tablon()` se revisaron y funcionan correctamente (no eran la causa).
+
+### Fix
+`especialidad: datos.especialidad || null` en `api.tablon.publicarCaso()` — mismo patrón que ya usaban `caso_comun`/`provincia`. Sin migración: el `CHECK` de la base de datos ya era correcto, el bug era exclusivamente que el frontend nunca normalizaba `''` a `null` antes de insertar.
+
+---
+
 *Actualizar este archivo con cada decisión técnica relevante*

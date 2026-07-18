@@ -1641,7 +1641,7 @@ export const tablon = {
         cliente_id: user.id,
         titulo: datos.titulo?.trim(),
         descripcion: datos.descripcion?.trim(),
-        especialidad: datos.especialidad,
+        especialidad: datos.especialidad || null,
         caso_comun: datos.caso_comun || null,
         provincia: datos.provincia || null,
         ciudad: datos.ciudad?.trim() || null,
