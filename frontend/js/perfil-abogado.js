@@ -4,7 +4,7 @@
 
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
-import { toast, mensajeAmigable } from './utils.js';
+import { toast, mensajeAmigable, generarBotonFavorito } from './utils.js';
 import { inicializarHeader } from './header.js';
 
 // ─── Etiquetas visibles para tipo_badge ───────────────────────────────────────
@@ -70,6 +70,9 @@ async function inicializar() {
 
   if (perfil?.rol === 'cliente') {
     document.getElementById('seccionBotonSolicitar').hidden = false;
+    const esFavorito = (await api.favoritos.getMisFavoritosIds()).includes(abogadoId);
+    document.getElementById('perfilFavoritoContenedor').innerHTML =
+      generarBotonFavorito(escaparAtrib(abogadoId), esFavorito);
   } else if (!sesion) {
     document.getElementById('seccionSinSesion').hidden = false;
   }
@@ -215,6 +218,31 @@ function configurarEventos(abogadoId) {
     e.preventDefault();
     manejarEnvioSolicitud(abogadoId);
   });
+
+  document.getElementById('perfilFavoritoContenedor').addEventListener('click', manejarClickFavorito);
+}
+
+// ─── Favoritos ─────────────────────────────────────────────────────────────
+async function manejarClickFavorito(e) {
+  const btn = e.target.closest('[data-accion="toggle-favorito"]');
+  if (!btn) return;
+
+  btn.disabled = true;
+  const { esFavorito, error } = await api.favoritos.toggle(btn.dataset.id);
+
+  if (error) {
+    toast.error(mensajeAmigable(error, 'No se pudo actualizar sus favoritos. Intente de nuevo.'));
+    btn.disabled = false;
+    return;
+  }
+
+  btn.classList.toggle('btn-favorito--activo', esFavorito);
+  btn.setAttribute('aria-pressed', String(esFavorito));
+  btn.setAttribute('aria-label', esFavorito ? 'Quitar de favoritos' : 'Agregar a favoritos');
+  btn.querySelector('svg path').setAttribute('fill', esFavorito ? 'currentColor' : 'none');
+  btn.disabled = false;
+
+  toast.info(esFavorito ? 'Agregado a favoritos.' : 'Quitado de favoritos.');
 }
 
 // ─── Envío de la solicitud ────────────────────────────────────────────────────

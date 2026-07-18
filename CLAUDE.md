@@ -785,4 +785,27 @@ La lista de la página reutiliza `.notificaciones__lista`/`.notificaciones__item
 
 ---
 
+## 32. Sistema de favoritos para clientes
+
+### Migración `20260721_055_favoritos.sql`
+Tabla `favoritos` (`cliente_id`, `abogado_id`, `UNIQUE(cliente_id, abogado_id)`) con RLS: el cliente solo ve/inserta/borra sus propios favoritos (`cliente_inserta_favorito` exige además `rol = 'cliente'`, mismo patrón que `cliente_crea_solicitud`). GRANT `SELECT, INSERT, DELETE` — sin `UPDATE`: el toggle del frontend siempre inserta o borra, nunca actualiza una fila existente.
+
+`panel_favoritos_cliente` es una vista nueva para la pestaña "Favoritos" (foto, nombre, especialidades, provincia), con el mismo patrón que `panel_abogados_contactados` (migración 034): join directo a `perfiles`/`abogados`/`provincias` sin bypass explícito de RLS — si un abogado favorito deja de ser visible (verificación revocada, suscripción vencida), su fila simplemente no aparece. (El advisor de seguridad marca esta vista, junto con *todas* las demás vistas del proyecto sin excepción, como `SECURITY DEFINER` — es una característica preexistente de cómo Supabase crea las vistas acá, no algo introducido por esta migración; no se tocó.)
+
+### `api.favoritos` (`frontend/js/api.js`)
+- `getMisFavoritos()` — fila completa desde `panel_favoritos_cliente`, para la pestaña "Favoritos".
+- `getMisFavoritosIds()` — solo los `abogado_id` (tabla `favoritos` directo, sin join), para que `busqueda.html`/`perfil-abogado.html` sepan qué corazón pintar relleno sin traer datos públicos completos.
+- `toggle(abogadoId)` — busca si ya existe, borra si sí, inserta si no. Retorna `{ esFavorito, error }`.
+
+### Botón de favorito (corazón) — `generarBotonFavorito()` en `utils.js`
+Mismo criterio que `generarCheckboxSeguimiento()`: markup compartido, cada página trae su propio listener de `click` sobre `data-accion="toggle-favorito"`. Se renderiza solo para `rol === 'cliente'` (el call site decide, la función no verifica rol):
+- `busqueda.html`: una tarjeta por resultado, esquina superior derecha (`.card-abogado` pasó a `position: relative`). El estado inicial de cada corazón sale de `getMisFavoritosIds()` cargado una sola vez al entrar a la página.
+- `perfil-abogado.html`: un único botón en el encabezado del perfil (`#perfilFavoritoContenedor`, `.perfil-header` también pasó a `position: relative`).
+- Pestaña "Favoritos" de `panel-cliente.html`: el corazón siempre sale relleno (ya son favoritos); togglearlo ahí siempre significa quitar, y la tarjeta se recarga desde `getMisFavoritos()` tras la confirmación.
+
+### Pestaña "Favoritos" en `panel-cliente.html`
+Entre "Mis abogados" y "Mis reseñas", como pidió el módulo. `generarCardFavorito()` reutiliza la estructura visual de `generarCardAbogadoContactado()` (misma clase `.card-abogado`) pero sin el badge "Consulta activa" ni la línea "Última interacción" — esos dos campos no existen en `panel_favoritos_cliente` (no hay noción de solicitud asociada a un favorito).
+
+---
+
 *Actualizar este archivo con cada decisión técnica relevante*

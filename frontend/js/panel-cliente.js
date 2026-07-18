@@ -4,7 +4,7 @@
 
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
-import { toast, mensajeAmigable, generarCheckboxSeguimiento, MENSAJE_AGREGADO_SEGUIMIENTO } from './utils.js';
+import { toast, mensajeAmigable, generarCheckboxSeguimiento, generarBotonFavorito, MENSAJE_AGREGADO_SEGUIMIENTO } from './utils.js';
 import { inicializarHeader } from './header.js';
 
 // ─── Etiquetas y estilos por estado ───────────────────────────────────────────
@@ -40,7 +40,7 @@ const CLASE_ESTADO_CASO_TABLON = {
   CERRADO:  'badge--estado-cancelada',
 };
 
-const SECCIONES = ['Inicio', 'Solicitudes', 'Abogados', 'Resenas', 'Seguimiento'];
+const SECCIONES = ['Inicio', 'Solicitudes', 'Abogados', 'Favoritos', 'Resenas', 'Seguimiento'];
 
 // ─── Estado de la página ──────────────────────────────────────────────────────
 let perfilActual = null;         // fila propia de la tabla perfiles
@@ -83,12 +83,13 @@ async function inicializar() {
   renderizarSaludoInicio();
   inicializarHeader({ rol: 'cliente', nombre: perfilActual.nombre_completo, fotoPath: perfilActual.foto_url });
 
-  const [resenas, abogadosContactados, ultimosAbogados, notificacionesNoLeidas, misSeguimientos] = await Promise.all([
+  const [resenas, abogadosContactados, ultimosAbogados, notificacionesNoLeidas, misSeguimientos, misFavoritos] = await Promise.all([
     api.resenas.getMisResenas(),
     api.solicitudes.getAbogadosContactados(),
     api.clientes.getUltimosAbogados(),
     api.notificaciones.getNoLeidas(),
     api.seguimiento.getMisSeguimientos(),
+    api.favoritos.getMisFavoritos(),
     cargarSolicitudes(),
   ]);
   renderizarResenas(resenas);
@@ -96,6 +97,7 @@ async function inicializar() {
   renderizarUltimosAbogados(ultimosAbogados);
   renderizarResumenInicio(notificacionesNoLeidas.length);
   renderizarSeguimiento(misSeguimientos);
+  renderizarFavoritos(misFavoritos);
 
   mostrarContenido();
   configurarEventos();
@@ -124,6 +126,7 @@ function configurarEventos() {
   });
 
   document.getElementById('seccionSeguimiento').addEventListener('click', manejarClickSeguimiento);
+  document.getElementById('favoritosLista').addEventListener('click', manejarClickFavorito);
 }
 
 // ─── Navegación por secciones ─────────────────────────────────────────────────
@@ -488,6 +491,78 @@ function generarCardAbogadoContactado(ab) {
       </div>
     </article>
   `;
+}
+
+// ─── Favoritos ──────────────────────────────────────────────────────────────
+function renderizarFavoritos(lista) {
+  const contenedor = document.getElementById('favoritosLista');
+  const vacio = document.getElementById('estadoSinFavoritos');
+
+  if (!lista || lista.length === 0) {
+    contenedor.innerHTML = '';
+    vacio.hidden = false;
+    return;
+  }
+
+  vacio.hidden = true;
+  contenedor.innerHTML = lista.map(generarCardFavorito).join('');
+}
+
+function generarCardFavorito(f) {
+  const avatarHtml = generarAvatarHtml(f.abogado_foto, f.abogado_nombre);
+  const idSeguro = escaparAtrib(f.abogado_id);
+
+  const especialidades = (f.abogado_especialidades ?? []).slice(0, 3);
+  const extras = (f.abogado_especialidades?.length ?? 0) - 3;
+  const especialidadesHtml = especialidades
+    .map(e => `<span class="chip">${escaparHtml(e)}</span>`)
+    .join('');
+  const masHtml = extras > 0 ? `<span class="chip chip--mas">+${extras}</span>` : '';
+
+  return `
+    <article class="card-abogado" role="listitem">
+      ${generarBotonFavorito(idSeguro, true)}
+      <div class="card-abogado__header">
+        <div class="card-abogado__avatar">${avatarHtml}</div>
+        <div class="card-abogado__meta">
+          <h3 class="card-abogado__nombre"><a href="/pages/perfil-abogado?id=${idSeguro}">${escaparHtml(f.abogado_nombre)}</a></h3>
+          ${f.abogado_provincia ? `<p class="card-abogado__ubicacion">${escaparHtml(f.abogado_provincia)}</p>` : ''}
+        </div>
+      </div>
+
+      ${especialidades.length ? `
+        <div class="card-abogado__especialidades">
+          ${especialidadesHtml}${masHtml}
+        </div>
+      ` : ''}
+
+      <div class="card-abogado__footer">
+        <div class="solicitud-item__acciones">
+          <a href="/pages/perfil-abogado?id=${idSeguro}" class="btn btn--secundario btn--sm">Ver perfil</a>
+          <a href="/pages/perfil-abogado?id=${idSeguro}" class="btn btn--primario btn--sm">Nueva consulta</a>
+        </div>
+      </div>
+    </article>
+  `;
+}
+
+async function manejarClickFavorito(e) {
+  const btn = e.target.closest('[data-accion="toggle-favorito"]');
+  if (!btn) return;
+
+  btn.disabled = true;
+  const { error } = await api.favoritos.toggle(btn.dataset.id);
+
+  if (error) {
+    toast.error(mensajeAmigable(error, 'No se pudo actualizar sus favoritos. Intente de nuevo.'));
+    btn.disabled = false;
+    return;
+  }
+
+  // En esta pestaña, togglear siempre significa "quitar" (ya son todos favoritos).
+  const favoritos = await api.favoritos.getMisFavoritos();
+  renderizarFavoritos(favoritos);
+  toast.info('Quitado de favoritos.');
 }
 
 // ─── Reseñas ──────────────────────────────────────────────────────────────────

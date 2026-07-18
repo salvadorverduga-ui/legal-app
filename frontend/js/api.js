@@ -2064,3 +2064,93 @@ export const clientes = {
   },
 
 };
+
+
+// ════════════════════════════════════════════════════════════
+// FAVORITOS
+// Abogados marcados como favoritos por un cliente (CLAUDE.md módulo 7).
+// ════════════════════════════════════════════════════════════
+export const favoritos = {
+
+  /**
+   * Retorna los abogados favoritos del cliente autenticado, con datos
+   * públicos (foto, nombre, especialidades, provincia) desde la vista
+   * panel_favoritos_cliente. Más recientes primero.
+   * Retorna array (puede estar vacío).
+   */
+  async getMisFavoritos() {
+    const { data, error } = await _cliente
+      .from('panel_favoritos_cliente')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('[api.favoritos.getMisFavoritos]', error.message);
+      return [];
+    }
+    return data ?? [];
+  },
+
+  /**
+   * Retorna solo los abogado_id favoritos del cliente autenticado — liviano,
+   * usado por busqueda.html/perfil-abogado.html para decidir qué corazón
+   * mostrar relleno sin traer los datos públicos completos.
+   * Retorna array de uuid (puede estar vacío).
+   */
+  async getMisFavoritosIds() {
+    const { data, error } = await _cliente
+      .from('favoritos')
+      .select('abogado_id');
+
+    if (error) {
+      console.error('[api.favoritos.getMisFavoritosIds]', error.message);
+      return [];
+    }
+    return (data ?? []).map(f => f.abogado_id);
+  },
+
+  /**
+   * Alterna el estado de favorito de un abogado para el cliente autenticado:
+   * inserta si no existe, borra si ya existe (UNIQUE(cliente_id, abogado_id)
+   * evita duplicados de todas formas).
+   * Retorna { esFavorito: boolean, error }.
+   */
+  async toggle(abogadoId) {
+    const { data: { user }, error: errUser } = await _cliente.auth.getUser();
+    if (errUser || !user) {
+      return { esFavorito: false, error: errUser ?? { message: 'No hay sesión activa.' } };
+    }
+
+    const { data: existente, error: errBuscar } = await _cliente
+      .from('favoritos')
+      .select('id')
+      .eq('cliente_id', user.id)
+      .eq('abogado_id', abogadoId)
+      .maybeSingle();
+
+    if (errBuscar) {
+      console.error('[api.favoritos.toggle]', errBuscar.message);
+      return { esFavorito: false, error: errBuscar };
+    }
+
+    if (existente) {
+      const { error } = await _cliente.from('favoritos').delete().eq('id', existente.id);
+      if (error) {
+        console.error('[api.favoritos.toggle]', error.message);
+        return { esFavorito: true, error };
+      }
+      return { esFavorito: false, error: null };
+    }
+
+    const { error } = await _cliente
+      .from('favoritos')
+      .insert({ cliente_id: user.id, abogado_id: abogadoId });
+
+    if (error) {
+      console.error('[api.favoritos.toggle]', error.message);
+      return { esFavorito: false, error };
+    }
+    return { esFavorito: true, error: null };
+  },
+
+};

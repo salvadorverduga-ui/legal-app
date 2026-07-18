@@ -1379,6 +1379,7 @@ p {
 
 /* ── Card de abogado ───────────────────────────────────────── */
 .card-abogado {
+  position: relative;
   background-color: var(--color-fondo-card);
   border: 1px solid var(--color-borde);
   border-radius: var(--radio-xl);
@@ -1388,6 +1389,35 @@ p {
   gap: var(--esp-4);
   box-shadow: var(--sombra-sm);
   transition: box-shadow var(--transicion), transform var(--transicion);
+}
+
+/* Botón de favorito (corazón): busqueda.html (esquina de la tarjeta) y
+   perfil-abogado.html (junto al encabezado del perfil). */
+.btn-favorito {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radio-completo);
+  color: var(--color-texto-suave);
+  transition: color var(--transicion), background-color var(--transicion);
+}
+
+.card-abogado .btn-favorito,
+.perfil-header .btn-favorito {
+  position: absolute;
+  top: var(--esp-4);
+  right: var(--esp-4);
+}
+
+.btn-favorito:hover,
+.btn-favorito:focus-visible {
+  background-color: var(--color-primario-suave);
+}
+
+.btn-favorito--activo {
+  color: var(--color-error);
 }
 
 .card-abogado:hover {
@@ -1585,6 +1615,7 @@ p {
 
 /* ── Encabezado del perfil ─────────────────────────────────── */
 .perfil-header {
+  position: relative;
   background-color: var(--color-fondo-card);
   border: 1px solid var(--color-borde);
   border-radius: var(--radio-xl);

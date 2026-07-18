@@ -34,6 +34,25 @@ export function generarCheckboxSeguimiento(idSeguro, marcado) {
   `;
 }
 
+// ─── Botón de favorito (corazón) ───────────────────────────────────────────
+// Reutilizado en las tarjetas de busqueda.html y en el encabezado de
+// perfil-abogado.html — solo se renderiza para clientes con sesión activa
+// (el call site decide eso, esta función no verifica rol). idSeguro debe
+// venir ya escapado por el call site. El listener de "click" en cada página
+// llama a data-accion="toggle-favorito".
+export function generarBotonFavorito(idSeguro, esFavorito) {
+  return `
+    <button class="btn-favorito${esFavorito ? ' btn-favorito--activo' : ''}" type="button"
+      data-accion="toggle-favorito" data-id="${idSeguro}"
+      aria-pressed="${esFavorito}" aria-label="${esFavorito ? 'Quitar de favoritos' : 'Agregar a favoritos'}">
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+        <path d="M12 21s-7.5-4.6-10-9.3C.5 8.4 2 4.5 5.7 4c2-.3 3.7.6 4.9 2.2C11.8 4.6 13.5 3.7 15.5 4c3.7.5 5.2 4.4 3.7 7.7-2.5 4.7-10 9.3-10 9.3z"
+          fill="${esFavorito ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+      </svg>
+    </button>
+  `;
+}
+
 const DURACION_MS = 4000;
 
 let contenedorToasts = null;

@@ -4,6 +4,7 @@
 
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
+import { toast, mensajeAmigable, generarBotonFavorito } from './utils.js';
 import { inicializarHeader } from './header.js';
 
 // ─── Etiquetas visibles para tipo_badge ───────────────────────────────────────
@@ -17,6 +18,8 @@ const ETIQUETAS_TIPO = {
 let tipoActivo = ''; // '' = todos | 'individual' | 'estudio' | 'red'
 let provinciasCache = [];      // catálogo de provincias, cargado una vez
 let provinciaFiltroActiva = null; // { id, nombre } de la provincia buscada, o null
+let esCliente = false;              // solo clientes ven/usan el corazón de favoritos
+let favoritosIds = new Set();       // abogado_id favoritos del cliente autenticado
 
 // ─── Entry point ─────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', inicializar);
@@ -35,7 +38,11 @@ async function inicializar() {
   // 2. La búsqueda es pública: no se exige sesión. El header centralizado
   // resuelve por su cuenta si hay una sesión activa y renderiza el estado
   // correspondiente (nunca "Salir" e "Iniciar sesión" a la vez).
-  await inicializarHeader();
+  const perfilActual = await inicializarHeader();
+  esCliente = perfilActual?.rol === 'cliente';
+  if (esCliente) {
+    favoritosIds = new Set(await api.favoritos.getMisFavoritosIds());
+  }
 
   // 3. Cargar catálogo de provincias para el filtro
   provinciasCache = await api.geo.getProvincias();
@@ -79,6 +86,36 @@ function configurarEventos() {
   document.querySelectorAll('.filtro-tipo__btn').forEach(btn => {
     btn.addEventListener('click', () => cambiarTipo(btn.dataset.tipo));
   });
+
+  document.getElementById('gridResultados').addEventListener('click', manejarClickFavorito);
+}
+
+// ─── Favoritos ─────────────────────────────────────────────────────────────
+async function manejarClickFavorito(e) {
+  const btn = e.target.closest('[data-accion="toggle-favorito"]');
+  if (!btn) return;
+
+  const abogadoId = btn.dataset.id;
+  btn.disabled = true;
+
+  const { esFavorito, error } = await api.favoritos.toggle(abogadoId);
+
+  if (error) {
+    toast.error(mensajeAmigable(error, 'No se pudo actualizar sus favoritos. Intente de nuevo.'));
+    btn.disabled = false;
+    return;
+  }
+
+  if (esFavorito) favoritosIds.add(abogadoId);
+  else favoritosIds.delete(abogadoId);
+
+  btn.classList.toggle('btn-favorito--activo', esFavorito);
+  btn.setAttribute('aria-pressed', String(esFavorito));
+  btn.setAttribute('aria-label', esFavorito ? 'Quitar de favoritos' : 'Agregar a favoritos');
+  btn.querySelector('svg path').setAttribute('fill', esFavorito ? 'currentColor' : 'none');
+  btn.disabled = false;
+
+  toast.info(esFavorito ? 'Agregado a favoritos.' : 'Quitado de favoritos.');
 }
 
 // ─── Filtro por tipo ──────────────────────────────────────────────────────────
@@ -273,8 +310,13 @@ function generarCardAbogado(ab) {
     ? ab.tipo_badge
     : 'individual';
 
+  const favoritoHtml = esCliente
+    ? generarBotonFavorito(escaparAtrib(ab.id), favoritosIds.has(ab.id))
+    : '';
+
   return `
     <article class="card-abogado" role="listitem">
+      ${favoritoHtml}
       <div class="card-abogado__header">
         <div class="card-abogado__avatar">${avatarHtml}</div>
         <div class="card-abogado__meta">
