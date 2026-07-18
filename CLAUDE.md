@@ -76,7 +76,8 @@ legal-app/
 │   │   ├── solicitudes-directas.js ← lógica de solicitudes-directas.html (ver §22)
 │   │   ├── solicitudes-tablon.js   ← lógica de solicitudes-tablon.html (ver §22)
 │   │   ├── editar-perfil-cliente.js ← lógica de editar-perfil-cliente.html, página independiente (ver §27)
-│   │   └── editar-perfil-abogado.js ← lógica de editar-perfil-abogado.html, página independiente (ver §27)
+│   │   ├── editar-perfil-abogado.js ← lógica de editar-perfil-abogado.html, página independiente (ver §27)
+│   │   └── notificaciones-pagina.js ← lógica de notificaciones.html: todas las notificaciones, agrupadas y paginadas (ver §31)
 │   └── pages/
 │       ├── busqueda.html
 │       ├── perfil-abogado.html
@@ -95,7 +96,8 @@ legal-app/
 │       ├── solicitudes-directas.html ← listado con filtros de solicitudes normales, cliente o abogado (ver §22)
 │       ├── solicitudes-tablon.html   ← listado con filtros de solicitudes originadas en El Tablón (ver §22)
 │       ├── editar-perfil-cliente.html ← edición de perfil de cliente, página independiente (ver §27)
-│       └── editar-perfil-abogado.html ← edición de perfil de abogado, página independiente (ver §27)
+│       ├── editar-perfil-abogado.html ← edición de perfil de abogado, página independiente (ver §27)
+│       └── notificaciones.html        ← todas las notificaciones del usuario, agrupadas por fecha y paginadas (ver §31)
 ├── supabase/
 │   ├── config.toml            ← project_id para el Supabase CLI (link/deploy)
 │   ├── migrations/            ← archivos SQL en orden cronológico
@@ -582,7 +584,7 @@ Mismo patrón que `20260707_025_notificaciones.sql` (§ módulo 5 en §15): trig
 - El dropdown siempre muestra las últimas 7 notificaciones (`api.notificaciones.getUltimas(7)`), leídas y no leídas — antes solo mostraba no leídas.
 - Las leídas se renderizan con `.notificaciones__item--leida` (opacidad reducida), no se ocultan.
 - El badge de la campana cuenta únicamente las no leídas (`api.notificaciones.getNoLeidas().length`, sigue siendo una consulta separada e independiente de la lista de 7 — puede haber más no leídas de las que caben en el dropdown).
-- El botón "Marcar todas como leídas" se movió del header del dropdown a un pie fijo debajo de la lista (`#notificacionesPie`), oculto si no hay ninguna notificación.
+- El botón "Marcar todas como leídas" se movió del header del dropdown a un pie fijo debajo de la lista (`#notificacionesPie`), oculto si no hay ninguna notificación. **Superseded por §31**: ese botón se quitó del dropdown; el pie ahora es un link "Ver todas mis notificaciones" a `notificaciones.html`, donde vive la acción de marcar todas como leídas.
 - Las URLs de destino (tabla de arriba) las genera cada trigger de la base de datos directamente en `url_destino` al insertar — `notificaciones.js` nunca mapea `tipo → URL` en el cliente, solo navega a `n.url_destino` tal cual (mismo patrón que ya usaban `nueva_solicitud`/`solicitud_aceptada`/etc. desde la migración 025).
 
 ---
@@ -759,6 +761,27 @@ El campo `disponibilidad_horaria` se pedía bajo el título "Disponibilidad hora
 
 ### Frontend: gate proactivo + mensaje de error
 En vez de mostrar siempre el botón "Dejar reseña" y depender solo del error de la base de datos, `panel-cliente.js`, `solicitudes-directas.js` y `solicitudes-tablon.js` calculan `haPasadoTiempoMinimoResena(s.completada_at)` (duplicada en los tres archivos, igual que el resto de los helpers de fecha de cada uno) para decidir si mostrar el botón o, en su lugar, el texto "Podrá dejar su reseña 24 horas después de completada la consulta." Esto es solo UX — la validación real sigue viviendo en la política RLS, así que si igual se intenta el INSERT antes de tiempo (reloj desincronizado, sesión vieja abierta), `api.resenas.crearResena()` (`frontend/js/api.js`) detecta `error.code === '42501'` (`insufficient_privilege`, RLS `WITH CHECK` rechazado) y devuelve ese mismo mensaje — agregado a `MENSAJES_ERROR_CONOCIDOS` en `utils.js` para que se muestre tal cual.
+
+---
+
+## 31. Página de todas las notificaciones
+
+### Qué es
+`frontend/pages/notificaciones.html` + `frontend/js/notificaciones-pagina.js` — accesible desde el nuevo botón fijo "Ver todas mis notificaciones" en el pie del dropdown de la campana (reemplaza a "Marcar todas como leídas", que se quitó de ahí). Lista todas las notificaciones del usuario autenticado (cualquier rol), leídas y no leídas, agrupadas en "Hoy" / "Esta semana" / "Anteriores" (se omite el grupo si no tiene elementos), con un filtro por tipo y paginación de 20 por página.
+
+No es una página exclusiva de un rol: reutiliza `inicializarHeader()` (§26) con el rol que sea, igual que hace `panel-admin.js` con la campana — un admin también puede llegar acá.
+
+### `api.notificaciones.getTodas(pagina)`
+Nueva función en `frontend/js/api.js`, junto a `getUltimas()` (dropdown, tope de 7) y `getNoLeidas()` (badge). Usa `.range()` de PostgREST con `{ count: 'exact' }` para paginar de a 20 sin traer toda la tabla — retorna `{ data, total, error }`, donde `total` es el conteo real (no el tamaño de la página actual), usado para calcular el total de páginas.
+
+### Filtro por tipo: simplificación deliberada
+El filtro de tipo se aplica en el cliente sobre la página ya cargada (20 filas), no como un parámetro de `getTodas()` — la paginación de la base de datos es por fecha únicamente. Es una simplificación deliberada: filtrar y paginar combinados hubiera requerido un `count` distinto por cada combinación de filtro, y en la práctica un usuario rara vez acumula más de una página de notificaciones de un tipo específico. Si en el futuro se necesita filtrar sobre el histórico completo, `getTodas()` tendría que aceptar un `tipo` opcional y aplicar `.eq('tipo', tipo)` antes del `.range()`.
+
+### "Marcar todas como leídas": se preservó, cambió de lugar
+El pedido original solo decía "eliminá el botón del dropdown" — se agregó el mismo botón en `notificaciones.html` (llama a la misma `api.notificaciones.marcarTodasLeidas()`, sin cambios) para no perder la funcionalidad, ahora en el lugar donde tiene más sentido: la página con el historial completo, no un dropdown de 7 elementos.
+
+### CSS: `.notificaciones__lista--pagina`
+La lista de la página reutiliza `.notificaciones__lista`/`.notificaciones__item` del dropdown (mismo look), pero sin `.menu-desplegable__lista` (que la posicionaría `absolute` como un popup) y con el modificador `.notificaciones__lista--pagina` (`frontend/css/main.css`) que anula `max-width`/`max-height`/`min-width` — esas restricciones existían solo para que el dropdown no ocupara toda la pantalla.
 
 ---
 

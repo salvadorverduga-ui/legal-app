@@ -1419,6 +1419,31 @@ export const notificaciones = {
   },
 
   /**
+   * Retorna una página de notificaciones del usuario autenticado (leídas y
+   * no leídas), más recientes primero — usada por notificaciones.html
+   * (CLAUDE.md módulo 6), a diferencia de getUltimas() que alimenta el
+   * dropdown de la campana. pagina es 1-indexed.
+   * Retorna { data: array, total: number, error }.
+   */
+  async getTodas(pagina = 1) {
+    const POR_PAGINA = 20;
+    const desde = (pagina - 1) * POR_PAGINA;
+    const hasta = desde + POR_PAGINA - 1;
+
+    const { data, error, count } = await _cliente
+      .from('notificaciones')
+      .select('*', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(desde, hasta);
+
+    if (error) {
+      console.error('[api.notificaciones.getTodas]', error.message);
+      return { data: [], total: 0, error };
+    }
+    return { data: data ?? [], total: count ?? 0, error: null };
+  },
+
+  /**
    * Marca una notificación propia como leída.
    * Retorna { data, error }.
    */

@@ -1170,6 +1170,18 @@ p {
   padding: var(--esp-1) 0;
 }
 
+/* notificaciones.html: la lista completa (agrupada por fecha) reutiliza
+   .notificaciones__lista/.notificaciones__item del dropdown, pero sin las
+   restricciones de ancho/alto pensadas para un menú desplegable. */
+.notificaciones__lista--pagina {
+  min-width: 0;
+  max-width: none;
+  max-height: none;
+  border: 1px solid var(--color-borde-suave);
+  border-radius: var(--radio-md);
+  margin-bottom: var(--esp-5);
+}
+
 /* ── Menú de perfil (foto o iniciales en círculo) ─────────── */
 .menu-perfil__boton {
   display: flex;

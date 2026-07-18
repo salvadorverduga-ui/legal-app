@@ -51,9 +51,9 @@ export async function inicializarNotificaciones() {
       <div class="notificaciones__items" id="notificacionesItems"></div>
       <p class="notificaciones__vacio" id="notificacionesVacio" hidden>No tiene notificaciones.</p>
       <div class="notificaciones__pie" id="notificacionesPie" hidden>
-        <button class="notificaciones__marcar-todas" id="btnMarcarTodasLeidas" type="button">
-          Marcar todas como leídas
-        </button>
+        <a class="notificaciones__marcar-todas" href="/pages/notificaciones">
+          Ver todas mis notificaciones
+        </a>
       </div>
     </div>
   `;
@@ -72,7 +72,6 @@ export async function inicializarNotificaciones() {
   }
 
   document.getElementById('btnNotificaciones').addEventListener('click', alternarDropdown);
-  document.getElementById('btnMarcarTodasLeidas').addEventListener('click', manejarMarcarTodasLeidas);
   document.getElementById('notificacionesItems').addEventListener('click', manejarClickNotificacion);
   document.addEventListener('click', cerrarDropdownSiEsExterno);
 

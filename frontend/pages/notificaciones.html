@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Todas sus notificaciones en LegalEC.">
+  <title>Notificaciones — LegalEC</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+
+  <header class="encabezado">
+    <div class="contenedor encabezado__contenedor">
+      <a href="/" class="logo" id="logoHeader" aria-label="LegalEC — Mi panel">
+        <span class="logo__nombre">LegalEC</span>
+      </a>
+      <nav class="nav-usuario" aria-label="Menú de usuario"></nav>
+    </div>
+  </header>
+
+  <main>
+    <div class="contenedor panel-cliente__contenido">
+
+      <!-- Estado: cargando -->
+      <div class="pantalla-carga" id="estadoCargando">
+        <div class="spinner" aria-hidden="true"></div>
+        <p class="pantalla-carga__texto">Cargando notificaciones...</p>
+      </div>
+
+      <!-- Estado: error -->
+      <div class="estado-vacio" id="estadoError" hidden>
+        <p class="estado-vacio__titulo">No pudimos cargar sus notificaciones</p>
+        <p>Intente recargar la página. Si el problema continúa, contacte a soporte.</p>
+      </div>
+
+      <!-- Contenido -->
+      <div id="contenidoPanel" hidden>
+
+        <div class="tablon-toolbar">
+          <a href="/" class="btn btn--secundario btn--sm" id="btnVolverPanel">Volver a mi panel</a>
+        </div>
+
+        <section class="panel-cabecera">
+          <div class="panel-cabecera__identidad">
+            <div>
+              <h1 class="panel-cabecera__nombre">Notificaciones</h1>
+              <p class="panel-cabecera__subtitulo">Todo lo que le avisamos, en un solo lugar.</p>
+            </div>
+          </div>
+        </section>
+
+        <div class="campo" style="max-width: 320px;">
+          <label for="filtroTipo" class="campo__etiqueta">Filtrar por tipo</label>
+          <select id="filtroTipo" class="campo__input">
+            <option value="">Todos los tipos</option>
+          </select>
+        </div>
+
+        <div class="solicitud-item__acciones">
+          <button class="btn btn--secundario btn--sm" id="btnMarcarTodasLeidas" type="button">
+            Marcar todas como leídas
+          </button>
+        </div>
+
+        <div id="gruposNotificaciones"></div>
+
+        <div class="estado-vacio" id="estadoSinNotificaciones" hidden>
+          <p class="estado-vacio__titulo">No tiene notificaciones</p>
+          <p id="textoSinNotificaciones">Aún no tiene notificaciones.</p>
+        </div>
+
+        <div class="filtro-tipo" id="paginacion" role="group" aria-label="Paginación" hidden>
+          <button class="filtro-tipo__btn" id="btnPaginaAnterior" type="button">Anterior</button>
+          <span class="filtro-tipo__label" id="textoPagina"></span>
+          <button class="filtro-tipo__btn" id="btnPaginaSiguiente" type="button">Siguiente</button>
+        </div>
+
+      </div>
+    </div>
+  </main>
+
+  <footer class="pie">
+    <div class="contenedor pie__contenedor">
+      <p class="pie__aviso">
+        LegalEC es un servicio de conexión y no un proveedor de servicios jurídicos.
+      </p>
+      <nav class="pie__nav" aria-label="Páginas legales">
+        <a href="#" class="pie__enlace">Términos y condiciones</a>
+        <span class="pie__separador" aria-hidden="true">·</span>
+        <a href="#" class="pie__enlace">Política de privacidad (LOPDP)</a>
+        <span class="pie__separador" aria-hidden="true">·</span>
+        <a href="/pages/contacto" class="pie__enlace">Soporte</a>
+      </nav>
+    </div>
+  </footer>
+
+  <script src="/js/vendors/supabase.min.js"></script>
+  <script type="module" src="/js/notificaciones-pagina.js"></script>
+
+</body>
+</html>
