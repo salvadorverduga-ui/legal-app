@@ -5,7 +5,7 @@
 
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
-import { toast, mensajeAmigable, rutaPanelPropio, confirmar, MENSAJE_AGREGADO_SEGUIMIENTO } from './utils.js';
+import { toast, mensajeAmigable, rutaPanelPropio, confirmar, generarCheckboxSeguimiento, MENSAJE_AGREGADO_SEGUIMIENTO } from './utils.js';
 import { inicializarNotificaciones } from './notificaciones.js';
 import { inicializarMenuPerfil } from './menu-perfil.js';
 
@@ -126,7 +126,7 @@ function configurarEventos() {
       document.getElementById('contadorAplicar').textContent = `${e.target.value.length} / 300`;
     });
     document.getElementById('formAplicar').addEventListener('submit', manejarSubmitAplicar);
-    document.getElementById('btnSeguimientoAplicacion').addEventListener('click', manejarToggleSeguimientoPropio);
+    document.getElementById('checkSeguimientoAplicacion').addEventListener('change', manejarToggleSeguimientoPropio);
   }
 }
 
@@ -209,20 +209,14 @@ function generarAplicacionCard(ap) {
 
   const puedeElegir = ap.estado === 'PENDIENTE' && casoActual.estado === 'ACTIVO';
   const elegirHtml = puedeElegir ? `
-    <button class="btn btn--primario btn--sm" type="button" data-accion="elegir" data-id="${idSeguro}">
-      Elegir a este abogado
-    </button>
-  ` : '';
-
-  const accionesHtml = `
     <div class="solicitud-item__acciones">
-      ${elegirHtml}
-      <button class="btn ${ap.en_seguimiento_cliente ? 'btn--primario' : 'btn--secundario'} btn--sm" type="button"
-        data-accion="toggle-seguimiento" data-id="${idSeguro}">
-        ${ap.en_seguimiento_cliente ? 'En seguimiento' : 'Seguimiento'}
+      <button class="btn btn--primario btn--sm" type="button" data-accion="elegir" data-id="${idSeguro}">
+        Elegir a este abogado
       </button>
     </div>
-  `;
+  ` : '';
+
+  const seguimientoHtml = generarCheckboxSeguimiento(idSeguro, ap.en_seguimiento_cliente);
 
   return `
     <article class="solicitud-item">
@@ -238,7 +232,8 @@ function generarAplicacionCard(ap) {
       </div>
       ${especialidadesHtml}
       ${mensajeHtml}
-      ${accionesHtml}
+      ${elegirHtml}
+      ${seguimientoHtml}
     </article>
   `;
 }
@@ -324,9 +319,7 @@ function renderizarVistaAbogado() {
     badge.textContent = `Su aplicación: ${ETIQUETAS_ESTADO_APLICACION[casoActual.mi_aplicacion_estado] ?? casoActual.mi_aplicacion_estado}`;
     formulario.hidden = true;
 
-    const btnSeguimiento = document.getElementById('btnSeguimientoAplicacion');
-    btnSeguimiento.className = `btn ${casoActual.mi_seguimiento ? 'btn--primario' : 'btn--secundario'} btn--sm`;
-    btnSeguimiento.textContent = casoActual.mi_seguimiento ? 'En seguimiento' : 'Seguimiento';
+    document.getElementById('checkSeguimientoAplicacion').checked = Boolean(casoActual.mi_seguimiento);
   } else if (casoActual.estado !== 'ACTIVO') {
     formulario.hidden = true;
   } else {

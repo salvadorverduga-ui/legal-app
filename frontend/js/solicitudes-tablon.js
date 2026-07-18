@@ -6,7 +6,7 @@
 
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
-import { toast, mensajeAmigable, rutaPanelPropio, MENSAJE_AGREGADO_SEGUIMIENTO } from './utils.js';
+import { toast, mensajeAmigable, rutaPanelPropio, generarCheckboxSeguimiento, MENSAJE_AGREGADO_SEGUIMIENTO } from './utils.js';
 import { inicializarNotificaciones } from './notificaciones.js';
 import { inicializarMenuPerfil } from './menu-perfil.js';
 
@@ -211,14 +211,7 @@ function generarSolicitudCardAbogado(s) {
 
   // Elegido desde El Tablón: la solicitud nace directamente en ACEPTADA (§17),
   // así que aquí nunca hay acciones de aceptar/rechazar pendientes.
-  const seguimientoHtml = `
-    <div class="solicitud-item__acciones">
-      <button class="btn ${s.en_seguimiento_abogado ? 'btn--primario' : 'btn--secundario'} btn--sm" type="button"
-        data-accion="toggle-seguimiento" data-id="${idSeguro}">
-        ${s.en_seguimiento_abogado ? 'En seguimiento' : 'Seguimiento'}
-      </button>
-    </div>
-  `;
+  const seguimientoHtml = generarCheckboxSeguimiento(idSeguro, s.en_seguimiento_abogado);
 
   return `
     <article class="solicitud-item">
@@ -298,14 +291,7 @@ function generarSolicitudCardCliente(s) {
     </form>
   ` : '';
 
-  const seguimientoHtml = `
-    <div class="solicitud-item__acciones">
-      <button class="btn ${s.en_seguimiento_cliente ? 'btn--primario' : 'btn--secundario'} btn--sm" type="button"
-        data-accion="toggle-seguimiento" data-id="${idSeguro}">
-        ${s.en_seguimiento_cliente ? 'En seguimiento' : 'Seguimiento'}
-      </button>
-    </div>
-  `;
+  const seguimientoHtml = generarCheckboxSeguimiento(idSeguro, s.en_seguimiento_cliente);
 
   return `
     <article class="solicitud-item">

@@ -69,7 +69,8 @@ legal-app/
 │   │   ├── nueva-contrasena.js     ← lógica de nueva-contrasena.html
 │   │   ├── cambiar-contrasena.js   ← lógica de cambiar-contrasena.html (usuario ya autenticado, ver §18)
 │   │   ├── contacto.js        ← lógica de contacto.html (sin Supabase; envía a /api/contacto)
-│   │   ├── tablon.js          ← lógica de tablon.html: publicar casos y listar casos activos (ver §17)
+│   │   ├── tablon.js          ← lógica de tablon.html: listado en formato foro de casos activos (ver §17/§25)
+│   │   ├── tablon-publicar.js ← lógica de tablon-publicar.html: formulario de publicación de un caso (ver §25)
 │   │   ├── tablon-caso.js     ← lógica de tablon-caso.html: detalle de un caso puntual (ver §17/§22)
 │   │   ├── referidos.js       ← lógica de referidos.html: programa de referidos (ver §20)
 │   │   ├── solicitudes-directas.js ← lógica de solicitudes-directas.html (ver §22)
@@ -85,7 +86,8 @@ legal-app/
 │       ├── nueva-contrasena.html
 │       ├── cambiar-contrasena.html ← cambio de contraseña desde el panel (usuario ya autenticado, ver §18)
 │       ├── contacto.html
-│       ├── tablon.html        ← "El Tablón": publicar casos, listado de casos activos (ver §17)
+│       ├── tablon.html        ← "El Tablón": listado en formato foro de casos activos (ver §17/§25)
+│       ├── tablon-publicar.html ← formulario de publicación de un caso, página independiente (ver §25)
 │       ├── tablon-caso.html   ← detalle de un caso puntual: aplicantes, elegir, aplicar, cerrar (ver §17/§22)
 │       ├── referidos.html     ← programa de referidos, solo abogados (ver §20)
 │       ├── solicitudes-directas.html ← listado con filtros de solicitudes normales, cliente o abogado (ver §22)
@@ -447,14 +449,14 @@ CLAUDE.md §2 prohíbe introducir dependencias npm en el **frontend** sin discut
 ## 17. El Tablón
 
 ### Qué es
-Sección independiente donde clientes publican casos y abogados verificados aplican para atenderlos. `frontend/pages/tablon.html` (`/pages/tablon`) publica casos (cliente) y lista casos activos con filtros (abogado); `frontend/pages/tablon-caso.html` (`/pages/tablon-caso?id=<casoId>`) es el detalle de un caso puntual — aplicantes y "Elegir"/"Cerrar caso" para el cliente dueño, estado de su propia aplicación o formulario para aplicar para el abogado.
+Sección independiente donde clientes publican casos y abogados verificados aplican para atenderlos. `frontend/pages/tablon.html` (`/pages/tablon`) lista, en formato foro, los casos propios (cliente) o los casos activos con filtros (abogado) — ver §25 para el layout y el formulario de publicación, que vive en `tablon-publicar.html`. `frontend/pages/tablon-caso.html` (`/pages/tablon-caso?id=<casoId>`) es el detalle de un caso puntual — aplicantes y "Elegir"/"Cerrar caso" para el cliente dueño, estado de su propia aplicación o formulario para aplicar para el abogado.
 
 Al elegir un abogado se crea automáticamente una solicitud mediada — pero a diferencia del flujo normal (§6/§13), acá el contacto se revela de inmediato, sin que el abogado tenga que aceptar (ver "Flujo de contacto DIRECTO" abajo). El Tablón es un canal adicional para llegar a esa solicitud; no reemplaza el resto de las reglas de privacidad de contacto del §6.
 
 ### Modelo de datos (migraciones `20260712_040_tablon.sql` y `20260712_041_tablon_mejoras.sql`)
 | Tabla | Qué guarda |
 |---|---|
-| `casos_tablon` | Caso publicado por un cliente: título, descripción, especialidad, caso común opcional, provincia/ciudad opcionales (041, texto libre — mismo criterio que `perfiles.provincia`), si es anónimo, estado (`ACTIVO`/`EXPIRADO`/`CERRADO`) |
+| `casos_tablon` | Caso publicado por un cliente: título, descripción, especialidad (opcional desde la 052 — el cliente puede no saber a qué especialidad corresponde su caso), caso común opcional, provincia/ciudad opcionales (041, texto libre — mismo criterio que `perfiles.provincia`), si es anónimo, estado (`ACTIVO`/`EXPIRADO`/`CERRADO`) |
 | `aplicaciones_tablon` | Aplicación de un abogado verificado a un caso: mensaje opcional, estado (`PENDIENTE`/`ELEGIDO`/`RECHAZADO`), `en_seguimiento_cliente`/`en_seguimiento_abogado` (041, ver §19) |
 | `config_tablon` | Configuración editable desde `panel-admin.html` — hoy solo `limite_aplicaciones_abogado` (NULL = sin límite) |
 
@@ -466,15 +468,15 @@ Al elegir un abogado se crea automáticamente una solicitud mediada — pero a d
 - **Cierre manual**: el cliente puede cerrar su propio caso `ACTIVO → CERRADO` sin elegir a nadie más (botón "Cerrar caso" en `tablon-caso.html`). Política RLS `cliente_cierra_caso_tablon` (041): solo esa transición exacta, ninguna otra columna puede cambiar.
 - **Solo abogados con `verificacion = 'VERIFICADO'` ven y aplican a casos**: condición en las políticas RLS de `casos_tablon`/`aplicaciones_tablon` y en las vistas `tablon_casos_abogado`/`tablon_caso_detalle` (doble capa, igual que la regla de visibilidad de búsqueda en §4.1). `tablon_caso_detalle` (041) además deja ver el caso a cualquier abogado que ya haya aplicado a él, aunque el caso haya cerrado o expirado desde entonces — para que pueda seguir viendo el resultado de su propia aplicación.
 - **Anonimato**: si `casos_tablon.anonimo = true`, las vistas para abogado (`tablon_casos_abogado`, `tablon_caso_detalle`) muestran `cliente_nombre = 'Cliente anónimo'` hasta que ese abogado específico queda `ELEGIDO` en `aplicaciones_tablon` para ese caso. El propio cliente dueño siempre ve su nombre real en `tablon_caso_detalle`. La condición vive en la vista (base de datos), nunca se resuelve ocultando el nombre solo en el frontend.
-- **Flujo de contacto DIRECTO al elegir un abogado**: trigger `fn_crear_solicitud_desde_tablon` (AFTER UPDATE OF estado en `aplicaciones_tablon`, cuando pasa a `ELEGIDO`) inserta en `solicitudes` y la transiciona a `ACEPTADA` en el mismo trigger (vía UPDATE, para reutilizar `fn_revelar_contacto_al_aceptar` del §6, que solo corre en UPDATE OF estado). El cliente ya comparó varios aplicantes antes de elegir, así que no hace falta que el abogado acepte — los datos de contacto quedan revelados de inmediato. Si ya existía una solicitud activa entre ambos (ej. el cliente ya lo había contactado desde búsqueda normal), el `unique_violation` se atrapa y el caso se marca `ELEGIDO` igual, sin duplicar la solicitud ni forzarla a `ACEPTADA`.
+- **Flujo de contacto DIRECTO al elegir un abogado**: trigger `fn_crear_solicitud_desde_tablon` (AFTER UPDATE OF estado en `aplicaciones_tablon`, cuando pasa a `ELEGIDO`) inserta en `solicitudes` y la transiciona a `ACEPTADA` en el mismo trigger (vía UPDATE, para reutilizar `fn_revelar_contacto_al_aceptar` del §6, que solo corre en UPDATE OF estado). El cliente ya comparó varios aplicantes antes de elegir, así que no hace falta que el abogado acepte — los datos de contacto quedan revelados de inmediato. Si ya existía una solicitud activa entre ambos (ej. el cliente ya lo había contactado desde búsqueda normal, o desde otro caso del Tablón), el `INSERT` choca contra `idx_solicitud_activa_unica` (única solicitud `PENDIENTE`/`ACEPTADA` por par cliente-abogado) y el `unique_violation` se atrapa: el caso se marca `ELEGIDO` igual, sin duplicar la solicitud, pero desde la migración 052 esa solicitud activa existente se vincula (`caso_tablon_id = COALESCE(caso_tablon_id, v_caso.id)`) al caso recién elegido si todavía no tenía uno — antes (047/049) el vínculo se descartaba por completo, y esa elección nunca aparecía en `solicitudes-tablon.html` del lado del cliente aunque la aplicación sí quedara `ELEGIDO`. Ver §25.
 - **Límite de aplicaciones por abogado**: sin límite por defecto (`config_tablon.limite_aplicaciones_abogado = NULL`). Si el admin fija un número desde la pestaña "Configuración" de `panel-admin.html`, el trigger `fn_verificar_limite_aplicaciones_tablon` lo hace cumplir contando las aplicaciones `PENDIENTE` del abogado.
 - El cliente puede elegir a más de un abogado aplicante (no hay restricción de "un solo elegido por caso").
 
 ### Frontend
-- `frontend/js/tablon.js` decide la vista (cliente o abogado verificado) según `perfiles.rol` y, para abogados, `abogados.verificacion`. Cada tarjeta de caso enlaza a `tablon-caso.html?id=<casoId>` — el formulario de aplicar y la lista de aplicantes/elegir ya no viven inline en `tablon.html`.
+- `frontend/js/tablon.js` decide la vista (cliente o abogado verificado) según `perfiles.rol` y, para abogados, `abogados.verificacion`. Cada tarjeta de caso enlaza a `tablon-caso.html?id=<casoId>` — el formulario de publicar vive en `tablon-publicar.html`/`tablon-publicar.js` (página aparte, ver §25), no inline en `tablon.html`.
 - `frontend/js/tablon-caso.js` resuelve el `id` desde `?id=` en la URL, carga el detalle con `api.tablon.getCasoDetalle()` (vista `tablon_caso_detalle`) y renderiza la vista según `perfiles.rol`.
 - Todas las queries pasan por el módulo `api.tablon` en `frontend/js/api.js` (§7: nunca inline en las páginas).
-- Link "El Tablón" en el header de `panel-cliente.html` y `panel-abogado.html`. `tablon.html`/`tablon-caso.html` usan el mismo menú de perfil del header que los paneles (§18).
+- Link "El Tablón" en el header de `panel-cliente.html` y `panel-abogado.html`. `tablon.html`/`tablon-publicar.html`/`tablon-caso.html` usan el mismo menú de perfil del header que los paneles (§18).
 
 ---
 
@@ -502,7 +504,7 @@ Al elegir un abogado se crea automáticamente una solicitud mediada — pero a d
 ## 19. En seguimiento
 
 ### Qué es
-Cliente y abogado pueden marcar solicitudes y elementos de El Tablón como "en seguimiento" para encontrarlos rápido después. Botón "Seguimiento"/"En seguimiento" (según el estado) en cada tarjeta de solicitud (`panel-cliente.html`, `panel-abogado.html`), en cada aplicación recibida y en la aplicación propia (`tablon-caso.html`), y en cada caso ya aplicado del listado del abogado (`tablon.html`). Nueva pestaña "En seguimiento" en ambos paneles.
+Cliente y abogado pueden marcar solicitudes y elementos de El Tablón como "en seguimiento" para encontrarlos rápido después. Checkbox "Marcar para seguimiento" (esquina inferior derecha de la tarjeta, ver `generarCheckboxSeguimiento()` en §25) en cada tarjeta de solicitud (`panel-cliente.html`, `panel-abogado.html`), en cada aplicación recibida y en la aplicación propia (`tablon-caso.html`), y en cada caso ya aplicado del listado del abogado (`tablon.html`). Nueva pestaña "En seguimiento" en ambos paneles.
 
 ### Modelo de datos
 Columnas `en_seguimiento_cliente`/`en_seguimiento_abogado` (boolean, default `false`) en `solicitudes` y en `aplicaciones_tablon` (migración `20260712_041_tablon_mejoras.sql`).
@@ -625,7 +627,7 @@ Debajo se agregó "Últimos abogados con los que trabajó": hasta 3 abogados con
 `busqueda.html` y `perfil-abogado.html` no usan `menu-perfil.js` (son accesibles sin sesión, con un header más simple de `nav-usuario__nombre` + botón Salir/Iniciar sesión — ver §7 de la migración de menú de perfil, §18). Ahí los dos enlaces se agregaron directo en el HTML como `hidden` y `busqueda.js`/`perfil-abogado.js` los revela solo si hay sesión y el rol es `cliente` o `abogado`.
 
 ### Acceso rápido "Publicar en El Tablón"
-Cuarto botón en `.accesos-rapidos` de `panel-cliente.html` → `/pages/tablon?accion=publicar`. `tablon.js` extrajo la apertura del formulario a `abrirFormularioPublicar()` (antes inline en el listener de `btnPublicarCaso`) para poder reutilizarla: al final de `inicializar()`, si el rol es cliente, `?accion=publicar` está presente y el botón no está deshabilitado por el límite diario, se abre el formulario automáticamente.
+Cuarto botón en `.accesos-rapidos` de `panel-cliente.html` → `/pages/tablon-publicar` (desde el rediseño de El Tablón en formato foro, §25, el formulario vive en su propia página — el acceso rápido enlaza directo, sin pasar por `tablon.html`).
 
 ### Toast de seguimiento
 `MENSAJE_AGREGADO_SEGUIMIENTO` (`frontend/js/utils.js`) centraliza el texto que antes era el literal `'Agregado a seguimiento.'`, repetido en los 7 lugares donde se hace toggle de seguimiento (paneles, `solicitudes-directas.js`, `solicitudes-tablon.js`, `tablon.js`, `tablon-caso.js` ×2). El mensaje de "quitar" (`'Quitado de seguimiento.'`) no cambió — sigue inline en cada call site, no ameritaba su propia constante.
@@ -639,6 +641,32 @@ CLAUDE.md §17 documentaba el límite de 2 casos/día como hardcodeado en el tri
 `panel-admin.html`/`panel-admin.js`, pestaña "Configuración", agregan un segundo campo al mismo `formConfigTablon` ya existente para "El Tablón" — reutiliza `api.tablon.getConfigTablon()`/`actualizarConfigTablon(clave, valor)` (ya genéricos por clave desde la migración 040) en vez de crear un namespace `admin.getConfig()/setConfig()` nuevo que hubiera duplicado exactamente esas dos funciones.
 
 `tablon.js` deja de asumir el límite en 2: `cargarMisCasos()` trae `config_tablon` en paralelo con `getMisCasos()` y guarda `limitePublicacionesDiarias` (`null` = sin límite). `actualizarAvisoLimiteCasos()` arma el texto del aviso con ese valor en vez de un string fijo en el HTML. `api.tablon.publicarCaso()` ya no hardcodea el mensaje de error del hint `LIMITE_CASOS_TABLON` — usa `error.message` tal cual lo devuelve el trigger (que ya interpola el límite configurado con `%`).
+
+---
+
+## 25. El Tablón en formato foro, especialidad opcional, checkbox de seguimiento
+
+### Especialidad opcional al publicar
+`casos_tablon.especialidad` era `NOT NULL` (migración 040) — el cliente no siempre sabe a qué especialidad corresponde su caso. Migración `20260718_052_especialidad_opcional_y_fix_caso_tablon.sql`: `ALTER TABLE casos_tablon ALTER COLUMN especialidad DROP NOT NULL` (el `CHECK` de valores permitidos ya admite `NULL` sin cambios — una expresión `IN` con `NULL` evalúa a `NULL`, que un `CHECK` trata como válido). En el frontend, `tablon-publicar.html` quitó el `required` del `<select>` y ofrece "No estoy seguro / No aplica"; todos los listados de casos (`tablon.js`, `tablon-caso.js`, `panel-cliente.js`, `panel-abogado.js`) muestran "Sin especialidad definida" cuando es `NULL`.
+
+### Rediseño de `tablon.html`: layout de foro
+`tablon.html` pasó de "formulario + lista inline" a un layout de dos columnas (`.tablon-layout`, grid `7fr 3fr` desde `min-width: 1024px`, una sola columna en mobile):
+- **Columna principal** (`.tablon-layout__principal`): listado de casos en tarjetas — título ahora es un enlace (`.caso-tablon-card__titulo a`) a `tablon-caso.html?id=<id>`, además del botón "Ver caso" que ya existía. Cada tarjeta muestra especialidad, caso común, ubicación, tiempo transcurrido (`formatearTiempoTranscurrido()`, mismo formato "hace N días" que ya usaban las solicitudes), número de aplicaciones y, si el caso es anónimo, el badge `.badge--anonimo` ("Publicado como anónimo") en la vista del cliente dueño.
+- **Columna lateral** (`.tablon-layout__lateral`, `.tablon-panel-lateral`, `position: sticky` en desktop): para el cliente, un botón grande "Publicar un caso" que enlaza a `tablon-publicar.html` (deshabilitado visualmente con `.btn--deshabilitado`/`aria-disabled` cuando se alcanzó `config_tablon.limite_publicaciones_diarias_cliente`, mismo cálculo que antes); para el abogado, el panel de filtros (especialidad, caso común y el nuevo filtro de provincia).
+
+### Formulario de publicación: página independiente
+El formulario que antes vivía inline en `tablon.html`/`tablon.js` se movió por completo a `frontend/pages/tablon-publicar.html` + `frontend/js/tablon-publicar.js` (`/pages/tablon-publicar`, solo `rol='cliente'`). `tablon.js` ya no tiene ninguna lógica de formulario — solo lista casos. El acceso rápido "Publicar en El Tablón" del dashboard cliente (§24) enlaza directo a esta página.
+
+### Filtro de provincia para el abogado
+`api.tablon.getCasosActivos(provincia)` (`frontend/js/api.js`) acepta ahora un parámetro opcional; sin él, el abogado sigue viendo casos de todas las provincias (comportamiento por defecto sin cambios). `tablon.html` agrega `#filtroProvinciaTablon` (24 provincias + "Todas las provincias") en el panel lateral del abogado — a diferencia de los filtros de especialidad/caso común (que filtran en el cliente sobre los datos ya cargados), el de provincia dispara un nuevo `cargarCasosActivos()` porque filtra server-side vía `.eq('provincia', provincia)` contra la vista `tablon_casos_abogado` (que ya expone `provincia` desde la migración 041).
+
+### Checkbox de seguimiento
+El botón "Seguimiento"/"En seguimiento" se reemplazó en toda la app por un checkbox: `generarCheckboxSeguimiento(idSeguro, marcado)` en `frontend/js/utils.js` genera el bloque `.seguimiento-check` (checkbox + "Marcar para seguimiento" + texto de ayuda "Las solicitudes y casos marcados aparecen en su sección 'En seguimiento' para acceso rápido", alineado a la esquina inferior derecha de la tarjeta vía `align-items: flex-end` en `.seguimiento-check`). El `<input>` conserva `data-accion="toggle-seguimiento"`/`data-id`, así que los listeners de `click` ya existentes en cada página (delegados sobre el contenedor de la lista) siguen funcionando sin cambios — los checkboxes disparan `click` igual que los botones que reemplazan. Único caso con listener propio: el checkbox de la aplicación del abogado en `tablon-caso.html` (`#checkSeguimientoAplicacion`, antes `#btnSeguimientoAplicacion`) escucha `change` en vez de `click`, porque no vive dentro de una lista con delegación de eventos. Call sites: `tablon.js`, `tablon-caso.js` (×2), `solicitudes-directas.js` (×2), `solicitudes-tablon.js` (×2), `panel-cliente.js`, `panel-abogado.js`. El toast de confirmación (`MENSAJE_AGREGADO_SEGUIMIENTO`) no cambió.
+
+### Fix: solicitudes de El Tablón no aparecían en `solicitudes-tablon.html` (vista cliente)
+Causa raíz: `idx_solicitud_activa_unica` exige una única solicitud activa (`PENDIENTE`/`ACEPTADA`) por par `(cliente_id, abogado_id)`. Si el cliente ya tenía una solicitud activa con ese abogado (de una consulta directa anterior, o de otro caso del Tablón) al elegir un aplicante nuevo, el `INSERT` de `fn_crear_solicitud_desde_tablon` chocaba contra ese índice y cae en la rama `EXCEPTION`, que (desde 047/049) no hacía nada más que descartar el vínculo: la aplicación quedaba `ELEGIDO` pero ninguna fila de `solicitudes` terminaba con ese `caso_tablon_id`, así que nunca aparecía en `solicitudes-tablon.html` aunque el cliente sí hubiera elegido a alguien. Esto no era un caso raro: cualquier cliente que ya tuviera una consulta activa con un abogado (por búsqueda normal o por otro caso del Tablón) y volviera a elegirlo desde un caso nuevo se topaba con el bug.
+
+Migración `20260718_052_especialidad_opcional_y_fix_caso_tablon.sql` cambia la rama `EXCEPTION WHEN unique_violation` para vincular la solicitud activa existente al caso recién elegido (`UPDATE solicitudes SET caso_tablon_id = COALESCE(caso_tablon_id, v_caso.id) WHERE cliente_id = ... AND abogado_id = ... AND estado IN ('PENDIENTE','ACEPTADA')`) en vez de no hacer nada — `COALESCE` evita pisar el vínculo de una elección anterior si esa misma solicitud ya venía de otro caso del Tablón. Esto reemplaza la política documentada previamente en §22 de dejar la solicitud "directa" en su origen: ahora el cliente siempre encuentra en `solicitudes-tablon.html` el resultado de haber elegido a alguien en El Tablón, sin duplicar la fila de `solicitudes`. La misma migración hizo un backfill puntual sobre los datos de prueba ya existentes en producción que habían quedado sin vincular.
 
 ---
 

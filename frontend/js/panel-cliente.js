@@ -4,7 +4,7 @@
 
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
-import { toast, mensajeAmigable, rutaPanelPropio, MENSAJE_AGREGADO_SEGUIMIENTO } from './utils.js';
+import { toast, mensajeAmigable, rutaPanelPropio, generarCheckboxSeguimiento, MENSAJE_AGREGADO_SEGUIMIENTO } from './utils.js';
 import { inicializarNotificaciones } from './notificaciones.js';
 import { inicializarMenuPerfil, actualizarAvatarMenuPerfil } from './menu-perfil.js';
 
@@ -385,14 +385,7 @@ function generarSolicitudCard(s) {
     ? `<p class="solicitud-item__tiempo-restante${esTiempoRestanteUrgente(s.expires_at) ? ' solicitud-item__tiempo-restante--urgente' : ''}">${formatearTiempoRestante(s.expires_at)}</p>`
     : '';
 
-  const seguimientoHtml = `
-    <div class="solicitud-item__acciones">
-      <button class="btn ${s.en_seguimiento_cliente ? 'btn--primario' : 'btn--secundario'} btn--sm" type="button"
-        data-accion="toggle-seguimiento" data-id="${idSeguro}">
-        ${s.en_seguimiento_cliente ? 'En seguimiento' : 'Seguimiento'}
-      </button>
-    </div>
-  `;
+  const seguimientoHtml = generarCheckboxSeguimiento(idSeguro, s.en_seguimiento_cliente);
 
   return `
     <article class="solicitud-item">
@@ -507,8 +500,8 @@ function generarCasoSeguimientoCard(c) {
     <article class="solicitud-item">
       <div class="solicitud-item__header">
         <div>
-          <p class="solicitud-item__nombre">${escaparHtml(c.titulo)}</p>
-          <p class="solicitud-item__fecha">${formatearFecha(c.created_at)} · ${escaparHtml(c.especialidad)}</p>
+          <p class="caso-tablon-card__titulo"><a href="/pages/tablon-caso?id=${idSeguro}">${escaparHtml(c.titulo)}</a></p>
+          <p class="solicitud-item__fecha">${formatearFecha(c.created_at)} · ${c.especialidad ? escaparHtml(c.especialidad) : 'Sin especialidad definida'}</p>
         </div>
         <span class="badge ${claseEstado}">${etiquetaEstado}</span>
       </div>

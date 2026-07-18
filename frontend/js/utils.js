@@ -14,6 +14,26 @@
 export const MENSAJE_AGREGADO_SEGUIMIENTO =
   'Agregado a seguimiento. En esta sección puede hacer un seguimiento rápido de sus solicitudes y casos más importantes.';
 
+// ─── Checkbox de seguimiento (esquina inferior derecha de la tarjeta) ──────────
+// Reemplaza al botón "Seguimiento"/"En seguimiento" en todas las tarjetas de
+// solicitudes y de casos de El Tablón. idSeguro debe venir ya escapado por el
+// call site (mismo criterio que el resto de cada template string); el listener
+// de "change" en cada página llama a data-accion="toggle-seguimiento".
+export function generarCheckboxSeguimiento(idSeguro, marcado) {
+  return `
+    <div class="seguimiento-check">
+      <label class="seguimiento-check__etiqueta">
+        <input type="checkbox" class="seguimiento-check__input" data-accion="toggle-seguimiento"
+          data-id="${idSeguro}" ${marcado ? 'checked' : ''}>
+        <span>Marcar para seguimiento</span>
+      </label>
+      <p class="seguimiento-check__ayuda">
+        Las solicitudes y casos marcados aparecen en su sección "En seguimiento" para acceso rápido.
+      </p>
+    </div>
+  `;
+}
+
 const DURACION_MS = 4000;
 
 let contenedorToasts = null;

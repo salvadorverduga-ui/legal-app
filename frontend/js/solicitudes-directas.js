@@ -6,7 +6,7 @@
 
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
-import { toast, mensajeAmigable, rutaPanelPropio, confirmar, MENSAJE_AGREGADO_SEGUIMIENTO } from './utils.js';
+import { toast, mensajeAmigable, rutaPanelPropio, confirmar, generarCheckboxSeguimiento, MENSAJE_AGREGADO_SEGUIMIENTO } from './utils.js';
 import { inicializarNotificaciones } from './notificaciones.js';
 import { inicializarMenuPerfil } from './menu-perfil.js';
 
@@ -221,14 +221,7 @@ function generarSolicitudCardAbogado(s) {
     </div>
   ` : '';
 
-  const seguimientoHtml = `
-    <div class="solicitud-item__acciones">
-      <button class="btn ${s.en_seguimiento_abogado ? 'btn--primario' : 'btn--secundario'} btn--sm" type="button"
-        data-accion="toggle-seguimiento" data-id="${idSeguro}">
-        ${s.en_seguimiento_abogado ? 'En seguimiento' : 'Seguimiento'}
-      </button>
-    </div>
-  `;
+  const seguimientoHtml = generarCheckboxSeguimiento(idSeguro, s.en_seguimiento_abogado);
 
   return `
     <article class="solicitud-item">
@@ -356,14 +349,7 @@ function generarSolicitudCardCliente(s) {
     ? `<p class="solicitud-item__tiempo-restante${esTiempoRestanteUrgente(s.expires_at) ? ' solicitud-item__tiempo-restante--urgente' : ''}">${formatearTiempoRestante(s.expires_at)}</p>`
     : '';
 
-  const seguimientoHtml = `
-    <div class="solicitud-item__acciones">
-      <button class="btn ${s.en_seguimiento_cliente ? 'btn--primario' : 'btn--secundario'} btn--sm" type="button"
-        data-accion="toggle-seguimiento" data-id="${idSeguro}">
-        ${s.en_seguimiento_cliente ? 'En seguimiento' : 'Seguimiento'}
-      </button>
-    </div>
-  `;
+  const seguimientoHtml = generarCheckboxSeguimiento(idSeguro, s.en_seguimiento_cliente);
 
   return `
     <article class="solicitud-item">

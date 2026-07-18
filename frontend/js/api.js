@@ -1517,13 +1517,20 @@ export const tablon = {
    * autenticado, desde la vista tablon_casos_abogado (que ya resuelve
    * cliente_nombre respetando el anonimato y devuelve vacío si quien
    * consulta no es abogado verificado). Más recientes primero.
+   * provincia: opcional — si se pasa, filtra por casos_tablon.provincia
+   * (texto libre, mismo criterio que perfiles.provincia). Sin filtro,
+   * el abogado ve casos de todas las provincias.
    * Retorna array (puede estar vacío).
    */
-  async getCasosActivos() {
-    const { data, error } = await _cliente
+  async getCasosActivos(provincia) {
+    let query = _cliente
       .from('tablon_casos_abogado')
       .select('*')
       .order('created_at', { ascending: false });
+
+    if (provincia) query = query.eq('provincia', provincia);
+
+    const { data, error } = await query;
 
     if (error) {
       console.error('[api.tablon.getCasosActivos]', error.message);

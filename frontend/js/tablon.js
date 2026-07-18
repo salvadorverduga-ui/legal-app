@@ -1,12 +1,14 @@
 // tablon.js
-// Lógica de la página tablon.html ("El Tablón"): publicar casos (cliente) y
-// listar casos activos con filtros (abogado verificado). El detalle de un
-// caso puntual (aplicar, elegir, cerrar) vive en tablon-caso.html/tablon-caso.js.
-// Importa todo desde api.js — nunca consulta Supabase directamente.
+// Lógica de la página tablon.html ("El Tablón"): lista de casos en formato
+// foro — casos propios del cliente, o casos activos con filtros para el
+// abogado verificado. El formulario de publicación vive en tablon-publicar.html/
+// tablon-publicar.js; el detalle de un caso puntual (aplicar, elegir, cerrar)
+// vive en tablon-caso.html/tablon-caso.js. Importa todo desde api.js — nunca
+// consulta Supabase directamente.
 
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
-import { toast, mensajeAmigable, rutaPanelPropio, MENSAJE_AGREGADO_SEGUIMIENTO } from './utils.js';
+import { toast, mensajeAmigable, rutaPanelPropio, generarCheckboxSeguimiento, MENSAJE_AGREGADO_SEGUIMIENTO } from './utils.js';
 import { inicializarNotificaciones } from './notificaciones.js';
 import { inicializarMenuPerfil } from './menu-perfil.js';
 
@@ -40,10 +42,10 @@ let perfilActual = null;             // fila propia de la tabla perfiles
 let esAbogadoVerificado = false;
 let misCasosActuales = [];           // vista cliente
 let casosActivosActuales = [];       // vista abogado
-let formPublicarAbierto = false;
 let limitePublicacionesDiarias = null; // config_tablon.limite_publicaciones_diarias_cliente; null = sin límite
 let filtroEspecialidad = '';
 let filtroCasoComun = '';
+let filtroProvincia = '';
 
 // ─── Entry point ───────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', inicializar);
@@ -109,12 +111,6 @@ async function inicializar() {
 
   mostrarContenido();
   configurarEventos();
-
-  // Acceso rápido "Publicar en El Tablón" del dashboard cliente (panel-cliente.html).
-  const accion = new URLSearchParams(window.location.search).get('accion');
-  if (perfilActual.rol === 'cliente' && accion === 'publicar' && !document.getElementById('btnPublicarCaso').disabled) {
-    abrirFormularioPublicar();
-  }
 }
 
 // ─── Control de estados visuales ─────────────────────────────────────────────
@@ -131,13 +127,8 @@ function mostrarContenido() {
 // ─── Configuración de eventos ─────────────────────────────────────────────────
 function configurarEventos() {
   if (perfilActual.rol === 'cliente') {
-    document.getElementById('btnPublicarCaso').addEventListener('click', abrirFormularioPublicar);
-
-    document.getElementById('btnCancelarPublicarCaso').addEventListener('click', cerrarFormularioPublicar);
-    document.getElementById('formPublicarCaso').addEventListener('submit', manejarSubmitPublicarCaso);
-
-    document.getElementById('descripcionCaso').addEventListener('input', (e) => {
-      document.getElementById('contadorDescripcionCaso').textContent = `${e.target.value.length} / 600`;
+    document.getElementById('btnPublicarCaso').addEventListener('click', (e) => {
+      if (e.currentTarget.getAttribute('aria-disabled') === 'true') e.preventDefault();
     });
   }
 
@@ -150,15 +141,19 @@ function configurarEventos() {
       filtroCasoComun = e.target.value;
       renderizarCasosActivos();
     });
+    document.getElementById('filtroProvinciaTablon').addEventListener('change', async (e) => {
+      filtroProvincia = e.target.value;
+      await cargarCasosActivos();
+    });
 
-    document.getElementById('casosActivosLista').addEventListener('click', manejarClickCasosActivos);
+    document.getElementById('casosActivosLista').addEventListener('change', manejarChangeCasosActivos);
   }
 }
 
-function manejarClickCasosActivos(e) {
-  const btn = e.target.closest('[data-accion="toggle-seguimiento"]');
-  if (!btn) return;
-  manejarToggleSeguimiento(btn.dataset.id);
+function manejarChangeCasosActivos(e) {
+  const input = e.target.closest('[data-accion="toggle-seguimiento"]');
+  if (!input) return;
+  manejarToggleSeguimiento(input.dataset.id);
 }
 
 async function manejarToggleSeguimiento(aplicacionId) {
@@ -195,7 +190,8 @@ function actualizarAvisoLimiteCasos() {
 
   if (limitePublicacionesDiarias == null) {
     aviso.hidden = true;
-    btnPublicar.disabled = false;
+    btnPublicar.classList.remove('btn--deshabilitado');
+    btnPublicar.removeAttribute('aria-disabled');
     return;
   }
 
@@ -205,7 +201,12 @@ function actualizarAvisoLimiteCasos() {
 
   aviso.textContent = `Ya publicó el máximo de ${limitePublicacionesDiarias} casos hoy. Podrá publicar de nuevo mañana.`;
   aviso.hidden = !alcanzoLimite;
-  btnPublicar.disabled = alcanzoLimite;
+  btnPublicar.classList.toggle('btn--deshabilitado', alcanzoLimite);
+  if (alcanzoLimite) {
+    btnPublicar.setAttribute('aria-disabled', 'true');
+  } else {
+    btnPublicar.removeAttribute('aria-disabled');
+  }
 }
 
 function renderizarMisCasos() {
@@ -230,19 +231,21 @@ function generarCasoClienteCard(c) {
     ? `<p class="solicitud-item__detalle"><span class="solicitud-item__detalle-etiqueta">Caso común:</span> ${escaparHtml(c.caso_comun)}</p>`
     : '';
   const ubicacionHtml = generarUbicacionTexto(c.provincia, c.ciudad);
+  const especialidadTexto = c.especialidad ? escaparHtml(c.especialidad) : 'Sin especialidad definida';
 
   return `
     <article class="solicitud-item">
       <div class="solicitud-item__header">
         <div>
-          <p class="solicitud-item__nombre">${escaparHtml(c.titulo)}</p>
-          <p class="solicitud-item__fecha">${formatearFecha(c.created_at)} · ${escaparHtml(c.especialidad)}${ubicacionHtml}${c.anonimo ? ' · Anónimo' : ''}</p>
+          <p class="caso-tablon-card__titulo"><a href="/pages/tablon-caso?id=${idSeguro}">${escaparHtml(c.titulo)}</a></p>
+          <p class="solicitud-item__fecha">${formatearTiempoTranscurrido(c.created_at)} · ${especialidadTexto}${ubicacionHtml}</p>
         </div>
         <span class="badge ${claseEstado}">${etiquetaEstado}</span>
       </div>
       <p class="solicitud-item__detalle">${escaparHtml(c.descripcion)}</p>
       ${casoComunHtml}
       <div class="solicitud-item__acciones">
+        ${c.anonimo ? '<span class="badge badge--anonimo">Publicado como anónimo</span>' : ''}
         <a href="/pages/tablon-caso?id=${idSeguro}" class="btn btn--secundario btn--sm">
           Ver caso (${c.total_aplicaciones} ${c.total_aplicaciones === 1 ? 'aplicación' : 'aplicaciones'})
         </a>
@@ -251,70 +254,9 @@ function generarCasoClienteCard(c) {
   `;
 }
 
-// ─── Vista cliente: publicar caso ─────────────────────────────────────────────
-// Reutilizada por el click en "Publicar caso" y por el acceso rápido del
-// dashboard cliente (?accion=publicar, ver panel-cliente.html).
-function abrirFormularioPublicar() {
-  formPublicarAbierto = true;
-  document.getElementById('formPublicarCaso').hidden = false;
-  document.getElementById('btnPublicarCaso').hidden = true;
-}
-
-function cerrarFormularioPublicar() {
-  formPublicarAbierto = false;
-  const form = document.getElementById('formPublicarCaso');
-  form.hidden = true;
-  form.reset();
-  document.getElementById('contadorDescripcionCaso').textContent = '0 / 600';
-  document.getElementById('errorPublicarCaso').textContent = '';
-  document.getElementById('btnPublicarCaso').hidden = false;
-}
-
-async function manejarSubmitPublicarCaso(e) {
-  e.preventDefault();
-
-  const errorEl = document.getElementById('errorPublicarCaso');
-  const btnGuardar = document.getElementById('btnGuardarCaso');
-  errorEl.textContent = '';
-
-  const datos = {
-    titulo: document.getElementById('tituloCaso').value,
-    descripcion: document.getElementById('descripcionCaso').value,
-    especialidad: document.getElementById('especialidadCaso').value,
-    caso_comun: document.getElementById('casoComunCaso').value,
-    provincia: document.getElementById('provinciaCaso').value,
-    ciudad: document.getElementById('ciudadCaso').value,
-    anonimo: document.getElementById('anonimoCaso').checked,
-  };
-
-  if (!datos.titulo.trim() || !datos.descripcion.trim() || !datos.especialidad) {
-    errorEl.textContent = 'Complete el título, la descripción y la especialidad.';
-    return;
-  }
-
-  btnGuardar.disabled = true;
-  btnGuardar.textContent = 'Publicando...';
-
-  const { error } = await api.tablon.publicarCaso(datos);
-
-  btnGuardar.disabled = false;
-  btnGuardar.textContent = 'Publicar';
-
-  if (error) {
-    const mensaje = mensajeAmigable(error, 'No se pudo publicar el caso. Intente de nuevo.');
-    errorEl.textContent = mensaje;
-    toast.error(mensaje);
-    return;
-  }
-
-  cerrarFormularioPublicar();
-  await cargarMisCasos();
-  toast.exito('Caso publicado en El Tablón.');
-}
-
 // ─── Vista abogado: casos activos ─────────────────────────────────────────────
 async function cargarCasosActivos() {
-  casosActivosActuales = await api.tablon.getCasosActivos();
+  casosActivosActuales = await api.tablon.getCasosActivos(filtroProvincia);
   renderizarCasosActivos();
 }
 
@@ -344,6 +286,11 @@ function generarCasoAbogadoCard(c) {
     ? `<p class="solicitud-item__detalle"><span class="solicitud-item__detalle-etiqueta">Caso común:</span> ${escaparHtml(c.caso_comun)}</p>`
     : '';
   const ubicacionHtml = generarUbicacionTexto(c.provincia, c.ciudad);
+  const especialidadTexto = c.especialidad ? escaparHtml(c.especialidad) : 'Sin especialidad definida';
+
+  const seguimientoHtml = c.mi_aplicacion_id
+    ? generarCheckboxSeguimiento(escaparAtrib(c.mi_aplicacion_id), c.mi_seguimiento)
+    : '';
 
   const accionesHtml = c.mi_aplicacion_estado
     ? `
@@ -351,10 +298,6 @@ function generarCasoAbogadoCard(c) {
         <span class="badge ${CLASE_ESTADO_APLICACION[c.mi_aplicacion_estado] ?? 'badge--estado-pendiente'}">
           Su aplicación: ${ETIQUETAS_ESTADO_APLICACION[c.mi_aplicacion_estado] ?? c.mi_aplicacion_estado}
         </span>
-        <button class="btn ${c.mi_seguimiento ? 'btn--primario' : 'btn--secundario'} btn--sm" type="button"
-          data-accion="toggle-seguimiento" data-id="${escaparAtrib(c.mi_aplicacion_id)}">
-          ${c.mi_seguimiento ? 'En seguimiento' : 'Seguimiento'}
-        </button>
         <a href="/pages/tablon-caso?id=${idSeguro}" class="btn btn--secundario btn--sm">Ver caso</a>
       </div>
     `
@@ -368,14 +311,15 @@ function generarCasoAbogadoCard(c) {
     <article class="solicitud-item">
       <div class="solicitud-item__header">
         <div>
-          <p class="solicitud-item__nombre">${escaparHtml(c.titulo)}</p>
-          <p class="solicitud-item__fecha">${formatearFecha(c.created_at)} · ${escaparHtml(c.especialidad)}${ubicacionHtml} · ${escaparHtml(c.cliente_nombre)}</p>
+          <p class="caso-tablon-card__titulo"><a href="/pages/tablon-caso?id=${idSeguro}">${escaparHtml(c.titulo)}</a></p>
+          <p class="solicitud-item__fecha">${formatearTiempoTranscurrido(c.created_at)} · ${especialidadTexto}${ubicacionHtml} · ${escaparHtml(c.cliente_nombre)}</p>
         </div>
         <span class="badge badge--pendiente">${c.total_aplicaciones} ${c.total_aplicaciones === 1 ? 'aplicación' : 'aplicaciones'}</span>
       </div>
       <p class="solicitud-item__detalle">${escaparHtml(c.descripcion)}</p>
       ${casoComunHtml}
       ${accionesHtml}
+      ${seguimientoHtml}
     </article>
   `;
 }
@@ -386,13 +330,20 @@ function generarUbicacionTexto(provincia, ciudad) {
   return partes.length ? ` · ${partes.join(', ')}` : '';
 }
 
-function formatearFecha(fechaIso) {
+// Tiempo transcurrido desde la publicación del caso, en unidades legibles
+// ("hace unos minutos", "hace 3 horas", "hace 2 días") — formato foro.
+function formatearTiempoTranscurrido(fechaIso) {
   if (!fechaIso) return '';
-  return new Date(fechaIso).toLocaleDateString('es-EC', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
+  const minutos = Math.floor((Date.now() - new Date(fechaIso).getTime()) / 60000);
+
+  if (minutos < 1) return 'hace unos instantes';
+  if (minutos < 60) return `hace ${minutos} ${minutos === 1 ? 'minuto' : 'minutos'}`;
+
+  const horas = Math.floor(minutos / 60);
+  if (horas < 24) return `hace ${horas} ${horas === 1 ? 'hora' : 'horas'}`;
+
+  const dias = Math.floor(horas / 24);
+  return `hace ${dias} ${dias === 1 ? 'día' : 'días'}`;
 }
 
 // ─── Seguridad: escapado de HTML ──────────────────────────────────────────────

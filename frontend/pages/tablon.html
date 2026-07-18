@@ -48,178 +48,122 @@
 
         <!-- ═══════════════ VISTA CLIENTE ═══════════════ -->
         <div id="vistaCliente" hidden>
+          <div class="tablon-layout">
 
-          <div class="tablon-toolbar">
-            <button class="btn btn--primario" id="btnPublicarCaso" type="button">
-              Publicar caso
-            </button>
-          </div>
+            <div class="tablon-layout__principal">
+              <div class="solicitudes-lista" id="misCasosLista"></div>
 
-          <!-- Texto completado por tablon.js (actualizarAvisoLimiteCasos), según
-               config_tablon.limite_publicaciones_diarias_cliente. -->
-          <p class="campo__ayuda" id="avisoLimiteCasos" hidden></p>
-
-          <!-- Formulario de publicación -->
-          <form class="formulario formulario-edicion" id="formPublicarCaso" hidden novalidate>
-            <div class="campo">
-              <label for="tituloCaso" class="campo__etiqueta">Título</label>
-              <input type="text" id="tituloCaso" class="campo__input" maxlength="120" required
-                placeholder="Ej: Necesito ayuda con un despido intempestivo">
+              <div class="estado-vacio" id="estadoSinCasosCliente" hidden>
+                <p class="estado-vacio__titulo">Aún no ha publicado casos</p>
+                <p>Publique un caso para que abogados verificados apliquen a atenderlo.</p>
+              </div>
             </div>
 
-            <div class="campo">
-              <label for="descripcionCaso" class="campo__etiqueta">Descripción</label>
-              <textarea id="descripcionCaso" class="campo__input" rows="5" maxlength="600" required
-                placeholder="Describa su situación con el mayor detalle posible..."></textarea>
-              <p class="campo__contador" id="contadorDescripcionCaso">0 / 600</p>
+            <div class="tablon-layout__lateral">
+              <div class="tablon-panel-lateral">
+                <p class="tablon-panel-lateral__titulo">¿Tiene un caso legal?</p>
+                <a href="/pages/tablon-publicar" class="btn btn--primario tablon-panel-lateral__boton" id="btnPublicarCaso">
+                  Publicar un caso
+                </a>
+                <!-- Texto completado por tablon.js (actualizarAvisoLimiteCasos), según
+                     config_tablon.limite_publicaciones_diarias_cliente. -->
+                <p class="campo__ayuda" id="avisoLimiteCasos" hidden></p>
+              </div>
             </div>
 
-            <div class="campo">
-              <label for="especialidadCaso" class="campo__etiqueta">Especialidad</label>
-              <select id="especialidadCaso" class="campo__input" required>
-                <option value="">Seleccione una especialidad</option>
-                <option value="Derecho de familia">Derecho de familia</option>
-                <option value="Derecho laboral">Derecho laboral</option>
-                <option value="Derecho mercantil">Derecho mercantil</option>
-                <option value="Derecho penal">Derecho penal</option>
-                <option value="Derecho civil">Derecho civil</option>
-                <option value="Derecho administrativo">Derecho administrativo</option>
-                <option value="Derecho tributario">Derecho tributario</option>
-                <option value="Derecho inmobiliario">Derecho inmobiliario</option>
-                <option value="Derecho de tránsito">Derecho de tránsito</option>
-                <option value="Derecho constitucional">Derecho constitucional</option>
-                <option value="Derecho ambiental">Derecho ambiental</option>
-                <option value="Propiedad intelectual">Propiedad intelectual</option>
-                <option value="Derecho internacional">Derecho internacional</option>
-                <option value="Derecho migratorio">Derecho migratorio</option>
-              </select>
-            </div>
-
-            <div class="campo">
-              <label for="casoComunCaso" class="campo__etiqueta">Caso común (opcional)</label>
-              <select id="casoComunCaso" class="campo__input">
-                <option value="">Ninguno de los siguientes</option>
-                <option value="Pensión alimenticia">Pensión alimenticia</option>
-                <option value="Patria potestad">Patria potestad</option>
-                <option value="Divorcio">Divorcio</option>
-                <option value="Trámite de herencia">Trámite de herencia</option>
-                <option value="Despido intempestivo">Despido intempestivo</option>
-                <option value="Accidente de tránsito">Accidente de tránsito</option>
-                <option value="Problema de arrendamiento">Problema de arrendamiento</option>
-                <option value="Deuda comercial">Deuda comercial</option>
-                <option value="Trámite migratorio">Trámite migratorio</option>
-                <option value="Otro">Otro</option>
-              </select>
-            </div>
-
-            <div class="campo">
-              <label for="provinciaCaso" class="campo__etiqueta">Provincia (opcional)</label>
-              <select id="provinciaCaso" class="campo__input">
-                <option value="">Seleccione una provincia</option>
-                <option value="Azuay">Azuay</option>
-                <option value="Bolívar">Bolívar</option>
-                <option value="Cañar">Cañar</option>
-                <option value="Carchi">Carchi</option>
-                <option value="Chimborazo">Chimborazo</option>
-                <option value="Cotopaxi">Cotopaxi</option>
-                <option value="El Oro">El Oro</option>
-                <option value="Esmeraldas">Esmeraldas</option>
-                <option value="Galápagos">Galápagos</option>
-                <option value="Guayas">Guayas</option>
-                <option value="Imbabura">Imbabura</option>
-                <option value="Loja">Loja</option>
-                <option value="Los Ríos">Los Ríos</option>
-                <option value="Manabí">Manabí</option>
-                <option value="Morona Santiago">Morona Santiago</option>
-                <option value="Napo">Napo</option>
-                <option value="Orellana">Orellana</option>
-                <option value="Pastaza">Pastaza</option>
-                <option value="Pichincha">Pichincha</option>
-                <option value="Santa Elena">Santa Elena</option>
-                <option value="Santo Domingo de los Tsáchilas">Santo Domingo de los Tsáchilas</option>
-                <option value="Sucumbíos">Sucumbíos</option>
-                <option value="Tungurahua">Tungurahua</option>
-                <option value="Zamora Chinchipe">Zamora Chinchipe</option>
-              </select>
-            </div>
-
-            <div class="campo">
-              <label for="ciudadCaso" class="campo__etiqueta">Ciudad (opcional)</label>
-              <input type="text" id="ciudadCaso" class="campo__input" maxlength="100" placeholder="Ej: Cuenca">
-            </div>
-
-            <div class="campo">
-              <label>
-                <input type="checkbox" id="anonimoCaso">
-                Publicar anónimamente (los abogados verán "Cliente anónimo" hasta que elija a uno)
-              </label>
-            </div>
-
-            <p class="campo__error" id="errorPublicarCaso" role="alert" aria-live="polite"></p>
-
-            <div class="solicitud-item__acciones">
-              <button type="submit" class="btn btn--primario btn--sm" id="btnGuardarCaso">Publicar</button>
-              <button type="button" class="btn btn--secundario btn--sm" id="btnCancelarPublicarCaso">Cancelar</button>
-            </div>
-          </form>
-
-          <div class="solicitudes-lista" id="misCasosLista"></div>
-
-          <div class="estado-vacio" id="estadoSinCasosCliente" hidden>
-            <p class="estado-vacio__titulo">Aún no ha publicado casos</p>
-            <p>Publique un caso para que abogados verificados apliquen a atenderlo.</p>
           </div>
         </div>
 
         <!-- ═══════════════ VISTA ABOGADO ═══════════════ -->
         <div id="vistaAbogado" hidden>
+          <div class="tablon-layout">
 
-          <div class="verificaciones-filtro">
-            <div class="campo">
-              <label for="filtroEspecialidadTablon" class="campo__etiqueta">Especialidad</label>
-              <select id="filtroEspecialidadTablon" class="campo__input">
-                <option value="">Todas</option>
-                <option value="Derecho de familia">Derecho de familia</option>
-                <option value="Derecho laboral">Derecho laboral</option>
-                <option value="Derecho mercantil">Derecho mercantil</option>
-                <option value="Derecho penal">Derecho penal</option>
-                <option value="Derecho civil">Derecho civil</option>
-                <option value="Derecho administrativo">Derecho administrativo</option>
-                <option value="Derecho tributario">Derecho tributario</option>
-                <option value="Derecho inmobiliario">Derecho inmobiliario</option>
-                <option value="Derecho de tránsito">Derecho de tránsito</option>
-                <option value="Derecho constitucional">Derecho constitucional</option>
-                <option value="Derecho ambiental">Derecho ambiental</option>
-                <option value="Propiedad intelectual">Propiedad intelectual</option>
-                <option value="Derecho internacional">Derecho internacional</option>
-                <option value="Derecho migratorio">Derecho migratorio</option>
-              </select>
+            <div class="tablon-layout__principal">
+              <p class="campo__error" id="errorCasosAbogado" role="alert" aria-live="polite"></p>
+
+              <div class="solicitudes-lista" id="casosActivosLista"></div>
+
+              <div class="estado-vacio" id="estadoSinCasosAbogado" hidden>
+                <p class="estado-vacio__titulo">Sin casos disponibles</p>
+                <p>No hay casos activos que coincidan con los filtros seleccionados.</p>
+              </div>
             </div>
-            <div class="campo">
-              <label for="filtroCasoComunTablon" class="campo__etiqueta">Caso común</label>
-              <select id="filtroCasoComunTablon" class="campo__input">
-                <option value="">Todos</option>
-                <option value="Pensión alimenticia">Pensión alimenticia</option>
-                <option value="Patria potestad">Patria potestad</option>
-                <option value="Divorcio">Divorcio</option>
-                <option value="Trámite de herencia">Trámite de herencia</option>
-                <option value="Despido intempestivo">Despido intempestivo</option>
-                <option value="Accidente de tránsito">Accidente de tránsito</option>
-                <option value="Problema de arrendamiento">Problema de arrendamiento</option>
-                <option value="Deuda comercial">Deuda comercial</option>
-                <option value="Trámite migratorio">Trámite migratorio</option>
-                <option value="Otro">Otro</option>
-              </select>
+
+            <div class="tablon-layout__lateral">
+              <div class="tablon-panel-lateral">
+                <p class="tablon-panel-lateral__titulo">Filtrar casos</p>
+
+                <div class="campo">
+                  <label for="filtroEspecialidadTablon" class="campo__etiqueta">Especialidad</label>
+                  <select id="filtroEspecialidadTablon" class="campo__input">
+                    <option value="">Todas</option>
+                    <option value="Derecho de familia">Derecho de familia</option>
+                    <option value="Derecho laboral">Derecho laboral</option>
+                    <option value="Derecho mercantil">Derecho mercantil</option>
+                    <option value="Derecho penal">Derecho penal</option>
+                    <option value="Derecho civil">Derecho civil</option>
+                    <option value="Derecho administrativo">Derecho administrativo</option>
+                    <option value="Derecho tributario">Derecho tributario</option>
+                    <option value="Derecho inmobiliario">Derecho inmobiliario</option>
+                    <option value="Derecho de tránsito">Derecho de tránsito</option>
+                    <option value="Derecho constitucional">Derecho constitucional</option>
+                    <option value="Derecho ambiental">Derecho ambiental</option>
+                    <option value="Propiedad intelectual">Propiedad intelectual</option>
+                    <option value="Derecho internacional">Derecho internacional</option>
+                    <option value="Derecho migratorio">Derecho migratorio</option>
+                  </select>
+                </div>
+
+                <div class="campo">
+                  <label for="filtroCasoComunTablon" class="campo__etiqueta">Caso común</label>
+                  <select id="filtroCasoComunTablon" class="campo__input">
+                    <option value="">Todos</option>
+                    <option value="Pensión alimenticia">Pensión alimenticia</option>
+                    <option value="Patria potestad">Patria potestad</option>
+                    <option value="Divorcio">Divorcio</option>
+                    <option value="Trámite de herencia">Trámite de herencia</option>
+                    <option value="Despido intempestivo">Despido intempestivo</option>
+                    <option value="Accidente de tránsito">Accidente de tránsito</option>
+                    <option value="Problema de arrendamiento">Problema de arrendamiento</option>
+                    <option value="Deuda comercial">Deuda comercial</option>
+                    <option value="Trámite migratorio">Trámite migratorio</option>
+                    <option value="Otro">Otro</option>
+                  </select>
+                </div>
+
+                <div class="campo">
+                  <label for="filtroProvinciaTablon" class="campo__etiqueta">Provincia</label>
+                  <select id="filtroProvinciaTablon" class="campo__input">
+                    <option value="">Todas las provincias</option>
+                    <option value="Azuay">Azuay</option>
+                    <option value="Bolívar">Bolívar</option>
+                    <option value="Cañar">Cañar</option>
+                    <option value="Carchi">Carchi</option>
+                    <option value="Chimborazo">Chimborazo</option>
+                    <option value="Cotopaxi">Cotopaxi</option>
+                    <option value="El Oro">El Oro</option>
+                    <option value="Esmeraldas">Esmeraldas</option>
+                    <option value="Galápagos">Galápagos</option>
+                    <option value="Guayas">Guayas</option>
+                    <option value="Imbabura">Imbabura</option>
+                    <option value="Loja">Loja</option>
+                    <option value="Los Ríos">Los Ríos</option>
+                    <option value="Manabí">Manabí</option>
+                    <option value="Morona Santiago">Morona Santiago</option>
+                    <option value="Napo">Napo</option>
+                    <option value="Orellana">Orellana</option>
+                    <option value="Pastaza">Pastaza</option>
+                    <option value="Pichincha">Pichincha</option>
+                    <option value="Santa Elena">Santa Elena</option>
+                    <option value="Santo Domingo de los Tsáchilas">Santo Domingo de los Tsáchilas</option>
+                    <option value="Sucumbíos">Sucumbíos</option>
+                    <option value="Tungurahua">Tungurahua</option>
+                    <option value="Zamora Chinchipe">Zamora Chinchipe</option>
+                  </select>
+                </div>
+              </div>
             </div>
-          </div>
 
-          <p class="campo__error" id="errorCasosAbogado" role="alert" aria-live="polite"></p>
-
-          <div class="solicitudes-lista" id="casosActivosLista"></div>
-
-          <div class="estado-vacio" id="estadoSinCasosAbogado" hidden>
-            <p class="estado-vacio__titulo">Sin casos disponibles</p>
-            <p>No hay casos activos que coincidan con los filtros seleccionados.</p>
           </div>
         </div>
 
