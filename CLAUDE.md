@@ -808,4 +808,32 @@ Entre "Mis abogados" y "Mis reseñas", como pidió el módulo. `generarCardFavor
 
 ---
 
+## 33. Sistema de bloqueos
+
+### Migraciones `20260722_056_bloqueos.sql` y `20260722_057_cliente_id_panel_solicitudes_abogado.sql`
+Tabla `bloqueos` (`bloqueador_id`, `bloqueado_id`, `UNIQUE(bloqueador_id, bloqueado_id)`, `CHECK (bloqueador_id <> bloqueado_id)`). RLS: cada usuario ve/crea/borra sus propios bloqueos (los que **él** creó, no los que recibió); admin ve y borra cualquiera.
+
+**`fn_existe_bloqueo(uuid, uuid)`** — SECURITY DEFINER, `true` si hay un bloqueo entre dos usuarios en cualquier dirección. Mismo motivo que `fn_rol_perfil` (§ migración 026): evaluarla como subquery directo contra `bloqueos` desde una política de *otra* tabla dispararía una re-evaluación de las políticas de `bloqueos`. Se usa en tres lugares — el bloqueo es bidireccional una vez creado, sin importar quién bloqueó a quién:
+- `cliente_crea_solicitud` (INSERT en `solicitudes`): agrega `AND NOT fn_existe_bloqueo(cliente_id, abogado_id)`.
+- `busqueda_publica_abogados` (policy en `abogados`) y `abogado_perfil_visible_busqueda` (policy en `perfiles`): agregan `AND NOT fn_existe_bloqueo(auth.uid(), id)`.
+- **`busqueda_abogados` (la vista):** como toda vista de este proyecto es `SECURITY DEFINER` (bypassea el RLS de arriba), el filtro de bloqueo tuvo que repetirse también en su propio `WHERE` — si no, las dos políticas de arriba no tendrían ningún efecto real, porque tanto la búsqueda (`busqueda.js`) como el detalle individual (`perfil-abogado.js`, vía `api.abogados.getAbogado()`) consultan esta vista, no las tablas directamente. La migración reconstruye la vista a partir de `pg_get_viewdef()` sobre la definición real en producción, no del archivo de la migración 009 original — acumuló columnas (`provincia_id`, `zonas_servicio_*`, `estudio_nombre`, etc.) en migraciones posteriores que el archivo original no refleja, y `CREATE OR REPLACE VIEW` no admite quitar columnas existentes (falla con `cannot drop columns from view` si el nuevo `SELECT` tiene menos columnas que la vista real).
+
+**Límite conocido, fuera de alcance de este módulo:** `fn_crear_solicitud_desde_tablon` es `SECURITY DEFINER` y crea la solicitud sin pasar por la política `cliente_crea_solicitud` — un bloqueo no impide (todavía) que un cliente elija a un abogado bloqueado desde El Tablón. Igual de fuera de alcance: `fn_existe_bloqueo` queda ejecutable como RPC pública (`/rest/v1/rpc/fn_existe_bloqueo`) porque necesita `GRANT EXECUTE TO anon, authenticated` para que las políticas/vista de arriba funcionen para cualquier usuario — mismo patrón y mismo trade-off que ya tienen `es_admin()` y `fn_rol_perfil()` desde antes de este módulo (el advisor de seguridad marca los tres por igual).
+
+**`fn_cancelar_solicitudes_al_bloquear()`** (trigger `AFTER INSERT ON bloqueos`) — SECURITY DEFINER porque ninguna política de `solicitudes` permite hoy cancelar desde `ACEPTADA`, ni que la parte no dueña de la fila la cancele (`cliente_cancela_solicitud`, migración 023, solo cubre PENDIENTE→CANCELADA por el propio cliente). Cancela toda solicitud `PENDIENTE`/`ACEPTADA` entre las dos partes y limpia `cliente_telefono`/`cliente_email` si ya estaban revelados (mismo criterio de privacidad que `fn_revelar_contacto_al_aceptar` ya aplica en un rechazo).
+
+**`panel_solicitudes_abogado` gana la columna `cliente_id`** (antes solo exponía `cliente_nombre`/`cliente_foto`): sin el id no había forma de que el botón "Bloquear cliente" del frontend supiera a quién bloquear. Agregada al final del `SELECT`, mismo criterio que la migración 039.
+
+**`admin_bloqueos`** — vista con nombre/rol de ambas partes para el panel de administración, filtrada con `WHERE es_admin()` (mismo patrón que `admin_suscripciones`/`admin_verificaciones_pendientes`, migración 018 — las vistas de este proyecto no heredan RLS, así que filtran explícitamente).
+
+### `api.bloqueos` (`frontend/js/api.js`)
+Además de los tres pedidos (`bloquear`, `desbloquear`, `getMisBloqueos`), se agregaron `getBloqueosActivos()` y `adminDesbloquear(bloqueoId)` para el panel de administración — el admin no es `bloqueador_id`, así que no puede usar `desbloquear(usuarioId)` (que borra por `bloqueador_id = auth.uid()`); necesita borrar por el id de la fila directamente, cubierto por la política `admin_elimina_bloqueo`.
+
+### Modal de confirmación con countdown — `frontend/js/bloqueos.js`
+`confirmarBloqueo(usuarioId, nombre)` es un módulo nuevo, no una extensión de `confirmar()` (`utils.js`): tiene su propio contador de 9 segundos deshabilitando "Confirmar bloqueo" (`Confirmar (9)` → `Confirmar (8)` → ... → `Confirmar bloqueo` habilitado), llama a `api.bloqueos.bloquear()` directamente y resuelve el toast de resultado — mezclar eso con el `confirmar()` genérico (que solo devuelve `boolean` sin tocar la red) hubiera complicado su única otra responsabilidad. Reutilizado sin cambios en:
+- `perfil-abogado.html`: botón "Bloquear" dentro de un menú de opciones (⋮) nuevo, deliberadamente discreto — esquina opuesta al corazón de favoritos (`.perfil-header__opciones`, clase `.btn-icono-sutil`). Al confirmar, oculta las acciones de esa página y redirige a `/pages/busqueda` a los 2 segundos (el abogado deja de ser visible para este cliente por RLS, así que no tiene sentido seguir en su perfil).
+- `panel-abogado.js` (tarjeta de solicitud de la pestaña "En seguimiento") y `solicitudes-directas.js` (tarjeta de solicitud del abogado, el lugar real donde un abogado revisa sus consultas desde el módulo 1): "Bloquear cliente" como texto de baja prominencia al fondo de la tarjeta (`.btn-enlace-sutil`), nunca un botón primario.
+
+---
+
 *Actualizar este archivo con cada decisión técnica relevante*

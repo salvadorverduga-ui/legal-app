@@ -46,6 +46,17 @@
 
         <!-- Encabezado del perfil -->
         <section class="perfil-header">
+          <div class="menu-desplegable perfil-header__opciones" id="perfilOpcionesMenu" hidden>
+            <button class="btn-icono-sutil" id="btnOpcionesPerfil" type="button"
+              aria-haspopup="true" aria-expanded="false" aria-controls="listaOpcionesPerfil" aria-label="Más opciones">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
+                <circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/>
+              </svg>
+            </button>
+            <ul class="menu-desplegable__lista" id="listaOpcionesPerfil" role="menu" hidden>
+              <li role="none"><button role="menuitem" class="menu-desplegable__item" id="btnBloquearAbogado" type="button">Bloquear</button></li>
+            </ul>
+          </div>
           <div id="perfilFavoritoContenedor"></div>
           <div class="perfil-header__avatar" id="perfilAvatar"></div>
 

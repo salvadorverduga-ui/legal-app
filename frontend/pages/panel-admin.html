@@ -63,6 +63,10 @@
             role="tab" aria-selected="false" aria-controls="seccionLogAcciones">
             Log de acciones
           </button>
+          <button class="panel-tab" id="tabBloqueos" type="button"
+            role="tab" aria-selected="false" aria-controls="seccionBloqueos">
+            Bloqueos
+          </button>
           <button class="panel-tab" id="tabConfiguracion" type="button"
             role="tab" aria-selected="false" aria-controls="seccionConfiguracion">
             Configuración
@@ -127,6 +131,18 @@
 
           <div class="estado-vacio" id="estadoSinLogAcciones" hidden>
             <p>Aún no hay acciones registradas.</p>
+          </div>
+        </section>
+
+        <!-- ═══════════════ SECCIÓN: BLOQUEOS ═══════════════ -->
+        <section class="panel-seccion" id="seccionBloqueos" role="tabpanel" aria-labelledby="tabBloqueos" hidden>
+
+          <p class="campo__error" id="errorBloqueos" role="alert" aria-live="polite"></p>
+
+          <div class="log-lista" id="bloqueosLista"></div>
+
+          <div class="estado-vacio" id="estadoSinBloqueos" hidden>
+            <p>No hay bloqueos activos.</p>
           </div>
         </section>
 

@@ -6,6 +6,7 @@ import * as api from './api.js';
 import { obtenerConfig } from './config.js';
 import { toast, mensajeAmigable, generarBotonFavorito } from './utils.js';
 import { inicializarHeader } from './header.js';
+import { confirmarBloqueo } from './bloqueos.js';
 
 // ─── Etiquetas visibles para tipo_badge ───────────────────────────────────────
 const ETIQUETAS_TIPO = {
@@ -73,6 +74,8 @@ async function inicializar() {
     const esFavorito = (await api.favoritos.getMisFavoritosIds()).includes(abogadoId);
     document.getElementById('perfilFavoritoContenedor').innerHTML =
       generarBotonFavorito(escaparAtrib(abogadoId), esFavorito);
+    document.getElementById('perfilOpcionesMenu').hidden = false;
+    configurarMenuOpciones(abogadoId, abogado.nombre_completo);
   } else if (!sesion) {
     document.getElementById('seccionSinSesion').hidden = false;
   }
@@ -243,6 +246,46 @@ async function manejarClickFavorito(e) {
   btn.disabled = false;
 
   toast.info(esFavorito ? 'Agregado a favoritos.' : 'Quitado de favoritos.');
+}
+
+// ─── Menú de opciones del perfil (bloquear) ─────────────────────────────────
+function configurarMenuOpciones(abogadoId, nombreAbogado) {
+  const contenedor = document.getElementById('perfilOpcionesMenu');
+  const boton = document.getElementById('btnOpcionesPerfil');
+  const lista = document.getElementById('listaOpcionesPerfil');
+
+  function cerrarMenu() {
+    lista.hidden = true;
+    boton.setAttribute('aria-expanded', 'false');
+  }
+
+  boton.addEventListener('click', () => {
+    const abrir = lista.hidden;
+    lista.hidden = !abrir;
+    boton.setAttribute('aria-expanded', String(abrir));
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!contenedor.contains(e.target)) cerrarMenu();
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') cerrarMenu();
+  });
+
+  document.getElementById('btnBloquearAbogado').addEventListener('click', async () => {
+    cerrarMenu();
+    const bloqueado = await confirmarBloqueo(abogadoId, nombreAbogado);
+    if (!bloqueado) return;
+
+    // El abogado deja de ser visible para este cliente (RLS) — no tiene
+    // sentido seguir en su perfil ni mostrar acciones que ya no aplican.
+    document.getElementById('seccionBotonSolicitar').hidden = true;
+    document.getElementById('seccionSolicitud').hidden = true;
+    contenedor.hidden = true;
+    document.getElementById('perfilFavoritoContenedor').innerHTML = '';
+    setTimeout(() => { window.location.href = '/pages/busqueda'; }, 2000);
+  });
 }
 
 // ─── Envío de la solicitud ────────────────────────────────────────────────────

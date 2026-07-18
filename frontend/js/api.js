@@ -2154,3 +2154,119 @@ export const favoritos = {
   },
 
 };
+
+
+// ════════════════════════════════════════════════════════════
+// BLOQUEOS
+// Bloqueos entre cliente y abogado (CLAUDE.md módulo 8). Al bloquear, un
+// trigger de la base de datos cancela las solicitudes activas entre ambos
+// y limpia el contacto ya revelado — el frontend no necesita replicar eso.
+// ════════════════════════════════════════════════════════════
+export const bloqueos = {
+
+  /**
+   * Retorna los bloqueos creados por el usuario autenticado (no los que
+   * recibió), más recientes primero.
+   * Retorna array (puede estar vacío).
+   */
+  async getMisBloqueos() {
+    const { data: { user }, error: errUser } = await _cliente.auth.getUser();
+    if (errUser || !user) return [];
+
+    const { data, error } = await _cliente
+      .from('bloqueos')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('[api.bloqueos.getMisBloqueos]', error.message);
+      return [];
+    }
+    return data ?? [];
+  },
+
+  /**
+   * Bloquea a otro usuario (cliente bloqueando a un abogado desde
+   * perfil-abogado.html, o abogado bloqueando a un cliente desde
+   * panel-abogado.html). El trigger fn_cancelar_solicitudes_al_bloquear
+   * cancela automáticamente las solicitudes activas entre ambos.
+   * Retorna { data, error }.
+   */
+  async bloquear(usuarioId) {
+    const { data: { user }, error: errUser } = await _cliente.auth.getUser();
+    if (errUser || !user) {
+      return { data: null, error: errUser ?? { message: 'No hay sesión activa.' } };
+    }
+
+    const { data, error } = await _cliente
+      .from('bloqueos')
+      .insert({ bloqueador_id: user.id, bloqueado_id: usuarioId })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[api.bloqueos.bloquear]', error.message);
+      return { data: null, error };
+    }
+    return { data, error: null };
+  },
+
+  /**
+   * Deshace un bloqueo propio (bloqueador_id = usuario autenticado). No
+   * revierte las solicitudes canceladas por el bloqueo.
+   * Retorna { error }.
+   */
+  async desbloquear(usuarioId) {
+    const { data: { user }, error: errUser } = await _cliente.auth.getUser();
+    if (errUser || !user) {
+      return { error: errUser ?? { message: 'No hay sesión activa.' } };
+    }
+
+    const { error } = await _cliente
+      .from('bloqueos')
+      .delete()
+      .eq('bloqueador_id', user.id)
+      .eq('bloqueado_id', usuarioId);
+
+    if (error) {
+      console.error('[api.bloqueos.desbloquear]', error.message);
+    }
+    return { error };
+  },
+
+  /**
+   * Admin: retorna todos los bloqueos activos con nombre/rol de ambas
+   * partes, desde la vista admin_bloqueos (RLS: solo es_admin()).
+   * Retorna array (puede estar vacío).
+   */
+  async getBloqueosActivos() {
+    const { data, error } = await _cliente
+      .from('admin_bloqueos')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('[api.bloqueos.getBloqueosActivos]', error.message);
+      return [];
+    }
+    return data ?? [];
+  },
+
+  /**
+   * Admin: desbloquea manualmente cualquier par por el id de la fila de
+   * bloqueos (no por usuarioId, porque el admin no es el bloqueador).
+   * Retorna { error }.
+   */
+  async adminDesbloquear(bloqueoId) {
+    const { error } = await _cliente
+      .from('bloqueos')
+      .delete()
+      .eq('id', bloqueoId);
+
+    if (error) {
+      console.error('[api.bloqueos.adminDesbloquear]', error.message);
+    }
+    return { error };
+  },
+
+};

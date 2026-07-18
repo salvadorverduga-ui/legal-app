@@ -5,7 +5,7 @@
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
 import { inicializarHeader } from './header.js';
-import { toast } from './utils.js';
+import { toast, mensajeAmigable } from './utils.js';
 
 // ─── Etiquetas y estilos ───────────────────────────────────────────────────
 const ETIQUETAS_TIPO_SOLICITANTE = {
@@ -38,7 +38,7 @@ const ETIQUETAS_ACCION_LOG = {
   RECHAZAR: { texto: 'Rechazó verificación', clase: 'badge--rechazado' },
 };
 
-const SECCIONES = ['Verificaciones', 'Suscripciones', 'Metricas', 'LogAcciones', 'Configuracion'];
+const SECCIONES = ['Verificaciones', 'Suscripciones', 'Metricas', 'LogAcciones', 'Bloqueos', 'Configuracion'];
 
 // ─── Estado de la página ──────────────────────────────────────────────────
 let perfilActual = null;              // fila propia de la tabla perfiles
@@ -82,6 +82,7 @@ async function inicializar() {
     cargarSuscripciones(),
     cargarMetricas(),
     cargarLogAcciones(),
+    cargarBloqueos(),
     cargarConfigTablon(),
   ]);
 
@@ -119,6 +120,8 @@ function configurarEventos() {
   });
 
   document.getElementById('formConfigTablon').addEventListener('submit', manejarSubmitConfigTablon);
+
+  document.getElementById('bloqueosLista').addEventListener('click', manejarClickBloqueos);
 }
 
 // ─── Navegación por secciones ───────────────────────────────────────────────
@@ -397,6 +400,59 @@ function generarLogItem(l) {
       <p class="log-item__detalle">Por ${escaparHtml(l.admin_nombre)} — ${formatearFechaHora(l.created_at)}</p>
     </article>
   `;
+}
+
+// ─── Bloqueos (CLAUDE.md módulo 8) ──────────────────────────────────────────
+async function cargarBloqueos() {
+  const contenedor = document.getElementById('bloqueosLista');
+  const vacio = document.getElementById('estadoSinBloqueos');
+
+  const bloqueos = await api.bloqueos.getBloqueosActivos();
+
+  if (bloqueos.length === 0) {
+    contenedor.innerHTML = '';
+    vacio.hidden = false;
+    return;
+  }
+
+  vacio.hidden = true;
+  contenedor.innerHTML = bloqueos.map(generarBloqueoItem).join('');
+}
+
+function generarBloqueoItem(b) {
+  return `
+    <article class="log-item">
+      <div class="log-item__header">
+        <p class="log-item__nombre">${escaparHtml(b.bloqueador_nombre)} (${escaparHtml(b.bloqueador_rol)}) bloqueó a ${escaparHtml(b.bloqueado_nombre)} (${escaparHtml(b.bloqueado_rol)})</p>
+        <button class="btn btn--secundario btn--sm" type="button" data-accion="desbloquear" data-id="${escaparAtrib(b.id)}">
+          Desbloquear
+        </button>
+      </div>
+      <p class="log-item__detalle">Bloqueado el ${formatearFechaHora(b.created_at)}</p>
+    </article>
+  `;
+}
+
+async function manejarClickBloqueos(e) {
+  const btn = e.target.closest('[data-accion="desbloquear"]');
+  if (!btn) return;
+
+  const errorEl = document.getElementById('errorBloqueos');
+  errorEl.textContent = '';
+  btn.disabled = true;
+
+  const { error } = await api.bloqueos.adminDesbloquear(btn.dataset.id);
+
+  if (error) {
+    const mensaje = mensajeAmigable(error, 'No se pudo desbloquear. Intente de nuevo.');
+    errorEl.textContent = mensaje;
+    toast.error(mensaje);
+    btn.disabled = false;
+    return;
+  }
+
+  toast.exito('Usuarios desbloqueados.');
+  await cargarBloqueos();
 }
 
 // ─── Configuración: El Tablón ───────────────────────────────────────────────

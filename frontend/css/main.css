@@ -1420,6 +1420,44 @@ p {
   color: var(--color-error);
 }
 
+/* Menú de opciones del perfil (⋮): hoy solo "Bloquear" — deliberadamente
+   discreto, esquina opuesta al corazón de favoritos (CLAUDE.md módulo 8). */
+.perfil-header__opciones {
+  position: absolute;
+  top: var(--esp-4);
+  left: var(--esp-4);
+}
+
+.btn-icono-sutil {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radio-completo);
+  color: var(--color-texto-muy-suave);
+  transition: color var(--transicion), background-color var(--transicion);
+}
+
+.btn-icono-sutil:hover,
+.btn-icono-sutil:focus-visible {
+  color: var(--color-texto-suave);
+  background-color: var(--color-primario-suave);
+}
+
+/* "Bloquear cliente"/"Bloquear" como texto de baja prominencia al fondo de
+   una tarjeta de solicitud (CLAUDE.md módulo 8) — nunca un btn--primario. */
+.btn-enlace-sutil {
+  font-size: var(--texto-xs);
+  color: var(--color-texto-muy-suave);
+}
+
+.btn-enlace-sutil:hover,
+.btn-enlace-sutil:focus-visible {
+  color: var(--color-error);
+  text-decoration: underline;
+}
+
 .card-abogado:hover {
   box-shadow: var(--sombra-lg);
   transform: translateY(-2px);

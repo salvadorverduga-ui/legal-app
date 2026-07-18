@@ -8,6 +8,7 @@ import * as api from './api.js';
 import { obtenerConfig } from './config.js';
 import { toast, mensajeAmigable, rutaPanelPropio, confirmar, generarCheckboxSeguimiento, MENSAJE_AGREGADO_SEGUIMIENTO } from './utils.js';
 import { inicializarHeader } from './header.js';
+import { confirmarBloqueo } from './bloqueos.js';
 
 const ORIGEN = 'directa';
 
@@ -220,6 +221,16 @@ function generarSolicitudCardAbogado(s) {
 
   const seguimientoHtml = generarCheckboxSeguimiento(idSeguro, s.en_seguimiento_abogado);
 
+  // Bloquear cliente: discreto, al fondo de la tarjeta (CLAUDE.md módulo 8).
+  const bloquearHtml = `
+    <div class="solicitud-item__acciones">
+      <button class="btn-enlace-sutil" type="button" data-accion="bloquear-cliente"
+        data-id="${escaparAtrib(s.cliente_id)}" data-nombre="${escaparAtrib(s.cliente_nombre)}">
+        Bloquear cliente
+      </button>
+    </div>
+  `;
+
   return `
     <article class="solicitud-item">
       <div class="solicitud-item__header">
@@ -237,6 +248,7 @@ function generarSolicitudCardAbogado(s) {
       ${contactoHtml}
       ${accionesHtml}
       ${seguimientoHtml}
+      ${bloquearHtml}
     </article>
   `;
 }
@@ -415,6 +427,7 @@ function manejarClickSolicitudes(e) {
   const { accion, id } = btn.dataset;
 
   if (accion === 'toggle-seguimiento') return manejarToggleSeguimiento(id);
+  if (accion === 'bloquear-cliente') return manejarBloquearCliente(id, btn.dataset.nombre);
 
   if (rolActual === 'abogado') {
     if (accion === 'aceptar') manejarAceptarSolicitud(id);
@@ -511,6 +524,17 @@ async function manejarRechazarSolicitud(id, motivo) {
   actualizarSolicitudLocal(id, data);
   renderizarSolicitudes();
   toast.info('Solicitud rechazada.');
+}
+
+// ─── Bloqueos (CLAUDE.md módulo 8) ─────────────────────────────────────────────
+async function manejarBloquearCliente(clienteId, nombreCliente) {
+  const bloqueado = await confirmarBloqueo(clienteId, nombreCliente);
+  if (!bloqueado) return;
+
+  // La solicitud fue cancelada automáticamente por el trigger de bloqueos —
+  // se refresca desde el servidor en vez de intentar adivinar el nuevo
+  // estado local (no tenemos el id de la solicitud acá, solo el del cliente).
+  await cargarSolicitudes();
 }
 
 // ─── Acciones: cliente ────────────────────────────────────────────────────────

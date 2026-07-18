@@ -6,6 +6,7 @@ import * as api from './api.js';
 import { obtenerConfig } from './config.js';
 import { toast, mensajeAmigable, generarCheckboxSeguimiento, MENSAJE_AGREGADO_SEGUIMIENTO } from './utils.js';
 import { inicializarHeader } from './header.js';
+import { confirmarBloqueo } from './bloqueos.js';
 
 // ─── Etiquetas y estilos por estado ───────────────────────────────────────────
 const ETIQUETAS_ESTADO_SOLICITUD = {
@@ -360,6 +361,16 @@ function generarSolicitudCard(s) {
 
   const seguimientoHtml = generarCheckboxSeguimiento(idSeguro, s.en_seguimiento_abogado);
 
+  // Bloquear cliente: discreto, al fondo de la tarjeta (CLAUDE.md módulo 8).
+  const bloquearHtml = `
+    <div class="solicitud-item__acciones">
+      <button class="btn-enlace-sutil" type="button" data-accion="bloquear-cliente"
+        data-id="${escaparAtrib(s.cliente_id)}" data-nombre="${escaparAtrib(s.cliente_nombre)}">
+        Bloquear cliente
+      </button>
+    </div>
+  `;
+
   return `
     <article class="solicitud-item">
       <div class="solicitud-item__header">
@@ -377,6 +388,7 @@ function generarSolicitudCard(s) {
       ${contactoHtml}
       ${accionesHtml}
       ${seguimientoHtml}
+      ${bloquearHtml}
     </article>
   `;
 }
@@ -387,9 +399,25 @@ function actualizarSolicitudLocal(id, datosActualizados) {
 }
 
 function manejarClickSeguimiento(e) {
-  const btn = e.target.closest('[data-accion="toggle-seguimiento"]');
-  if (!btn) return;
-  manejarToggleSeguimiento(btn.dataset.id);
+  const btnSeguimiento = e.target.closest('[data-accion="toggle-seguimiento"]');
+  if (btnSeguimiento) {
+    manejarToggleSeguimiento(btnSeguimiento.dataset.id);
+    return;
+  }
+
+  const btnBloquear = e.target.closest('[data-accion="bloquear-cliente"]');
+  if (btnBloquear) manejarBloquearCliente(btnBloquear.dataset.id, btnBloquear.dataset.nombre);
+}
+
+async function manejarBloquearCliente(clienteId, nombreCliente) {
+  const bloqueado = await confirmarBloqueo(clienteId, nombreCliente);
+  if (!bloqueado) return;
+
+  // La solicitud fue cancelada automáticamente por el trigger de bloqueos —
+  // se refresca desde el servidor en vez de intentar adivinar el nuevo
+  // estado local (no tenemos el id de la solicitud acá, solo el del cliente).
+  const misSeguimientos = await api.seguimiento.getMisSeguimientos();
+  renderizarSeguimiento(misSeguimientos);
 }
 
 async function manejarToggleSeguimiento(id) {
