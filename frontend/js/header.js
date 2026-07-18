@@ -194,15 +194,21 @@ function generarMenuVerComo() {
   `;
 }
 
-function generarItems(rol, urlPerfilPublico) {
-  const rutaPropia = rutaPanelPropio(rol);
+// Página dedicada de edición por rol (CLAUDE.md módulo 2) — antes ambos
+// paneles resolvían esto con una pestaña interna en `?tab=perfil`.
+const RUTA_EDITAR_PERFIL_POR_ROL = {
+  cliente: '/pages/editar-perfil-cliente',
+  abogado: '/pages/editar-perfil-abogado',
+};
 
+function generarItems(rol, urlPerfilPublico) {
   const itemVerPerfilPublico = (rol === 'abogado' && urlPerfilPublico)
     ? `<li role="none"><a role="menuitem" class="menu-desplegable__item" href="${escaparAtrib(urlPerfilPublico)}" target="_blank" rel="noopener noreferrer">Ver mi perfil público</a></li>`
     : '';
 
-  const itemEditarPerfil = (rol === 'cliente' || rol === 'abogado')
-    ? `<li role="none"><a role="menuitem" class="menu-desplegable__item" href="${rutaPropia}?tab=perfil">Editar perfil</a></li>`
+  const rutaEditarPerfil = RUTA_EDITAR_PERFIL_POR_ROL[rol];
+  const itemEditarPerfil = rutaEditarPerfil
+    ? `<li role="none"><a role="menuitem" class="menu-desplegable__item" href="${rutaEditarPerfil}">Editar perfil</a></li>`
     : '';
 
   const itemReferir = rol === 'abogado'

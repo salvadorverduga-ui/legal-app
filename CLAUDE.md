@@ -74,7 +74,9 @@ legal-app/
 │   │   ├── tablon-caso.js     ← lógica de tablon-caso.html: detalle de un caso puntual (ver §17/§22)
 │   │   ├── referidos.js       ← lógica de referidos.html: programa de referidos (ver §20)
 │   │   ├── solicitudes-directas.js ← lógica de solicitudes-directas.html (ver §22)
-│   │   └── solicitudes-tablon.js   ← lógica de solicitudes-tablon.html (ver §22)
+│   │   ├── solicitudes-tablon.js   ← lógica de solicitudes-tablon.html (ver §22)
+│   │   ├── editar-perfil-cliente.js ← lógica de editar-perfil-cliente.html, página independiente (ver §27)
+│   │   └── editar-perfil-abogado.js ← lógica de editar-perfil-abogado.html, página independiente (ver §27)
 │   └── pages/
 │       ├── busqueda.html
 │       ├── perfil-abogado.html
@@ -91,7 +93,9 @@ legal-app/
 │       ├── tablon-caso.html   ← detalle de un caso puntual: aplicantes, elegir, aplicar, cerrar (ver §17/§22)
 │       ├── referidos.html     ← programa de referidos, solo abogados (ver §20)
 │       ├── solicitudes-directas.html ← listado con filtros de solicitudes normales, cliente o abogado (ver §22)
-│       └── solicitudes-tablon.html   ← listado con filtros de solicitudes originadas en El Tablón (ver §22)
+│       ├── solicitudes-tablon.html   ← listado con filtros de solicitudes originadas en El Tablón (ver §22)
+│       ├── editar-perfil-cliente.html ← edición de perfil de cliente, página independiente (ver §27)
+│       └── editar-perfil-abogado.html ← edición de perfil de abogado, página independiente (ver §27)
 ├── supabase/
 │   ├── config.toml            ← project_id para el Supabase CLI (link/deploy)
 │   ├── migrations/            ← archivos SQL en orden cronológico
@@ -683,13 +687,36 @@ El header mostraba estados inconsistentes según la página: `busqueda.html` y `
 - Páginas públicas donde puede o no haber sesión (`busqueda.html`, `perfil-abogado.html`): `await inicializarHeader()` sin argumentos resuelve `getSession()`/`getPerfilActual()` internamente y devuelve el perfil resuelto (o `null`), que el caller puede reutilizar sin duplicar la consulta.
 - Páginas que nunca deben reflejar sesión aunque exista una activa (`recuperar-contrasena.html`, `nueva-contrasena.html` — acá la sesión es de tipo `recovery`, no un login real — y la landing `index.html` una vez confirmado que no hay sesión): `inicializarHeader({ forzarAnonimo: true })`.
 
-En los tres casos el resultado es exactamente uno de dos estados — nunca ambos ni ninguno: con datos de usuario renderiza logo (link al panel propio), enlaces rápidos "El Tablón"/"En seguimiento" (solo `cliente`/`abogado`), la campana de `notificaciones.js` (sin cambios, sigue posicionándose antes de `#menuPerfil`) y el avatar con menú desplegable (`Editar perfil` — cliente y abogado, apunta a `?tab=perfil` hasta que §2 lo reemplace por las páginas dedicadas —, `Ver mi perfil público` y `Referir un colega` solo abogado, `Cambiar contraseña`, `Cerrar sesión`); sin datos de usuario renderiza solo el botón "Iniciar sesión". Para `rol='admin'` agrega además el dropdown "Ver como" (navegación en pestaña nueva a `busqueda`/`panel-abogado`, no cambia la sesión del admin) — mismo componente `configurarMenuDesplegable()` genérico que ya usa el menú de avatar.
+En los tres casos el resultado es exactamente uno de dos estados — nunca ambos ni ninguno: con datos de usuario renderiza logo (link al panel propio), enlaces rápidos "El Tablón"/"En seguimiento" (solo `cliente`/`abogado`), la campana de `notificaciones.js` (sin cambios, sigue posicionándose antes de `#menuPerfil`) y el avatar con menú desplegable (`Editar perfil` — cliente y abogado, apunta a la página dedicada de cada rol, ver §27 —, `Ver mi perfil público` y `Referir un colega` solo abogado, `Cambiar contraseña`, `Cerrar sesión`); sin datos de usuario renderiza solo el botón "Iniciar sesión". Para `rol='admin'` agrega además el dropdown "Ver como" (navegación en pestaña nueva a `busqueda`/`panel-abogado`, no cambia la sesión del admin) — mismo componente `configurarMenuDesplegable()` genérico que ya usa el menú de avatar.
 
 ### Páginas sin `<nav class="nav-usuario">` previamente
 `cambiar-contrasena.html`, `recuperar-contrasena.html`, `nueva-contrasena.html` e `index.html` no tenían ningún elemento de navegación de usuario en el header (solo el logo) — se les agregó el `<nav class="nav-usuario">` vacío para que `inicializarHeader()` tenga dónde renderizar.
 
 ### Actualizar avatar tras subir foto
 `actualizarAvatarHeader(fotoPath, nombre)` reemplaza a `actualizarAvatarMenuPerfil()` — misma firma, mismo `id="menuPerfilAvatar"`.
+
+---
+
+## 27. Editar perfil como página independiente
+
+### Qué cambió
+La edición de perfil deja de ser una pestaña interna de `panel-cliente.html`/`panel-abogado.html` y pasa a ser una página propia por rol, accesible únicamente desde "Editar perfil" en el menú de avatar del header (§26):
+
+| Rol | Página | Reemplaza a |
+|---|---|---|
+| `cliente` | `frontend/pages/editar-perfil-cliente.html` | sección `seccionPerfil` (sr-only, `?tab=perfil`) de `panel-cliente.html` |
+| `abogado` | `frontend/pages/editar-perfil-abogado.html` | pestaña visible "Editar perfil" de `panel-abogado.html` |
+
+`panel-abogado.html` queda con cuatro pestañas visibles (Inicio · Solicitudes · Reseñas · Mi suscripción) más "En seguimiento" — esta última no se ocultó: el pedido original de simplificar el orden de pestañas apuntaba a sacar "Editar perfil", no a esconder seguimiento, que ya es accesible en un clic desde el header (§24).
+
+### Campo nuevo: nombre completo del cliente
+`editar-perfil-cliente.html` agrega un campo "Nombre completo" que el cliente no podía editar antes (`panel-cliente.html` solo tenía teléfono/provincia/ciudad). No hizo falta ninguna migración: `api.perfiles.actualizarPerfil()` ya incluía `nombre_completo` en su lista blanca de columnas (`frontend/js/api.js`) y la política RLS `perfil_propio_update` (migración `20260707_026_fix_rls_perfiles.sql`) ya permite actualizar cualquier columna propia salvo `rol` — el campo simplemente no se exponía en el formulario. El perfil del abogado no agrega este campo por no haber sido parte del pedido; su nombre se sigue editando solo indirectamente (no hay campo de edición de nombre para abogados en este módulo).
+
+### Código duplicado deliberadamente: `calcularPorcentajePerfil()`
+`panel-abogado.js` conserva su propia copia de `calcularPorcentajePerfil()` (5 líneas) porque el badge "Perfil completo ✓" de la cabecera y el banner de onboarding ("Complete su perfil...") viven en el panel, no en la página de edición — moverla a un módulo compartido por una función de 5 líneas usada en dos archivos hubiera sido una abstracción prematura (CLAUDE.md, sección "Doing tasks"). El banner de onboarding ahora es un link (`<a href="/pages/editar-perfil-abogado">`) en vez de un botón que cambiaba de pestaña.
+
+### Foto y avatar del header
+Ambas páginas nuevas suben la foto con `api.perfiles.subirFotoPerfil()` (sin cambios) y llaman a `actualizarAvatarHeader()` (§26) para que el avatar del header se actualice sin recargar la página — mismo patrón que ya usaban los paneles.
 
 ---
 

@@ -45,9 +45,9 @@
         <!-- Onboarding: perfil incompleto -->
         <div class="panel-banner panel-banner--info" id="bannerOnboarding" hidden>
           <p>Complete su perfil para ser visible en las búsquedas.</p>
-          <button class="btn btn--primario btn--sm" id="btnCompletarPerfil" type="button">
+          <a class="btn btn--primario btn--sm" href="/pages/editar-perfil-abogado">
             Completar perfil
-          </button>
+          </a>
         </div>
 
         <!-- Cabecera: identidad, verificación y disponibilidad -->
@@ -91,10 +91,6 @@
           <button class="panel-tab" id="tabSeguimiento" type="button"
             role="tab" aria-selected="false" aria-controls="seccionSeguimiento">
             En seguimiento
-          </button>
-          <button class="panel-tab" id="tabPerfil" type="button"
-            role="tab" aria-selected="false" aria-controls="seccionPerfil">
-            Editar perfil
           </button>
         </nav>
 
@@ -176,103 +172,6 @@
           <div class="estado-vacio" id="estadoSinSeguimientoCasos" hidden>
             <p>No tiene casos de El Tablón en seguimiento.</p>
           </div>
-        </section>
-
-        <!-- ═══════════════ SECCIÓN: EDITAR PERFIL ═══════════════ -->
-        <section class="panel-seccion" id="seccionPerfil" role="tabpanel" aria-labelledby="tabPerfil" hidden>
-
-          <div class="progreso-perfil">
-            <div class="progreso-perfil__header">
-              <span>Perfil completo</span>
-              <span class="progreso-perfil__porcentaje" id="progresoPerfilPorcentaje">0%</span>
-            </div>
-            <div class="progreso-perfil__pista">
-              <div class="progreso-perfil__relleno" id="progresoPerfilRelleno" style="width: 0%"></div>
-            </div>
-          </div>
-
-          <div class="panel-perfil-foto">
-            <div class="panel-perfil-foto__avatar" id="perfilFotoAvatar"></div>
-            <div class="panel-perfil-foto__acciones">
-              <button class="btn btn--secundario btn--sm" id="btnCambiarFoto" type="button">
-                Cambiar foto
-              </button>
-              <input type="file" id="inputFoto" class="sr-only" accept="image/jpeg,image/png,image/webp">
-              <p class="campo__ayuda" id="fotoEstado" role="status" aria-live="polite"></p>
-            </div>
-          </div>
-
-          <form class="formulario" id="formPerfil" novalidate>
-            <div class="campo">
-              <label for="perfilDescripcion" class="campo__etiqueta">Descripción profesional</label>
-              <textarea
-                id="perfilDescripcion"
-                class="campo__input"
-                rows="4"
-                maxlength="600"
-                placeholder="Describa su experiencia y áreas de práctica..."
-              ></textarea>
-              <p class="campo__contador" id="contadorDescripcionPerfil">0 / 600</p>
-            </div>
-
-            <div class="campo">
-              <span class="campo__etiqueta">Especialidades</span>
-              <div class="radio-pills radio-pills--multiple" id="especialidadesPerfil">
-                <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho de familia"><span>Derecho de familia</span></label>
-                <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho laboral"><span>Derecho laboral</span></label>
-                <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho penal"><span>Derecho penal</span></label>
-                <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho civil"><span>Derecho civil</span></label>
-                <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho mercantil"><span>Derecho mercantil</span></label>
-                <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho administrativo"><span>Derecho administrativo</span></label>
-                <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho tributario"><span>Derecho tributario</span></label>
-                <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho inmobiliario"><span>Derecho inmobiliario</span></label>
-                <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho de tránsito"><span>Derecho de tránsito</span></label>
-                <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho constitucional"><span>Derecho constitucional</span></label>
-                <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho ambiental"><span>Derecho ambiental</span></label>
-                <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Propiedad intelectual"><span>Propiedad intelectual</span></label>
-                <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho internacional"><span>Derecho internacional</span></label>
-                <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho migratorio"><span>Derecho migratorio</span></label>
-              </div>
-            </div>
-
-            <div class="campo">
-              <label for="perfilPrecio" class="campo__etiqueta">Precio de consulta (USD, referencial)</label>
-              <input type="number" id="perfilPrecio" class="campo__input" min="0" step="0.01" placeholder="Ej: 25.00">
-              <p class="campo__ayuda">La tarifa real se pacta directamente con el cliente.</p>
-            </div>
-
-            <div class="campo">
-              <label for="perfilProvincia" class="campo__etiqueta">Provincia</label>
-              <select id="perfilProvincia" class="campo__input">
-                <option value="">Seleccione su provincia</option>
-              </select>
-            </div>
-
-            <div class="campo">
-              <label for="perfilCanton" class="campo__etiqueta">Cantón</label>
-              <select id="perfilCanton" class="campo__input" disabled>
-                <option value="">Seleccione primero una provincia</option>
-              </select>
-            </div>
-
-            <div class="campo">
-              <span class="campo__etiqueta">Zonas de servicio adicionales</span>
-              <p class="campo__ayuda">
-                Puede prestar servicios en otras provincias aunque no esté ubicado ahí
-                (consultas online, desplazamiento, etc.).
-              </p>
-              <div class="radio-pills radio-pills--multiple" id="zonasServicioPerfil"></div>
-            </div>
-
-            <p class="campo__error" id="errorPerfil" role="alert" aria-live="polite"></p>
-            <p class="mensaje-exito" id="exitoPerfil" role="status" aria-live="polite" hidden>
-              Perfil actualizado correctamente.
-            </p>
-
-            <button type="submit" class="btn btn--primario" id="btnGuardarPerfil">
-              Guardar cambios
-            </button>
-          </form>
         </section>
 
       </div>

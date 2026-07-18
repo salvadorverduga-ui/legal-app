@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Edite su perfil profesional en LegalEC.">
+  <title>Editar perfil — LegalEC</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+
+  <header class="encabezado">
+    <div class="contenedor encabezado__contenedor">
+      <a href="/pages/panel-abogado" class="logo" id="logoHeader" aria-label="LegalEC — Panel del abogado">
+        <span class="logo__nombre">LegalEC</span>
+      </a>
+      <nav class="nav-usuario" aria-label="Menú de usuario"></nav>
+    </div>
+  </header>
+
+  <main>
+    <div class="contenedor panel-abogado__contenido">
+
+      <!-- Estado: cargando -->
+      <div class="pantalla-carga" id="estadoCargando">
+        <div class="spinner" aria-hidden="true"></div>
+        <p class="pantalla-carga__texto">Cargando...</p>
+      </div>
+
+      <!-- Estado: error -->
+      <div class="estado-vacio" id="estadoError" hidden>
+        <p class="estado-vacio__titulo">No pudimos cargar esta página</p>
+        <p>Intente recargar la página. Si el problema continúa, contacte a soporte.</p>
+      </div>
+
+      <!-- Contenido -->
+      <div id="contenidoPanel" hidden>
+
+        <div class="tablon-toolbar">
+          <a href="/pages/panel-abogado" class="btn btn--secundario btn--sm" id="btnVolverPanel">Volver al panel</a>
+        </div>
+
+        <section class="panel-cabecera">
+          <div class="panel-cabecera__identidad">
+            <div>
+              <h1 class="panel-cabecera__nombre">Editar perfil</h1>
+              <p class="panel-cabecera__subtitulo">Un perfil completo aparece mejor posicionado en las búsquedas.</p>
+            </div>
+          </div>
+        </section>
+
+        <div class="progreso-perfil">
+          <div class="progreso-perfil__header">
+            <span>Perfil completo</span>
+            <span class="progreso-perfil__porcentaje" id="progresoPerfilPorcentaje">0%</span>
+          </div>
+          <div class="progreso-perfil__pista">
+            <div class="progreso-perfil__relleno" id="progresoPerfilRelleno" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <div class="panel-perfil-foto">
+          <div class="panel-perfil-foto__avatar" id="perfilFotoAvatar"></div>
+          <div class="panel-perfil-foto__acciones">
+            <button class="btn btn--secundario btn--sm" id="btnCambiarFoto" type="button">
+              Cambiar foto
+            </button>
+            <input type="file" id="inputFoto" class="sr-only" accept="image/jpeg,image/png,image/webp">
+            <p class="campo__ayuda" id="fotoEstado" role="status" aria-live="polite"></p>
+          </div>
+        </div>
+
+        <form class="formulario" id="formPerfil" novalidate>
+          <div class="campo">
+            <label for="perfilDescripcion" class="campo__etiqueta">Descripción profesional</label>
+            <textarea
+              id="perfilDescripcion"
+              class="campo__input"
+              rows="4"
+              maxlength="600"
+              placeholder="Describa su experiencia y áreas de práctica..."
+            ></textarea>
+            <p class="campo__contador" id="contadorDescripcionPerfil">0 / 600</p>
+          </div>
+
+          <div class="campo">
+            <span class="campo__etiqueta">Especialidades</span>
+            <div class="radio-pills radio-pills--multiple" id="especialidadesPerfil">
+              <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho de familia"><span>Derecho de familia</span></label>
+              <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho laboral"><span>Derecho laboral</span></label>
+              <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho penal"><span>Derecho penal</span></label>
+              <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho civil"><span>Derecho civil</span></label>
+              <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho mercantil"><span>Derecho mercantil</span></label>
+              <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho administrativo"><span>Derecho administrativo</span></label>
+              <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho tributario"><span>Derecho tributario</span></label>
+              <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho inmobiliario"><span>Derecho inmobiliario</span></label>
+              <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho de tránsito"><span>Derecho de tránsito</span></label>
+              <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho constitucional"><span>Derecho constitucional</span></label>
+              <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho ambiental"><span>Derecho ambiental</span></label>
+              <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Propiedad intelectual"><span>Propiedad intelectual</span></label>
+              <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho internacional"><span>Derecho internacional</span></label>
+              <label class="radio-pills__opcion"><input type="checkbox" name="especialidades" value="Derecho migratorio"><span>Derecho migratorio</span></label>
+            </div>
+          </div>
+
+          <div class="campo">
+            <label for="perfilPrecio" class="campo__etiqueta">Precio de consulta (USD, referencial)</label>
+            <input type="number" id="perfilPrecio" class="campo__input" min="0" step="0.01" placeholder="Ej: 25.00">
+            <p class="campo__ayuda">La tarifa real se pacta directamente con el cliente.</p>
+          </div>
+
+          <div class="campo">
+            <label for="perfilProvincia" class="campo__etiqueta">Provincia</label>
+            <select id="perfilProvincia" class="campo__input">
+              <option value="">Seleccione su provincia</option>
+            </select>
+          </div>
+
+          <div class="campo">
+            <label for="perfilCanton" class="campo__etiqueta">Cantón</label>
+            <select id="perfilCanton" class="campo__input" disabled>
+              <option value="">Seleccione primero una provincia</option>
+            </select>
+          </div>
+
+          <div class="campo">
+            <span class="campo__etiqueta">Zonas de servicio adicionales</span>
+            <p class="campo__ayuda">
+              Puede prestar servicios en otras provincias aunque no esté ubicado ahí
+              (consultas online, desplazamiento, etc.).
+            </p>
+            <div class="radio-pills radio-pills--multiple" id="zonasServicioPerfil"></div>
+          </div>
+
+          <p class="campo__error" id="errorPerfil" role="alert" aria-live="polite"></p>
+          <p class="mensaje-exito" id="exitoPerfil" role="status" aria-live="polite" hidden>
+            Perfil actualizado correctamente.
+          </p>
+
+          <button type="submit" class="btn btn--primario" id="btnGuardarPerfil">
+            Guardar cambios
+          </button>
+        </form>
+
+      </div>
+    </div>
+  </main>
+
+  <footer class="pie">
+    <div class="contenedor pie__contenedor">
+      <p class="pie__aviso">
+        LegalEC es un servicio de conexión y no un proveedor de servicios jurídicos.
+      </p>
+      <nav class="pie__nav" aria-label="Páginas legales">
+        <a href="#" class="pie__enlace">Términos y condiciones</a>
+        <span class="pie__separador" aria-hidden="true">·</span>
+        <a href="#" class="pie__enlace">Política de privacidad (LOPDP)</a>
+        <span class="pie__separador" aria-hidden="true">·</span>
+        <a href="/pages/contacto" class="pie__enlace">Soporte</a>
+      </nav>
+    </div>
+  </footer>
+
+  <script src="/js/vendors/supabase.min.js"></script>
+  <script type="module" src="/js/editar-perfil-abogado.js"></script>
+
+</body>
+</html>

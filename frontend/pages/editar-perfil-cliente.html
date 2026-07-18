@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Edite su perfil de cliente en LegalEC.">
+  <title>Editar perfil — LegalEC</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+
+  <header class="encabezado">
+    <div class="contenedor encabezado__contenedor">
+      <a href="/pages/panel-cliente" class="logo" id="logoHeader" aria-label="LegalEC — Mi panel">
+        <span class="logo__nombre">LegalEC</span>
+      </a>
+      <nav class="nav-usuario" aria-label="Menú de usuario"></nav>
+    </div>
+  </header>
+
+  <main>
+    <div class="contenedor panel-cliente__contenido">
+
+      <!-- Estado: cargando -->
+      <div class="pantalla-carga" id="estadoCargando">
+        <div class="spinner" aria-hidden="true"></div>
+        <p class="pantalla-carga__texto">Cargando...</p>
+      </div>
+
+      <!-- Estado: error -->
+      <div class="estado-vacio" id="estadoError" hidden>
+        <p class="estado-vacio__titulo">No pudimos cargar esta página</p>
+        <p>Intente recargar la página. Si el problema continúa, contacte a soporte.</p>
+      </div>
+
+      <!-- Contenido -->
+      <div id="contenidoPanel" hidden>
+
+        <div class="tablon-toolbar">
+          <a href="/pages/panel-cliente" class="btn btn--secundario btn--sm" id="btnVolverPanel">Volver al panel</a>
+        </div>
+
+        <section class="panel-cabecera">
+          <div class="panel-cabecera__identidad">
+            <div>
+              <h1 class="panel-cabecera__nombre">Editar perfil</h1>
+              <p class="panel-cabecera__subtitulo">Mantenga sus datos de contacto actualizados.</p>
+            </div>
+          </div>
+        </section>
+
+        <div class="panel-perfil-foto">
+          <div class="panel-perfil-foto__avatar" id="perfilFotoAvatar"></div>
+          <div class="panel-perfil-foto__acciones">
+            <button class="btn btn--secundario btn--sm" id="btnCambiarFoto" type="button">
+              Cambiar foto
+            </button>
+            <input type="file" id="inputFoto" class="sr-only" accept="image/jpeg,image/png,image/webp">
+            <p class="campo__ayuda" id="fotoEstado" role="status" aria-live="polite"></p>
+          </div>
+        </div>
+
+        <form class="formulario" id="formPerfil" novalidate>
+          <div class="campo">
+            <label for="perfilNombre" class="campo__etiqueta">Nombre completo</label>
+            <input type="text" id="perfilNombre" class="campo__input" maxlength="150" required>
+          </div>
+
+          <div class="campo">
+            <label for="perfilTelefono" class="campo__etiqueta">Teléfono (opcional)</label>
+            <input type="tel" id="perfilTelefono" class="campo__input" placeholder="+593 99 999 9999">
+            <p class="campo__ayuda">Se comparte con el abogado solo cuando acepta su solicitud.</p>
+          </div>
+
+          <div class="campo">
+            <label for="perfilProvincia" class="campo__etiqueta">Provincia (opcional)</label>
+            <select id="perfilProvincia" class="campo__input">
+              <option value="">Seleccione una provincia</option>
+              <option value="Azuay">Azuay</option>
+              <option value="Bolívar">Bolívar</option>
+              <option value="Cañar">Cañar</option>
+              <option value="Carchi">Carchi</option>
+              <option value="Chimborazo">Chimborazo</option>
+              <option value="Cotopaxi">Cotopaxi</option>
+              <option value="El Oro">El Oro</option>
+              <option value="Esmeraldas">Esmeraldas</option>
+              <option value="Galápagos">Galápagos</option>
+              <option value="Guayas">Guayas</option>
+              <option value="Imbabura">Imbabura</option>
+              <option value="Loja">Loja</option>
+              <option value="Los Ríos">Los Ríos</option>
+              <option value="Manabí">Manabí</option>
+              <option value="Morona Santiago">Morona Santiago</option>
+              <option value="Napo">Napo</option>
+              <option value="Orellana">Orellana</option>
+              <option value="Pastaza">Pastaza</option>
+              <option value="Pichincha">Pichincha</option>
+              <option value="Santa Elena">Santa Elena</option>
+              <option value="Santo Domingo de los Tsáchilas">Santo Domingo de los Tsáchilas</option>
+              <option value="Sucumbíos">Sucumbíos</option>
+              <option value="Tungurahua">Tungurahua</option>
+              <option value="Zamora Chinchipe">Zamora Chinchipe</option>
+            </select>
+          </div>
+
+          <div class="campo">
+            <label for="perfilCiudad" class="campo__etiqueta">Ciudad (opcional)</label>
+            <input type="text" id="perfilCiudad" class="campo__input" maxlength="100" placeholder="Ej: Cuenca">
+          </div>
+
+          <p class="campo__error" id="errorPerfil" role="alert" aria-live="polite"></p>
+          <p class="mensaje-exito" id="exitoPerfil" role="status" aria-live="polite" hidden>
+            Perfil actualizado correctamente.
+          </p>
+
+          <button type="submit" class="btn btn--primario" id="btnGuardarPerfil">
+            Guardar cambios
+          </button>
+        </form>
+
+      </div>
+    </div>
+  </main>
+
+  <footer class="pie">
+    <div class="contenedor pie__contenedor">
+      <p class="pie__aviso">
+        LegalEC es un servicio de conexión y no un proveedor de servicios jurídicos.
+      </p>
+      <nav class="pie__nav" aria-label="Páginas legales">
+        <a href="#" class="pie__enlace">Términos y condiciones</a>
+        <span class="pie__separador" aria-hidden="true">·</span>
+        <a href="#" class="pie__enlace">Política de privacidad (LOPDP)</a>
+        <span class="pie__separador" aria-hidden="true">·</span>
+        <a href="/pages/contacto" class="pie__enlace">Soporte</a>
+      </nav>
+    </div>
+  </footer>
+
+  <script src="/js/vendors/supabase.min.js"></script>
+  <script type="module" src="/js/editar-perfil-cliente.js"></script>
+
+</body>
+</html>

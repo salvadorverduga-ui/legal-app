@@ -5,7 +5,7 @@
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
 import { toast, mensajeAmigable, generarCheckboxSeguimiento, MENSAJE_AGREGADO_SEGUIMIENTO } from './utils.js';
-import { inicializarHeader, actualizarAvatarHeader } from './header.js';
+import { inicializarHeader } from './header.js';
 
 // ─── Etiquetas y estilos por estado ───────────────────────────────────────────
 const ETIQUETAS_ESTADO_SOLICITUD = {
@@ -40,7 +40,7 @@ const CLASE_ESTADO_CASO_TABLON = {
   CERRADO:  'badge--estado-cancelada',
 };
 
-const SECCIONES = ['Inicio', 'Solicitudes', 'Abogados', 'Resenas', 'Seguimiento', 'Perfil'];
+const SECCIONES = ['Inicio', 'Solicitudes', 'Abogados', 'Resenas', 'Seguimiento'];
 
 // ─── Estado de la página ──────────────────────────────────────────────────────
 let perfilActual = null;         // fila propia de la tabla perfiles
@@ -80,7 +80,6 @@ async function inicializar() {
   }
 
   renderizarCabecera();
-  rellenarFormularioPerfil();
   renderizarSaludoInicio();
   inicializarHeader({ rol: 'cliente', nombre: perfilActual.nombre_completo, fotoPath: perfilActual.foto_url });
 
@@ -125,16 +124,6 @@ function configurarEventos() {
   });
 
   document.getElementById('seccionSeguimiento').addEventListener('click', manejarClickSeguimiento);
-
-  document.getElementById('btnCambiarFoto').addEventListener('click', () => {
-    document.getElementById('inputFoto').click();
-  });
-  document.getElementById('inputFoto').addEventListener('change', manejarCambioFoto);
-
-  document.getElementById('formPerfil').addEventListener('submit', (e) => {
-    e.preventDefault();
-    manejarGuardarPerfil();
-  });
 }
 
 // ─── Navegación por secciones ─────────────────────────────────────────────────
@@ -157,9 +146,7 @@ function aplicarTabDesdeUrl() {
 
 // ─── Cabecera: identidad ──────────────────────────────────────────────────────
 function renderizarCabecera() {
-  const avatarHtml = generarAvatarHtml(perfilActual.foto_url, perfilActual.nombre_completo);
-  document.getElementById('cabeceraAvatar').innerHTML = avatarHtml;
-  document.getElementById('perfilFotoAvatar').innerHTML = avatarHtml;
+  document.getElementById('cabeceraAvatar').innerHTML = generarAvatarHtml(perfilActual.foto_url, perfilActual.nombre_completo);
   document.getElementById('cabeceraNombre').textContent = perfilActual.nombre_completo;
 }
 
@@ -181,92 +168,6 @@ function renderizarResumenInicio(notificacionesNoLeidas) {
   const activas = solicitudesActuales.filter(s => s.estado === 'PENDIENTE' || s.estado === 'ACEPTADA').length;
   document.getElementById('inicioSolicitudesActivas').textContent = String(activas);
   document.getElementById('inicioNotificacionesNoLeidas').textContent = String(notificacionesNoLeidas);
-}
-
-// ─── Mi perfil: foto ──────────────────────────────────────────────────────────
-const FOTO_TAMANO_MAXIMO_BYTES = 10 * 1024 * 1024;
-
-async function manejarCambioFoto(e) {
-  const archivo = e.target.files[0];
-  if (!archivo) return;
-
-  const estadoEl = document.getElementById('fotoEstado');
-
-  if (!archivo.type.startsWith('image/')) {
-    const mensaje = 'El archivo debe ser una imagen.';
-    estadoEl.textContent = mensaje;
-    toast.error(mensaje);
-    e.target.value = '';
-    return;
-  }
-
-  if (archivo.size > FOTO_TAMANO_MAXIMO_BYTES) {
-    const mensaje = 'La imagen no debe superar los 10MB.';
-    estadoEl.textContent = mensaje;
-    toast.error(mensaje);
-    e.target.value = '';
-    return;
-  }
-
-  estadoEl.textContent = 'Subiendo foto...';
-
-  const { url, error } = await api.perfiles.subirFotoPerfil(archivo);
-
-  if (error) {
-    const mensaje = mensajeAmigable(error, 'No se pudo subir la foto. Intente de nuevo.');
-    estadoEl.textContent = mensaje;
-    toast.error(mensaje);
-    e.target.value = '';
-    return;
-  }
-
-  perfilActual.foto_url = url;
-  renderizarCabecera();
-  actualizarAvatarHeader(perfilActual.foto_url, perfilActual.nombre_completo);
-  estadoEl.textContent = 'Foto actualizada.';
-  toast.exito('Foto actualizada.');
-  e.target.value = '';
-}
-
-// ─── Mi perfil: formulario ────────────────────────────────────────────────────
-function rellenarFormularioPerfil() {
-  document.getElementById('perfilTelefono').value = perfilActual.telefono ?? '';
-  document.getElementById('perfilProvincia').value = perfilActual.provincia ?? '';
-  document.getElementById('perfilCiudad').value = perfilActual.ciudad ?? '';
-}
-
-async function manejarGuardarPerfil() {
-  const btn = document.getElementById('btnGuardarPerfil');
-  const errorEl = document.getElementById('errorPerfil');
-  const exitoEl = document.getElementById('exitoPerfil');
-
-  errorEl.textContent = '';
-  exitoEl.hidden = true;
-  btn.disabled = true;
-  btn.textContent = 'Guardando...';
-
-  const telefono = document.getElementById('perfilTelefono').value.trim();
-  const provincia = document.getElementById('perfilProvincia').value;
-  const ciudad = document.getElementById('perfilCiudad').value.trim();
-
-  const { data, error } = await api.perfiles.actualizarPerfil({
-    telefono: telefono || null,
-    provincia: provincia || null,
-    ciudad: ciudad || null,
-  });
-
-  if (error) {
-    const mensaje = mensajeAmigable(error, 'Ocurrió un error. Intente de nuevo.');
-    errorEl.textContent = mensaje;
-    toast.error(mensaje);
-  } else {
-    perfilActual = data;
-    exitoEl.hidden = false;
-    toast.exito('Perfil guardado.');
-  }
-
-  btn.disabled = false;
-  btn.textContent = 'Guardar cambios';
 }
 
 // ─── Solicitudes ──────────────────────────────────────────────────────────────
