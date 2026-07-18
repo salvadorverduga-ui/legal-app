@@ -293,8 +293,8 @@ function generarSolicitudCardCliente(s) {
         <p class="campo__contador" id="contadorEditar-${idSeguro}">${(s.descripcion_caso ?? '').length} / 500</p>
       </div>
       <div class="campo">
-        <span class="campo__etiqueta">Disponibilidad horaria</span>
-        <div class="radio-pills" role="radiogroup" aria-label="Disponibilidad horaria">
+        <span class="campo__etiqueta">¿Cuándo prefiere ser contactado?</span>
+        <div class="radio-pills" role="radiogroup" aria-label="¿Cuándo prefiere ser contactado?">
           ${generarOpcionesDisponibilidad(idSeguro, s.disponibilidad_horaria)}
         </div>
       </div>

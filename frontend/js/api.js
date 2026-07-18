@@ -848,6 +848,12 @@ export const solicitudes = {
 
     if (error) {
       console.error('[api.solicitudes.crearSolicitud]', error.message);
+      if (error.hint === 'LIMITE_SOLICITUDES_DIRECTAS') {
+        return {
+          data: null,
+          error: { message: error.message, codigo: 'LIMITE_SOLICITUDES_DIRECTAS' },
+        };
+      }
       if (error.code === '23505') {
         return {
           data: null,

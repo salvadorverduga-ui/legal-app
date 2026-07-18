@@ -99,6 +99,7 @@ const MENSAJES_ERROR_CONOCIDOS = new Set([
   'No hay sesión activa.',
   'Ya dejó una reseña para esta solicitud.',
   'No se encontró la solicitud.',
+  'Ya tiene 3 solicitudes activas con este abogado. Espere una respuesta o cancele alguna antes de enviar una nueva.',
 ]);
 
 export function mensajeAmigable(error, mensajePorDefecto) {

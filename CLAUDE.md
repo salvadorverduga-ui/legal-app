@@ -735,4 +735,21 @@ El cambio de fuente de datos (de `solicitudes` a `casos_tablon`) por sí solo hu
 
 ---
 
+## 29. Límite de solicitudes directas y origen independiente del Tablón
+
+### Migración `20260719_053_limite_solicitudes_directas_y_origen_independiente.sql`
+Dos cambios sobre `idx_solicitud_activa_unica` (migración 006), el índice único que hasta ahora impedía más de una solicitud activa (`PENDIENTE`/`ACEPTADA`) por par cliente-abogado, sin distinguir origen:
+
+1. **Límite de solicitudes directas: de 1 a 3 activas simultáneas.** Un índice único solo puede garantizar "como máximo 1 fila" — para "como máximo 3" hace falta un trigger que cuente, mismo patrón que `fn_verificar_limite_casos_tablon` (§17). `fn_verificar_limite_solicitudes_directas()` (`BEFORE INSERT ON solicitudes`) cuenta las solicitudes directas activas (`caso_tablon_id IS NULL`) del par cliente-abogado y rechaza el INSERT a partir de la cuarta, con `RAISE EXCEPTION ... USING HINT = 'LIMITE_SOLICITUDES_DIRECTAS'` — mismo mecanismo de hint que `LIMITE_CASOS_TABLON` (§17/§24). La función retorna inmediatamente sin contar nada si `NEW.caso_tablon_id IS NOT NULL`: el límite es exclusivo de solicitudes directas.
+
+2. **Origen directa y origen Tablón dejan de compartir el control de actividad.** `idx_solicitud_activa_unica` se reemplaza por `idx_solicitud_activa_unica_tablon`, con la misma condición de estado pero acotada a `caso_tablon_id IS NOT NULL` — el origen Tablón conserva el límite de 1 activa simultánea (un cliente no debería tener dos consultas activas con el mismo abogado elegidas desde dos casos distintos del Tablón a la vez), pero ya no choca contra una solicitud directa activa con ese mismo abogado, ni viceversa. Esto vuelve innecesaria (pero no incorrecta) la rama `EXCEPTION WHEN unique_violation` que la migración 052 agregó a `fn_crear_solicitud_desde_tablon` para el caso directa-choca-con-tablon — esa rama ahora solo se activa en el caso tablon-choca-con-tablon, que sigue siendo válido.
+
+### Frontend
+`api.solicitudes.crearSolicitud()` (`frontend/js/api.js`) distingue `error.hint === 'LIMITE_SOLICITUDES_DIRECTAS'` antes de caer al chequeo genérico de `error.code === '23505'` (que en la práctica ya no se dispara para solicitudes directas, solo queda como red de seguridad). El mensaje del trigger se agregó a `MENSAJES_ERROR_CONOCIDOS` en `frontend/js/utils.js` para que `mensajeAmigable()` lo muestre tal cual en vez de caer al mensaje genérico de cada pantalla.
+
+### "¿Cuándo prefiere ser contactado?"
+El campo `disponibilidad_horaria` se pedía bajo el título "Disponibilidad horaria", ambiguo sobre si se refería a la disponibilidad del cliente o del abogado. Se cambió el título (y su `aria-label`) a "¿Cuándo prefiere ser contactado?" en los tres lugares donde el cliente completa este campo: el formulario inicial de solicitud (`perfil-abogado.html`) y los formularios de edición de una solicitud ya enviada (`panel-cliente.js` y `solicitudes-directas.js`, sección "En seguimiento"/"Mis solicitudes" respectivamente). La etiqueta de solo lectura "Disponibilidad:" que ve el abogado al revisar una solicitud no se tocó — ahí no hay ambigüedad de a quién pertenece el dato.
+
+---
+
 *Actualizar este archivo con cada decisión técnica relevante*
