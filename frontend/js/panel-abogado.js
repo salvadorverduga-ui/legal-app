@@ -4,9 +4,8 @@
 
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
-import { toast, mensajeAmigable, rutaPanelPropio, generarCheckboxSeguimiento, MENSAJE_AGREGADO_SEGUIMIENTO } from './utils.js';
-import { inicializarNotificaciones } from './notificaciones.js';
-import { inicializarMenuPerfil, actualizarAvatarMenuPerfil } from './menu-perfil.js';
+import { toast, mensajeAmigable, generarCheckboxSeguimiento, MENSAJE_AGREGADO_SEGUIMIENTO } from './utils.js';
+import { inicializarHeader, actualizarAvatarHeader } from './header.js';
 
 // ─── Etiquetas y estilos por estado ───────────────────────────────────────────
 const ETIQUETAS_ESTADO_SOLICITUD = {
@@ -99,15 +98,13 @@ async function inicializar() {
     return;
   }
 
-  document.querySelector('.logo').href = rutaPanelPropio(perfilActual.rol);
   const urlPerfilPublico = `/pages/perfil-abogado?id=${abogadoActual.id}`;
-  inicializarMenuPerfil({
+  inicializarHeader({
     rol: 'abogado',
     nombre: perfilActual.nombre_completo,
     fotoPath: perfilActual.foto_url,
     urlPerfilPublico,
   });
-  inicializarNotificaciones();
 
   renderizarCabecera();
   renderizarSaludoInicio();
@@ -346,7 +343,7 @@ async function manejarCambioFoto(e) {
 
   perfilActual.foto_url = url;
   renderizarCabecera();
-  actualizarAvatarMenuPerfil(perfilActual.foto_url, perfilActual.nombre_completo);
+  actualizarAvatarHeader(perfilActual.foto_url, perfilActual.nombre_completo);
   actualizarProgresoPerfil();
   actualizarBannerOnboarding();
   estadoEl.textContent = 'Foto actualizada.';

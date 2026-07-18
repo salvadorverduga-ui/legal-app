@@ -4,7 +4,7 @@
 
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
-import { rutaPanelPropio } from './utils.js';
+import { inicializarHeader } from './header.js';
 
 // ─── Etiquetas visibles para tipo_badge ───────────────────────────────────────
 const ETIQUETAS_TIPO = {
@@ -32,26 +32,10 @@ async function inicializar() {
     return;
   }
 
-  // 2. La búsqueda es pública: no se exige sesión. Si hay una activa,
-  // se muestra el nombre del usuario y el botón de salir; si no, un
-  // enlace para iniciar sesión.
-  const sesion = await api.auth.getSession();
-  if (sesion) {
-    const perfil = await api.perfiles.getPerfilActual();
-    if (perfil?.nombre_completo) {
-      document.getElementById('nombreUsuario').textContent = perfil.nombre_completo;
-    }
-    document.getElementById('btnCerrarSesion').hidden = false;
-    document.querySelector('.logo').href = rutaPanelPropio(perfil?.rol);
-    if (perfil?.rol === 'cliente' || perfil?.rol === 'abogado') {
-      document.getElementById('btnTablon').hidden = false;
-      const btnSeguimiento = document.getElementById('btnSeguimiento');
-      btnSeguimiento.href = `${rutaPanelPropio(perfil.rol)}?tab=seguimiento`;
-      btnSeguimiento.hidden = false;
-    }
-  } else {
-    document.getElementById('btnIniciarSesion').hidden = false;
-  }
+  // 2. La búsqueda es pública: no se exige sesión. El header centralizado
+  // resuelve por su cuenta si hay una sesión activa y renderiza el estado
+  // correspondiente (nunca "Salir" e "Iniciar sesión" a la vez).
+  await inicializarHeader();
 
   // 3. Cargar catálogo de provincias para el filtro
   provinciasCache = await api.geo.getProvincias();
@@ -94,12 +78,6 @@ function configurarEventos() {
   // Botones de tipo de perfil
   document.querySelectorAll('.filtro-tipo__btn').forEach(btn => {
     btn.addEventListener('click', () => cambiarTipo(btn.dataset.tipo));
-  });
-
-  // Cerrar sesión
-  document.getElementById('btnCerrarSesion').addEventListener('click', async () => {
-    await api.auth.cerrarSesion();
-    window.location.href = '/';
   });
 }
 

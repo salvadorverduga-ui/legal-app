@@ -4,7 +4,8 @@
 
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
-import { toast, mensajeAmigable, rutaPanelPropio } from './utils.js';
+import { toast, mensajeAmigable } from './utils.js';
+import { inicializarHeader } from './header.js';
 
 // ─── Etiquetas visibles para tipo_badge ───────────────────────────────────────
 const ETIQUETAS_TIPO = {
@@ -38,28 +39,11 @@ async function inicializar() {
     return;
   }
 
-  // 2. El perfil público es accesible sin sesión. Si hay una activa,
-  // se muestra el nombre del usuario y el botón de salir; si no, un
-  // enlace para iniciar sesión.
-  const sesion = await api.auth.getSession();
-  let perfil = null;
-  if (sesion) {
-    perfil = await api.perfiles.getPerfilActual();
-    if (perfil?.nombre_completo) {
-      document.getElementById('nombreUsuario').textContent = perfil.nombre_completo;
-    }
-    document.getElementById('btnCerrarSesion').hidden = false;
-    document.querySelector('.logo').href = rutaPanelPropio(perfil?.rol);
-    if (perfil?.rol === 'cliente' || perfil?.rol === 'abogado') {
-      document.getElementById('btnTablon').hidden = false;
-      const btnSeguimiento = document.getElementById('btnSeguimiento');
-      btnSeguimiento.href = `${rutaPanelPropio(perfil.rol)}?tab=seguimiento`;
-      btnSeguimiento.hidden = false;
-    }
-  } else {
-    document.getElementById('btnIniciarSesion').hidden = false;
-    document.querySelector('.logo').href = '/';
-  }
+  // 2. El perfil público es accesible sin sesión. El header centralizado
+  // resuelve por su cuenta si hay una sesión activa y renderiza el estado
+  // correspondiente (nunca "Salir" e "Iniciar sesión" a la vez).
+  const perfil = await inicializarHeader();
+  const sesion = perfil !== null;
 
   // 3. Leer el id del abogado desde la URL
   const abogadoId = new URLSearchParams(window.location.search).get('id');
@@ -207,11 +191,6 @@ function generarResenaItem(r) {
 
 // ─── Configuración de eventos ─────────────────────────────────────────────────
 function configurarEventos(abogadoId) {
-  document.getElementById('btnCerrarSesion').addEventListener('click', async () => {
-    await api.auth.cerrarSesion();
-    window.location.href = '/';
-  });
-
   const btnSolicitar = document.getElementById('btnSolicitar');
   if (btnSolicitar) {
     btnSolicitar.addEventListener('click', () => {

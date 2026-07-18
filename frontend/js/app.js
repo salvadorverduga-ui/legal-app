@@ -4,6 +4,7 @@
 
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
+import { inicializarHeader } from './header.js';
 
 // ─── Configuración de Supabase ────────────────────────────────────────────────
 // SUPABASE_URL y SUPABASE_ANON_KEY se obtienen de /api/config (ver config.js)
@@ -99,12 +100,14 @@ async function inicializar() {
     mostrarCargando(false);
     mostrarContenido(true);
     configurarUI();
+    inicializarHeader({ forzarAnonimo: true });
 
   } catch (err) {
     console.error('[app] Error al inicializar:', err);
     mostrarCargando(false);
     mostrarContenido(true);
     configurarUI();
+    inicializarHeader({ forzarAnonimo: true });
   }
 }
 

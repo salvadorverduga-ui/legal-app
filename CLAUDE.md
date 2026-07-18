@@ -57,7 +57,7 @@ legal-app/
 │   │   ├── app.js             ← inicialización, routing, auth, roles
 │   │   ├── api.js             ← todas las queries a Supabase
 │   │   ├── config.js          ← obtiene SUPABASE_URL/ANON_KEY desde /api/config
-│   │   ├── menu-perfil.js     ← menú desplegable de perfil (foto/iniciales) en el header (ver §18)
+│   │   ├── header.js          ← header centralizado: logo, notificaciones, avatar con menú desplegable, estado anónimo (ver §26, reemplaza a menu-perfil.js del §18)
 │   │   ├── notificaciones.js  ← campana de notificaciones en el header
 │   │   ├── busqueda.js        ← lógica de busqueda.html
 │   │   ├── perfil-abogado.js  ← lógica de perfil-abogado.html
@@ -482,6 +482,8 @@ Al elegir un abogado se crea automáticamente una solicitud mediada — pero a d
 
 ## 18. Menú de perfil (header)
 
+> **Superseded por §26.** `menu-perfil.js` se absorbió en `frontend/js/header.js`, que además centraliza el estado anónimo/autenticado en todas las páginas. Esta sección se conserva por el contenido del menú por rol, que sigue vigente.
+
 ### Qué es
 `frontend/js/menu-perfil.js` reemplaza el nombre de usuario en texto plano y los botones sueltos ("Ver mi perfil público", "Salir") que tenían `panel-cliente.html` y `panel-abogado.html` por un botón circular (foto de perfil o iniciales) con un menú desplegable, siguiendo el mismo patrón visual del menú "Ver como" de `panel-admin.html` (clases `menu-desplegable`/`menu-desplegable__item`).
 
@@ -622,9 +624,9 @@ Debajo se agregó "Últimos abogados con los que trabajó": hasta 3 abogados con
 ## 24. Accesos rápidos de header, toast de seguimiento y límite diario configurable
 
 ### El Tablón / En seguimiento en el header
-`inicializarMenuPerfil()` (`frontend/js/menu-perfil.js`) inserta ahora dos enlaces ("El Tablón", "En seguimiento") al inicio de `.nav-usuario` antes de armar el avatar — visibles en toda página que llama a esta función (paneles, `tablon.html`, `tablon-caso.html`, `solicitudes-directas.html`, `solicitudes-tablon.html`). "En seguimiento" apunta a `${rutaPanelPropio(rol)}?tab=seguimiento` (mismo mecanismo `aplicarTabDesdeUrl()` de §18). Esto reemplaza el enlace "El Tablón" que antes vivía hardcodeado en el HTML de `panel-cliente.html`/`panel-abogado.html` — se centralizó para no duplicarlo página por página.
+> **Superseded por §26.** Esta lógica ahora vive en `inicializarHeader()` (`frontend/js/header.js`), que además unificó el header de `busqueda.html`/`perfil-abogado.html` con el resto de la app (antes tenían su propio markup con `nombreUsuario`/`btnCerrarSesion`/`btnIniciarSesion` hardcodeados, causa del bug corregido en §26).
 
-`busqueda.html` y `perfil-abogado.html` no usan `menu-perfil.js` (son accesibles sin sesión, con un header más simple de `nav-usuario__nombre` + botón Salir/Iniciar sesión — ver §7 de la migración de menú de perfil, §18). Ahí los dos enlaces se agregaron directo en el HTML como `hidden` y `busqueda.js`/`perfil-abogado.js` los revela solo si hay sesión y el rol es `cliente` o `abogado`.
+`inicializarMenuPerfil()` (`frontend/js/menu-perfil.js`) inserta ahora dos enlaces ("El Tablón", "En seguimiento") al inicio de `.nav-usuario` antes de armar el avatar — visibles en toda página que llama a esta función (paneles, `tablon.html`, `tablon-caso.html`, `solicitudes-directas.html`, `solicitudes-tablon.html`). "En seguimiento" apunta a `${rutaPanelPropio(rol)}?tab=seguimiento` (mismo mecanismo `aplicarTabDesdeUrl()` de §18). Esto reemplaza el enlace "El Tablón" que antes vivía hardcodeado en el HTML de `panel-cliente.html`/`panel-abogado.html` — se centralizó para no duplicarlo página por página.
 
 ### Acceso rápido "Publicar en El Tablón"
 Cuarto botón en `.accesos-rapidos` de `panel-cliente.html` → `/pages/tablon-publicar` (desde el rediseño de El Tablón en formato foro, §25, el formulario vive en su propia página — el acceso rápido enlaza directo, sin pasar por `tablon.html`).
@@ -667,6 +669,27 @@ El botón "Seguimiento"/"En seguimiento" se reemplazó en toda la app por un che
 Causa raíz: `idx_solicitud_activa_unica` exige una única solicitud activa (`PENDIENTE`/`ACEPTADA`) por par `(cliente_id, abogado_id)`. Si el cliente ya tenía una solicitud activa con ese abogado (de una consulta directa anterior, o de otro caso del Tablón) al elegir un aplicante nuevo, el `INSERT` de `fn_crear_solicitud_desde_tablon` chocaba contra ese índice y cae en la rama `EXCEPTION`, que (desde 047/049) no hacía nada más que descartar el vínculo: la aplicación quedaba `ELEGIDO` pero ninguna fila de `solicitudes` terminaba con ese `caso_tablon_id`, así que nunca aparecía en `solicitudes-tablon.html` aunque el cliente sí hubiera elegido a alguien. Esto no era un caso raro: cualquier cliente que ya tuviera una consulta activa con un abogado (por búsqueda normal o por otro caso del Tablón) y volviera a elegirlo desde un caso nuevo se topaba con el bug.
 
 Migración `20260718_052_especialidad_opcional_y_fix_caso_tablon.sql` cambia la rama `EXCEPTION WHEN unique_violation` para vincular la solicitud activa existente al caso recién elegido (`UPDATE solicitudes SET caso_tablon_id = COALESCE(caso_tablon_id, v_caso.id) WHERE cliente_id = ... AND abogado_id = ... AND estado IN ('PENDIENTE','ACEPTADA')`) en vez de no hacer nada — `COALESCE` evita pisar el vínculo de una elección anterior si esa misma solicitud ya venía de otro caso del Tablón. Esto reemplaza la política documentada previamente en §22 de dejar la solicitud "directa" en su origen: ahora el cliente siempre encuentra en `solicitudes-tablon.html` el resultado de haber elegido a alguien en El Tablón, sin duplicar la fila de `solicitudes`. La misma migración hizo un backfill puntual sobre los datos de prueba ya existentes en producción que habían quedado sin vincular.
+
+---
+
+## 26. Header centralizado (`frontend/js/header.js`)
+
+### Problema
+El header mostraba estados inconsistentes según la página: `busqueda.html` y `perfil-abogado.html` tenían su propio markup independiente (`nombreUsuario` en texto plano + `btnCerrarSesion`/`btnIniciarSesion` ambos en el DOM, alternando `hidden` por JS) que en algunos casos dejaba "Salir" e "Iniciar sesión" visibles a la vez si la lógica de sesión fallaba a mitad de camino; `panel-admin.html` tampoco usaba el menú de perfil con foto (§18) sino el mismo patrón de nombre en texto plano. Cada página duplicaba su propia versión de "¿hay sesión? ¿qué rol?" en vez de tener una única fuente de verdad.
+
+### Solución
+`frontend/js/header.js` reemplaza a `menu-perfil.js` (§18, eliminado) y absorbe también el "Ver como" que antes vivía en `panel-admin.js`. Expone `inicializarHeader(opciones)`:
+- Páginas donde el caller ya resolvió sesión y perfil (todos los paneles, El Tablón, solicitudes, referidos, cambiar-contraseña): `inicializarHeader({ rol, nombre, fotoPath, urlPerfilPublico? })` — nunca vuelve a golpear la base, solo renderiza.
+- Páginas públicas donde puede o no haber sesión (`busqueda.html`, `perfil-abogado.html`): `await inicializarHeader()` sin argumentos resuelve `getSession()`/`getPerfilActual()` internamente y devuelve el perfil resuelto (o `null`), que el caller puede reutilizar sin duplicar la consulta.
+- Páginas que nunca deben reflejar sesión aunque exista una activa (`recuperar-contrasena.html`, `nueva-contrasena.html` — acá la sesión es de tipo `recovery`, no un login real — y la landing `index.html` una vez confirmado que no hay sesión): `inicializarHeader({ forzarAnonimo: true })`.
+
+En los tres casos el resultado es exactamente uno de dos estados — nunca ambos ni ninguno: con datos de usuario renderiza logo (link al panel propio), enlaces rápidos "El Tablón"/"En seguimiento" (solo `cliente`/`abogado`), la campana de `notificaciones.js` (sin cambios, sigue posicionándose antes de `#menuPerfil`) y el avatar con menú desplegable (`Editar perfil` — cliente y abogado, apunta a `?tab=perfil` hasta que §2 lo reemplace por las páginas dedicadas —, `Ver mi perfil público` y `Referir un colega` solo abogado, `Cambiar contraseña`, `Cerrar sesión`); sin datos de usuario renderiza solo el botón "Iniciar sesión". Para `rol='admin'` agrega además el dropdown "Ver como" (navegación en pestaña nueva a `busqueda`/`panel-abogado`, no cambia la sesión del admin) — mismo componente `configurarMenuDesplegable()` genérico que ya usa el menú de avatar.
+
+### Páginas sin `<nav class="nav-usuario">` previamente
+`cambiar-contrasena.html`, `recuperar-contrasena.html`, `nueva-contrasena.html` e `index.html` no tenían ningún elemento de navegación de usuario en el header (solo el logo) — se les agregó el `<nav class="nav-usuario">` vacío para que `inicializarHeader()` tenga dónde renderizar.
+
+### Actualizar avatar tras subir foto
+`actualizarAvatarHeader(fotoPath, nombre)` reemplaza a `actualizarAvatarMenuPerfil()` — misma firma, mismo `id="menuPerfilAvatar"`.
 
 ---
 

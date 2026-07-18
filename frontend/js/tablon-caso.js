@@ -5,9 +5,8 @@
 
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
-import { toast, mensajeAmigable, rutaPanelPropio, confirmar, generarCheckboxSeguimiento, MENSAJE_AGREGADO_SEGUIMIENTO } from './utils.js';
-import { inicializarNotificaciones } from './notificaciones.js';
-import { inicializarMenuPerfil } from './menu-perfil.js';
+import { toast, mensajeAmigable, confirmar, generarCheckboxSeguimiento, MENSAJE_AGREGADO_SEGUIMIENTO } from './utils.js';
+import { inicializarHeader } from './header.js';
 
 const ETIQUETAS_ESTADO_CASO = {
   ACTIVO:   'Activo',
@@ -76,20 +75,17 @@ async function inicializar() {
     return;
   }
 
-  document.getElementById('logoHeader').href = rutaPanelPropio(perfilActual.rol);
-
   let urlPerfilPublico;
   if (perfilActual.rol === 'abogado') {
     const abogadoActual = await api.abogados.getPerfilPropio();
     urlPerfilPublico = abogadoActual ? `/pages/perfil-abogado?id=${abogadoActual.id}` : undefined;
   }
-  inicializarMenuPerfil({
+  inicializarHeader({
     rol: perfilActual.rol,
     nombre: perfilActual.nombre_completo,
     fotoPath: perfilActual.foto_url,
     urlPerfilPublico,
   });
-  inicializarNotificaciones();
 
   renderizarCaso();
 

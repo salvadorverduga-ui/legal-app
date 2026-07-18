@@ -10,7 +10,8 @@
 
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
-import { toast, mensajeAmigable, rutaPanelPropio } from './utils.js';
+import { toast, mensajeAmigable } from './utils.js';
+import { inicializarHeader } from './header.js';
 
 let emailUsuario = null;
 let rolUsuario = null;
@@ -36,8 +37,12 @@ async function inicializar() {
 
   const perfilActual = await api.perfiles.getPerfilActual();
   rolUsuario = perfilActual?.rol ?? null;
-  const rutaPanel = rolUsuario ? rutaPanelPropio(rolUsuario) : '/';
-  document.querySelector('.logo').href = rutaPanel;
+
+  if (perfilActual) {
+    inicializarHeader({ rol: perfilActual.rol, nombre: perfilActual.nombre_completo, fotoPath: perfilActual.foto_url });
+  }
+
+  const rutaPanel = document.querySelector('.logo').getAttribute('href');
   document.getElementById('enlaceVolverPanel').href = rutaPanel;
 
   mostrarFormulario();

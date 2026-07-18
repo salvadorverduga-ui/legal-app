@@ -4,9 +4,8 @@
 
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
-import { toast, mensajeAmigable, rutaPanelPropio, generarCheckboxSeguimiento, MENSAJE_AGREGADO_SEGUIMIENTO } from './utils.js';
-import { inicializarNotificaciones } from './notificaciones.js';
-import { inicializarMenuPerfil, actualizarAvatarMenuPerfil } from './menu-perfil.js';
+import { toast, mensajeAmigable, generarCheckboxSeguimiento, MENSAJE_AGREGADO_SEGUIMIENTO } from './utils.js';
+import { inicializarHeader, actualizarAvatarHeader } from './header.js';
 
 // ─── Etiquetas y estilos por estado ───────────────────────────────────────────
 const ETIQUETAS_ESTADO_SOLICITUD = {
@@ -80,12 +79,10 @@ async function inicializar() {
     return;
   }
 
-  document.querySelector('.logo').href = rutaPanelPropio(perfilActual.rol);
   renderizarCabecera();
   rellenarFormularioPerfil();
   renderizarSaludoInicio();
-  inicializarMenuPerfil({ rol: 'cliente', nombre: perfilActual.nombre_completo, fotoPath: perfilActual.foto_url });
-  inicializarNotificaciones();
+  inicializarHeader({ rol: 'cliente', nombre: perfilActual.nombre_completo, fotoPath: perfilActual.foto_url });
 
   const [resenas, abogadosContactados, ultimosAbogados, notificacionesNoLeidas, misSeguimientos] = await Promise.all([
     api.resenas.getMisResenas(),
@@ -225,7 +222,7 @@ async function manejarCambioFoto(e) {
 
   perfilActual.foto_url = url;
   renderizarCabecera();
-  actualizarAvatarMenuPerfil(perfilActual.foto_url, perfilActual.nombre_completo);
+  actualizarAvatarHeader(perfilActual.foto_url, perfilActual.nombre_completo);
   estadoEl.textContent = 'Foto actualizada.';
   toast.exito('Foto actualizada.');
   e.target.value = '';

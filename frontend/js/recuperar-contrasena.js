@@ -4,6 +4,7 @@
 
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
+import { inicializarHeader } from './header.js';
 
 document.addEventListener('DOMContentLoaded', inicializar);
 
@@ -16,6 +17,9 @@ async function inicializar() {
     document.getElementById('errorRecuperar').textContent = 'Ocurrió un error. Intente de nuevo más tarde.';
     return;
   }
+
+  // Página previa al login: nunca debe mostrar el estado autenticado.
+  inicializarHeader({ forzarAnonimo: true });
 
   document.getElementById('formRecuperar').addEventListener('submit', (e) => {
     e.preventDefault();

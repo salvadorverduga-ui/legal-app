@@ -11,6 +11,7 @@
 
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
+import { inicializarHeader } from './header.js';
 
 document.addEventListener('DOMContentLoaded', inicializar);
 
@@ -23,6 +24,11 @@ async function inicializar() {
     mostrarError();
     return;
   }
+
+  // La sesión de este flujo es de tipo 'recovery' (temporal, del enlace del
+  // correo), no un login normal: el header nunca debe mostrar el estado
+  // autenticado acá.
+  inicializarHeader({ forzarAnonimo: true });
 
   const sesion = await api.auth.getSession();
   if (!sesion) {

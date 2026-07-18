@@ -7,9 +7,8 @@
 
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
-import { toast, mensajeAmigable, rutaPanelPropio } from './utils.js';
-import { inicializarNotificaciones } from './notificaciones.js';
-import { inicializarMenuPerfil } from './menu-perfil.js';
+import { toast, mensajeAmigable } from './utils.js';
+import { inicializarHeader } from './header.js';
 
 let limitePublicacionesDiarias = null; // config_tablon.limite_publicaciones_diarias_cliente; null = sin límite
 
@@ -37,14 +36,11 @@ async function inicializar() {
     return;
   }
 
-  document.getElementById('logoHeader').href = rutaPanelPropio(perfilActual.rol);
-
-  inicializarMenuPerfil({
+  inicializarHeader({
     rol: perfilActual.rol,
     nombre: perfilActual.nombre_completo,
     fotoPath: perfilActual.foto_url,
   });
-  inicializarNotificaciones();
 
   await cargarAvisoLimite();
 

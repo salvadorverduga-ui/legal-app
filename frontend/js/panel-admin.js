@@ -4,8 +4,8 @@
 
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
-import { inicializarNotificaciones } from './notificaciones.js';
-import { toast, rutaPanelPropio } from './utils.js';
+import { inicializarHeader } from './header.js';
+import { toast } from './utils.js';
 
 // ─── Etiquetas y estilos ───────────────────────────────────────────────────
 const ETIQUETAS_TIPO_SOLICITANTE = {
@@ -75,9 +75,7 @@ async function inicializar() {
     return;
   }
 
-  document.getElementById('nombreUsuario').textContent = perfilActual.nombre_completo;
-  document.querySelector('.logo').href = rutaPanelPropio(perfilActual.rol);
-  inicializarNotificaciones();
+  inicializarHeader({ rol: 'admin', nombre: perfilActual.nombre_completo });
 
   await Promise.all([
     cargarVerificaciones(),
@@ -104,11 +102,6 @@ function mostrarContenido() {
 
 // ─── Configuración de eventos ───────────────────────────────────────────────
 function configurarEventos() {
-  document.getElementById('btnCerrarSesion').addEventListener('click', async () => {
-    await api.auth.cerrarSesion();
-    window.location.href = '/';
-  });
-
   SECCIONES.forEach(nombre => {
     document.getElementById(`tab${nombre}`).addEventListener('click', () => cambiarTab(nombre));
   });
@@ -126,39 +119,6 @@ function configurarEventos() {
   });
 
   document.getElementById('formConfigTablon').addEventListener('submit', manejarSubmitConfigTablon);
-
-  configurarMenuVerComo();
-}
-
-// ─── Menú "Ver como" ────────────────────────────────────────────────────────
-// Solo navegación en pestañas nuevas; no cambia el rol ni la sesión del admin.
-function configurarMenuVerComo() {
-  const contenedor = document.getElementById('menuVerComo');
-  const boton = document.getElementById('btnVerComo');
-  const lista = document.getElementById('listaVerComo');
-
-  function cerrarMenu() {
-    lista.hidden = true;
-    boton.setAttribute('aria-expanded', 'false');
-  }
-
-  function abrirMenu() {
-    lista.hidden = false;
-    boton.setAttribute('aria-expanded', 'true');
-  }
-
-  boton.addEventListener('click', () => {
-    if (lista.hidden) abrirMenu();
-    else cerrarMenu();
-  });
-
-  document.addEventListener('click', (e) => {
-    if (!contenedor.contains(e.target)) cerrarMenu();
-  });
-
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') cerrarMenu();
-  });
 }
 
 // ─── Navegación por secciones ───────────────────────────────────────────────

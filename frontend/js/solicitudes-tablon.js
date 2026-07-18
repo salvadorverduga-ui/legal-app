@@ -7,8 +7,7 @@
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
 import { toast, mensajeAmigable, rutaPanelPropio, generarCheckboxSeguimiento, MENSAJE_AGREGADO_SEGUIMIENTO } from './utils.js';
-import { inicializarNotificaciones } from './notificaciones.js';
-import { inicializarMenuPerfil } from './menu-perfil.js';
+import { inicializarHeader } from './header.js';
 
 const ORIGEN = 'tablon';
 
@@ -66,7 +65,6 @@ async function inicializar() {
   }
   rolActual = perfilActual.rol;
 
-  document.getElementById('logoHeader').href = rutaPanelPropio(rolActual);
   document.getElementById('btnVolverSolicitudes').href = `${rutaPanelPropio(rolActual)}?tab=solicitudes`;
   document.getElementById('btnVolverPanel').href = rutaPanelPropio(rolActual);
 
@@ -75,13 +73,12 @@ async function inicializar() {
     const abogadoActual = await api.abogados.getPerfilPropio();
     urlPerfilPublico = abogadoActual ? `/pages/perfil-abogado?id=${abogadoActual.id}` : undefined;
   }
-  inicializarMenuPerfil({
+  inicializarHeader({
     rol: rolActual,
     nombre: perfilActual.nombre_completo,
     fotoPath: perfilActual.foto_url,
     urlPerfilPublico,
   });
-  inicializarNotificaciones();
 
   document.getElementById('subtituloSolicitudes').textContent = rolActual === 'abogado'
     ? 'Casos del Tablón en los que fue elegido.'

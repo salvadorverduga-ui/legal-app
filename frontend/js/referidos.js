@@ -6,9 +6,8 @@
 
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
-import { toast, rutaPanelPropio } from './utils.js';
-import { inicializarNotificaciones } from './notificaciones.js';
-import { inicializarMenuPerfil } from './menu-perfil.js';
+import { toast } from './utils.js';
+import { inicializarHeader } from './header.js';
 
 const ETIQUETAS_ESTADO_REFERIDO = {
   PENDIENTE:  'Pendiente',
@@ -50,14 +49,12 @@ async function inicializar() {
     return;
   }
 
-  document.querySelector('.logo').href = rutaPanelPropio(perfilActual.rol);
-  inicializarMenuPerfil({
+  inicializarHeader({
     rol: 'abogado',
     nombre: perfilActual.nombre_completo,
     fotoPath: perfilActual.foto_url,
     urlPerfilPublico: `/pages/perfil-abogado?id=${abogadoActual.id}`,
   });
-  inicializarNotificaciones();
 
   document.getElementById('linkReferido').value = `${window.location.origin}/registro?ref=${abogadoActual.codigo_referido}`;
 
