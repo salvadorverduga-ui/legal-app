@@ -45,6 +45,7 @@ const SECCIONES = ['Inicio', 'Solicitudes', 'Abogados', 'Favoritos', 'Resenas', 
 // ─── Estado de la página ──────────────────────────────────────────────────────
 let perfilActual = null;         // fila propia de la tabla perfiles
 let solicitudesActuales = [];    // caché local: cuenta de activas en Inicio y estado de seguimiento
+let favoritosIds = new Set();    // abogado_id favoritos — para el corazón en "Mis abogados"/"Inicio"
 // generarSolicitudCard() (compartida con la pestaña "En seguimiento") revisa estos dos
 // valores para decidir si el form de reseña/edición va abierto; en este archivo nunca
 // se les asigna otra cosa que null, así que esas tarjetas siempre nacen cerradas.
@@ -92,6 +93,8 @@ async function inicializar() {
     api.favoritos.getMisFavoritos(),
     cargarSolicitudes(),
   ]);
+  favoritosIds = new Set(misFavoritos.map(f => f.abogado_id));
+
   renderizarResenas(resenas);
   renderizarAbogadosContactados(abogadosContactados);
   renderizarUltimosAbogados(ultimosAbogados);
@@ -127,6 +130,8 @@ function configurarEventos() {
 
   document.getElementById('seccionSeguimiento').addEventListener('click', manejarClickSeguimiento);
   document.getElementById('favoritosLista').addEventListener('click', manejarClickFavorito);
+  document.getElementById('abogadosContactadosLista').addEventListener('click', manejarClickFavoritoGenerico);
+  document.getElementById('ultimosAbogadosLista').addEventListener('click', manejarClickFavoritoGenerico);
 }
 
 // ─── Navegación por secciones ─────────────────────────────────────────────────
@@ -465,8 +470,11 @@ function generarCardAbogadoContactado(ab) {
     ? '<span class="badge badge--estado-aceptada">Consulta activa</span>'
     : '';
 
+  const favoritoHtml = generarBotonFavorito(idSeguro, favoritosIds.has(ab.abogado_id));
+
   return `
     <article class="card-abogado" role="listitem">
+      ${favoritoHtml}
       <div class="card-abogado__header">
         <div class="card-abogado__avatar">${avatarHtml}</div>
         <div class="card-abogado__meta">
@@ -563,6 +571,36 @@ async function manejarClickFavorito(e) {
   const favoritos = await api.favoritos.getMisFavoritos();
   renderizarFavoritos(favoritos);
   toast.info('Quitado de favoritos.');
+}
+
+// Corazón en "Mis abogados" e "Inicio" (Últimos abogados): a diferencia de
+// manejarClickFavorito() de arriba, acá el corazón puede estar vacío o
+// lleno, así que el toggle actualiza el botón en el lugar en vez de asumir
+// que siempre significa "quitar".
+async function manejarClickFavoritoGenerico(e) {
+  const btn = e.target.closest('[data-accion="toggle-favorito"]');
+  if (!btn) return;
+
+  const abogadoId = btn.dataset.id;
+  btn.disabled = true;
+  const { esFavorito, error } = await api.favoritos.toggle(abogadoId);
+
+  if (error) {
+    toast.error(mensajeAmigable(error, 'No se pudo actualizar sus favoritos. Intente de nuevo.'));
+    btn.disabled = false;
+    return;
+  }
+
+  if (esFavorito) favoritosIds.add(abogadoId);
+  else favoritosIds.delete(abogadoId);
+
+  btn.classList.toggle('btn-favorito--activo', esFavorito);
+  btn.setAttribute('aria-pressed', String(esFavorito));
+  btn.setAttribute('aria-label', esFavorito ? 'Quitar de favoritos' : 'Agregar a favoritos');
+  btn.querySelector('svg path').setAttribute('fill', esFavorito ? 'currentColor' : 'none');
+  btn.disabled = false;
+
+  toast.info(esFavorito ? 'Agregado a favoritos.' : 'Quitado de favoritos.');
 }
 
 // ─── Reseñas ──────────────────────────────────────────────────────────────────

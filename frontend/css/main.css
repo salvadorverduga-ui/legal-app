@@ -2448,6 +2448,14 @@ p {
   flex-wrap: wrap;
 }
 
+/* Agrupa el badge de estado con el corazón de favorito (cuando aplica) para
+   que ambos queden juntos en el extremo derecho del header de la tarjeta. */
+.solicitud-item__header-derecha {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-2);
+}
+
 .solicitud-item__cliente {
   display: flex;
   align-items: center;

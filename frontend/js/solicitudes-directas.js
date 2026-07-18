@@ -6,7 +6,7 @@
 
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
-import { toast, mensajeAmigable, rutaPanelPropio, confirmar, generarCheckboxSeguimiento, MENSAJE_AGREGADO_SEGUIMIENTO } from './utils.js';
+import { toast, mensajeAmigable, rutaPanelPropio, confirmar, generarCheckboxSeguimiento, generarBotonFavorito, MENSAJE_AGREGADO_SEGUIMIENTO } from './utils.js';
 import { inicializarHeader } from './header.js';
 import { confirmarBloqueo } from './bloqueos.js';
 
@@ -42,6 +42,7 @@ let solicitudesActuales = [];         // caché local; las acciones actualizan s
 let estadoFiltroActivo = '';          // '' = todas
 let solicitudConFormularioAbierto = null; // cliente: id con el form de reseña visible
 let solicitudConEdicionAbierta = null;    // cliente: id con el form de edición visible
+let favoritosIds = new Set();             // cliente: abogado_id favoritos, para el corazón
 
 // ─── Entry point ───────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', inicializar);
@@ -90,6 +91,10 @@ async function inicializar() {
   document.getElementById('textoSinSolicitudes').textContent = rolActual === 'abogado'
     ? 'Cuando un cliente le envíe una consulta directa, aparecerá aquí.'
     : 'Busque un abogado desde El Tablón o la búsqueda para enviar su primera consulta directa.';
+
+  if (rolActual === 'cliente') {
+    favoritosIds = new Set(await api.favoritos.getMisFavoritosIds());
+  }
 
   await cargarSolicitudes();
 
@@ -363,6 +368,7 @@ function generarSolicitudCardCliente(s) {
     : '';
 
   const seguimientoHtml = generarCheckboxSeguimiento(idSeguro, s.en_seguimiento_cliente);
+  const favoritoHtml = generarBotonFavorito(abogadoIdSeguro, favoritosIds.has(s.abogado_id));
 
   return `
     <article class="solicitud-item">
@@ -375,7 +381,10 @@ function generarSolicitudCardCliente(s) {
             ${tiempoRestanteHtml}
           </div>
         </div>
-        <span class="badge ${claseEstado}">${etiquetaEstado}</span>
+        <div class="solicitud-item__header-derecha">
+          <span class="badge ${claseEstado}">${etiquetaEstado}</span>
+          ${favoritoHtml}
+        </div>
       </div>
       ${detalleHtml}
       ${motivoRechazoHtml}
@@ -428,6 +437,7 @@ function manejarClickSolicitudes(e) {
 
   if (accion === 'toggle-seguimiento') return manejarToggleSeguimiento(id);
   if (accion === 'bloquear-cliente') return manejarBloquearCliente(id, btn.dataset.nombre);
+  if (accion === 'toggle-favorito') return manejarClickFavorito(btn);
 
   if (rolActual === 'abogado') {
     if (accion === 'aceptar') manejarAceptarSolicitud(id);
@@ -535,6 +545,30 @@ async function manejarBloquearCliente(clienteId, nombreCliente) {
   // se refresca desde el servidor en vez de intentar adivinar el nuevo
   // estado local (no tenemos el id de la solicitud acá, solo el del cliente).
   await cargarSolicitudes();
+}
+
+// ─── Favoritos (solo vista cliente) ────────────────────────────────────────────
+async function manejarClickFavorito(btn) {
+  const abogadoId = btn.dataset.id;
+  btn.disabled = true;
+  const { esFavorito, error } = await api.favoritos.toggle(abogadoId);
+
+  if (error) {
+    toast.error(mensajeAmigable(error, 'No se pudo actualizar sus favoritos. Intente de nuevo.'));
+    btn.disabled = false;
+    return;
+  }
+
+  if (esFavorito) favoritosIds.add(abogadoId);
+  else favoritosIds.delete(abogadoId);
+
+  btn.classList.toggle('btn-favorito--activo', esFavorito);
+  btn.setAttribute('aria-pressed', String(esFavorito));
+  btn.setAttribute('aria-label', esFavorito ? 'Quitar de favoritos' : 'Agregar a favoritos');
+  btn.querySelector('svg path').setAttribute('fill', esFavorito ? 'currentColor' : 'none');
+  btn.disabled = false;
+
+  toast.info(esFavorito ? 'Agregado a favoritos.' : 'Quitado de favoritos.');
 }
 
 // ─── Acciones: cliente ────────────────────────────────────────────────────────

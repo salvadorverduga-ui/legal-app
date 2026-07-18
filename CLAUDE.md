@@ -861,4 +861,16 @@ Verificado en vivo contra producción (`INSERT` de prueba dentro de una transacc
 
 ---
 
+## 36. Corazón de favorito en todas las tarjetas de abogado
+
+`generarBotonFavorito(idSeguro, esFavorito)` (`utils.js`, §32) ya existía y ya se usaba en `busqueda.html`/`perfil-abogado.html` — esta ronda solo la extendió a los lugares que faltaban, sin cambiar la función en sí:
+
+- **`panel-cliente.html`, pestañas "Mis abogados" e "Inicio" (Últimos abogados):** ambas listas renderizan con la misma `generarCardAbogadoContactado()`, así que agregar el corazón ahí cubre las dos secciones a la vez. `favoritosIds` se arma una vez en `inicializar()` a partir de `misFavoritos` (ya se pedía para la pestaña "Favoritos", §32 — sin round-trip extra). El toggle acá es genérico (`manejarClickFavoritoGenerico`, in-place, corazón puede quedar lleno o vacío) — deliberadamente una función distinta de `manejarClickFavorito()` de la pestaña "Favoritos", donde togglear siempre significa "quitar y recargar la lista completa" (semántica distinta, no vale la pena unificarlas).
+- **`solicitudes-directas.html` (vista cliente):** corazón junto al badge de estado, agrupados en `.solicitud-item__header-derecha` (clase nueva en `main.css`) para que no se separen con el `justify-content: space-between` del header de la tarjeta.
+- **`solicitudes-tablon.html` (vista cliente):** esta vista es por *caso*, no por abogado (§28) — no hay una "tarjeta de abogado" per se salvo cuando el cliente ya eligió a alguien (existe una `solicitud` asociada al caso). `generarAbogadoElegidoCard()` es una función nueva que renderiza esa identidad (avatar, nombre, corazón) solo en ese caso, insertada entre el encabezado del caso y las acciones de la solicitud embebida.
+
+Ningún lugar necesitó tocar `api.favoritos` — `getMisFavoritosIds()` (§32) ya cubría exactamente esta necesidad en cada archivo nuevo.
+
+---
+
 *Actualizar este archivo con cada decisión técnica relevante*

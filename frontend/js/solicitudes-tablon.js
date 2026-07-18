@@ -15,7 +15,7 @@
 
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
-import { toast, mensajeAmigable, rutaPanelPropio, generarCheckboxSeguimiento, MENSAJE_AGREGADO_SEGUIMIENTO } from './utils.js';
+import { toast, mensajeAmigable, rutaPanelPropio, generarCheckboxSeguimiento, generarBotonFavorito, MENSAJE_AGREGADO_SEGUIMIENTO } from './utils.js';
 import { inicializarHeader } from './header.js';
 
 const ORIGEN = 'tablon';
@@ -80,6 +80,7 @@ let misCasosActuales = [];            // vista cliente: todos los casos publicad
 let estadoFiltroActivo = '';          // '' = todos/todas
 let solicitudConFormularioAbierto = null; // vista cliente: id de solicitud con el form de reseña visible
 let solicitudPorCasoId = new Map();       // vista cliente: caso_tablon_id -> solicitud (para completar/reseñar embebido en la tarjeta del caso)
+let favoritosIds = new Set();             // vista cliente: abogado_id favoritos, para el corazón del abogado elegido
 
 // ─── Entry point ───────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', inicializar);
@@ -215,13 +216,15 @@ function renderizarSolicitudes() {
 // junto con las solicitudes de origen Tablón para poder embeber "marcar
 // completada"/"dejar reseña" en la tarjeta del caso correspondiente.
 async function cargarMisCasos() {
-  const [casos, solicitudes] = await Promise.all([
+  const [casos, solicitudes, misFavoritosIds] = await Promise.all([
     api.tablon.getMisCasos(),
     api.solicitudes.getSolicitudesCliente(ORIGEN),
+    api.favoritos.getMisFavoritosIds(),
   ]);
   misCasosActuales = casos;
   solicitudesActuales = solicitudes;
   solicitudPorCasoId = new Map(solicitudes.filter(s => s.caso_tablon_id).map(s => [s.caso_tablon_id, s]));
+  favoritosIds = new Set(misFavoritosIds);
   renderizarMisCasos();
 }
 
@@ -244,6 +247,28 @@ function renderizarMisCasos() {
   contenedor.innerHTML = lista.map(generarCasoClienteCard).join('');
 }
 
+// Identidad del abogado elegido (avatar, nombre, corazón de favorito) —
+// solo se muestra si el cliente ya eligió a alguien en este caso (existe
+// una solicitud asociada). CLAUDE.md módulo 2 de la ronda de fixes: el
+// corazón de favorito debe aparecer en cualquier lugar donde se muestre
+// una tarjeta de abogado, y este es el único punto de esta página donde
+// aparece un abogado identificado (el resto de la tarjeta es del caso).
+function generarAbogadoElegidoCard(s) {
+  const abogadoIdSeguro = escaparAtrib(s.abogado_id);
+  const avatarHtml = generarAvatarHtml(s.abogado_foto, s.abogado_nombre);
+  const favoritoHtml = generarBotonFavorito(abogadoIdSeguro, favoritosIds.has(s.abogado_id));
+
+  return `
+    <div class="solicitud-item__cliente">
+      <div class="solicitud-item__avatar">${avatarHtml}</div>
+      <div>
+        <p class="solicitud-item__nombre"><a href="/pages/perfil-abogado?id=${abogadoIdSeguro}">${escaparHtml(s.abogado_nombre)}</a></p>
+      </div>
+      <div style="margin-left: auto;">${favoritoHtml}</div>
+    </div>
+  `;
+}
+
 function generarCasoClienteCard(c) {
   const idSeguro = escaparAtrib(c.id);
   const claseEstado = CLASE_ESTADO_CASO[c.estado] ?? 'badge--estado-expirada';
@@ -255,6 +280,7 @@ function generarCasoClienteCard(c) {
 
   const solicitud = solicitudPorCasoId.get(c.id);
   const accionesSolicitudHtml = solicitud ? generarAccionesSolicitudCliente(solicitud) : '';
+  const abogadoElegidoHtml = solicitud ? generarAbogadoElegidoCard(solicitud) : '';
 
   return `
     <article class="solicitud-item">
@@ -266,6 +292,7 @@ function generarCasoClienteCard(c) {
         </div>
         <span class="badge ${claseEstado}">${etiquetaEstado}</span>
       </div>
+      ${abogadoElegidoHtml}
       ${accionesSolicitudHtml}
       <div class="solicitud-item__acciones">
         ${c.anonimo ? '<span class="badge badge--anonimo">Publicado como anónimo</span>' : ''}
@@ -440,6 +467,7 @@ function manejarClickSolicitudes(e) {
   const { accion, id } = btn.dataset;
 
   if (accion === 'toggle-seguimiento') return manejarToggleSeguimiento(id);
+  if (accion === 'toggle-favorito') return manejarClickFavorito(btn);
 
   if (rolActual === 'abogado') return;
 
@@ -492,6 +520,30 @@ async function manejarMarcarCompletada(id) {
   actualizarSolicitudLocal(id, data);
   renderizarMisCasos();
   toast.exito('Consulta marcada como completada.');
+}
+
+// ─── Favoritos (solo vista cliente) ────────────────────────────────────────────
+async function manejarClickFavorito(btn) {
+  const abogadoId = btn.dataset.id;
+  btn.disabled = true;
+  const { esFavorito, error } = await api.favoritos.toggle(abogadoId);
+
+  if (error) {
+    toast.error(mensajeAmigable(error, 'No se pudo actualizar sus favoritos. Intente de nuevo.'));
+    btn.disabled = false;
+    return;
+  }
+
+  if (esFavorito) favoritosIds.add(abogadoId);
+  else favoritosIds.delete(abogadoId);
+
+  btn.classList.toggle('btn-favorito--activo', esFavorito);
+  btn.setAttribute('aria-pressed', String(esFavorito));
+  btn.setAttribute('aria-label', esFavorito ? 'Quitar de favoritos' : 'Agregar a favoritos');
+  btn.querySelector('svg path').setAttribute('fill', esFavorito ? 'currentColor' : 'none');
+  btn.disabled = false;
+
+  toast.info(esFavorito ? 'Agregado a favoritos.' : 'Quitado de favoritos.');
 }
 
 async function manejarSubmitResena(e) {
