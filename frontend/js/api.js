@@ -576,7 +576,9 @@ export const abogados = {
 
   /**
    * Sube los documentos de verificación a Supabase Storage (bucket: verificacion-docs)
-   * e inserta una fila en la tabla verificaciones con estado='PENDIENTE'.
+   * y los adjunta a la fila PENDIENTE que fn_crear_fila_abogado ya creó
+   * automáticamente al registrarse (migración 061). Si por algún motivo esa
+   * fila no existiera todavía, se crea una nueva como respaldo.
    * La cédula se sube en dos archivos separados (anverso y reverso), cada
    * uno con su propio prefijo en el path de Storage.
    * archivos: { carnet: File, cedulaAnverso: File, cedulaReverso: File }
@@ -594,11 +596,27 @@ export const abogados = {
       const doc_cedula_url = await _subirDocumento(user.id, archivos.cedulaAnverso, 'cedula-anverso');
       const doc_cedula_reverso_url = await _subirDocumento(user.id, archivos.cedulaReverso, 'cedula-reverso');
 
-      const { data, error } = await _cliente
+      const { data: pendiente } = await _cliente
         .from('verificaciones')
-        .insert({ abogado_id: user.id, doc_carnet_url, doc_cedula_url, doc_cedula_reverso_url })
-        .select()
-        .single();
+        .select('id')
+        .eq('abogado_id', user.id)
+        .eq('estado', 'PENDIENTE')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const { data, error } = pendiente
+        ? await _cliente
+            .from('verificaciones')
+            .update({ doc_carnet_url, doc_cedula_url, doc_cedula_reverso_url })
+            .eq('id', pendiente.id)
+            .select()
+            .single()
+        : await _cliente
+            .from('verificaciones')
+            .insert({ abogado_id: user.id, doc_carnet_url, doc_cedula_url, doc_cedula_reverso_url })
+            .select()
+            .single();
 
       if (error) {
         console.error('[api.abogados.enviarDocumentosVerificacion]', error.message);
