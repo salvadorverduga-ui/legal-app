@@ -413,6 +413,19 @@ export function rutaPanelPropio(rol) {
   return RUTAS_PANEL_POR_ROL[rol] ?? '/';
 }
 
+// ─── Validación de archivos de verificación (documentos de identidad) ──────
+// Usada en registro.js (registro de abogado/estudio) y subir-documentos.js
+// (subida diferida tras confirmar el correo) — mismas reglas en los dos.
+const TAMANO_MAXIMO_ARCHIVO = 5 * 1024 * 1024; // 5 MB
+const TIPOS_ARCHIVO_PERMITIDOS = ['image/jpeg', 'image/png', 'application/pdf'];
+
+export function validarArchivo(archivo) {
+  if (!archivo) return 'Seleccione un archivo.';
+  if (!TIPOS_ARCHIVO_PERMITIDOS.includes(archivo.type)) return 'El archivo debe ser JPG, PNG o PDF.';
+  if (archivo.size > TAMANO_MAXIMO_ARCHIVO) return 'El archivo no debe superar los 5 MB.';
+  return null;
+}
+
 // ─── Modal de confirmación propio ────────────────────────────────────────────
 // Reemplaza a window.confirm() — CLAUDE.md §7 prohíbe los diálogos del
 // sistema (window.confirm/alert/prompt) en toda la app.

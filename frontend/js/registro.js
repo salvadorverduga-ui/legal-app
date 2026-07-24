@@ -5,10 +5,7 @@
 
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
-import { toast } from './utils.js';
-
-const TAMANO_MAXIMO_ARCHIVO = 5 * 1024 * 1024; // 5 MB
-const TIPOS_ARCHIVO_PERMITIDOS = ['image/jpeg', 'image/png', 'application/pdf'];
+import { toast, validarArchivo } from './utils.js';
 
 let tipoProfesionalActivo = null; // 'individual' | 'estudio' | 'red'
 let codigoReferido = null; // ?ref= en la URL, capturado en inicializar() y asociado al registro de abogado
@@ -107,13 +104,6 @@ function validarCedula(cedula) {
 
 function validarRuc(ruc) {
   return /^\d{13}$/.test(ruc);
-}
-
-function validarArchivo(archivo) {
-  if (!archivo) return 'Seleccione un archivo.';
-  if (!TIPOS_ARCHIVO_PERMITIDOS.includes(archivo.type)) return 'El archivo debe ser JPG, PNG o PDF.';
-  if (archivo.size > TAMANO_MAXIMO_ARCHIVO) return 'El archivo no debe superar los 5 MB.';
-  return null;
 }
 
 function obtenerEspecialidadesSeleccionadas(contenedorId) {
@@ -235,7 +225,7 @@ async function manejarRegistroAbogado(evento) {
       return;
     }
 
-    let notaDocumentos = 'Podrá subir sus documentos de verificación al confirmar su correo e ingresar por primera vez.';
+    let notaDocumentos = 'Tras confirmar su correo e ingresar, se le pedirá que suba sus documentos de verificación para que el administrador pueda revisar su solicitud.';
     if (data?.session) {
       const { error: errorDocs } = await api.abogados.enviarDocumentosVerificacion({
         carnet: docCarnet,
@@ -323,7 +313,7 @@ async function manejarRegistroEstudio(evento) {
       return;
     }
 
-    let notaDocumentos = 'Podrá subir sus documentos de verificación al confirmar su correo e ingresar por primera vez.';
+    let notaDocumentos = 'Tras confirmar su correo e ingresar, se le pedirá que suba sus documentos de verificación para que el administrador pueda revisar su solicitud.';
     if (data?.session) {
       const { error: errorDocs } = await api.estudios.enviarDocumentosVerificacion({ ruc: docRuc, nombramiento: docNombramiento });
       if (!errorDocs) notaDocumentos = 'Sus documentos de verificación fueron enviados.';

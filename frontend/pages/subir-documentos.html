@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Suba sus documentos de verificación profesional en LegalEC.">
+  <title>Subir documentos de verificación — LegalEC</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+
+  <header class="encabezado">
+    <div class="contenedor encabezado__contenedor">
+      <a href="/" class="logo" aria-label="LegalEC — Mi panel">
+        <span class="logo__nombre">LegalEC</span>
+      </a>
+      <nav class="nav-usuario" aria-label="Menú de usuario"></nav>
+    </div>
+  </header>
+
+  <main>
+    <div class="contenedor seccion-registro">
+      <section aria-labelledby="tituloSubirDocumentos">
+        <div class="tarjeta-auth tarjeta-auth--registro">
+
+          <!-- Estado: cargando -->
+          <div class="pantalla-carga" id="estadoCargando">
+            <div class="spinner" aria-hidden="true"></div>
+            <p class="pantalla-carga__texto">Cargando...</p>
+          </div>
+
+          <!-- Formulario de subida de documentos -->
+          <div id="contenidoFormulario" hidden>
+            <h1 class="auth__titulo" id="tituloSubirDocumentos">Documentos de verificación</h1>
+            <p class="auth__aviso">
+              Para completar su verificación, suba los siguientes documentos. Su perfil no será
+              visible en las búsquedas hasta que el administrador los revise y apruebe.
+            </p>
+
+            <form id="formSubirDocumentos" class="formulario" novalidate>
+
+              <!-- Campos para abogado individual -->
+              <div id="camposAbogado" hidden>
+                <div class="campo">
+                  <label for="docCarnet" class="campo__etiqueta">Foto del carné de abogado</label>
+                  <input type="file" id="docCarnet" name="doc_carnet" class="campo__input campo__input--archivo"
+                    accept="image/jpeg,image/png,application/pdf">
+                  <span class="campo__ayuda">JPG, PNG o PDF. Máximo 5 MB.</span>
+                </div>
+                <div class="campo">
+                  <label for="docCedulaAnverso" class="campo__etiqueta">Cédula — parte frontal</label>
+                  <input type="file" id="docCedulaAnverso" name="doc_cedula_anverso" class="campo__input campo__input--archivo"
+                    accept="image/jpeg,image/png,application/pdf">
+                  <span class="campo__ayuda">JPG, PNG o PDF. Máximo 5 MB.</span>
+                </div>
+                <div class="campo">
+                  <label for="docCedulaReverso" class="campo__etiqueta">Cédula — parte posterior</label>
+                  <input type="file" id="docCedulaReverso" name="doc_cedula_reverso" class="campo__input campo__input--archivo"
+                    accept="image/jpeg,image/png,application/pdf">
+                  <span class="campo__ayuda">JPG, PNG o PDF. Máximo 5 MB.</span>
+                </div>
+              </div>
+
+              <!-- Campos para estudio jurídico -->
+              <div id="camposEstudio" hidden>
+                <div class="campo">
+                  <label for="docRuc" class="campo__etiqueta">Documento de RUC</label>
+                  <input type="file" id="docRuc" name="doc_ruc" class="campo__input campo__input--archivo"
+                    accept="image/jpeg,image/png,application/pdf">
+                  <span class="campo__ayuda">JPG, PNG o PDF. Máximo 5 MB.</span>
+                </div>
+                <div class="campo">
+                  <label for="docNombramiento" class="campo__etiqueta">Nombramiento del representante legal</label>
+                  <input type="file" id="docNombramiento" name="doc_nombramiento" class="campo__input campo__input--archivo"
+                    accept="image/jpeg,image/png,application/pdf">
+                  <span class="campo__ayuda">JPG, PNG o PDF. Máximo 5 MB.</span>
+                </div>
+              </div>
+
+              <p class="campo__error" id="errorSubirDocumentos" role="alert" aria-live="polite"></p>
+              <button type="submit" class="btn btn--primario btn--completo" id="btnEnviarDocumentos">
+                Enviar documentos
+              </button>
+            </form>
+          </div>
+
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="pie">
+    <div class="contenedor pie__contenedor">
+      <p class="pie__aviso">
+        LegalEC es un servicio de conexión y no un proveedor de servicios jurídicos.
+      </p>
+      <nav class="pie__nav" aria-label="Páginas legales">
+        <a href="#" class="pie__enlace">Términos y condiciones</a>
+        <span class="pie__separador" aria-hidden="true">·</span>
+        <a href="#" class="pie__enlace">Política de privacidad (LOPDP)</a>
+        <span class="pie__separador" aria-hidden="true">·</span>
+        <a href="/pages/contacto" class="pie__enlace">Soporte</a>
+      </nav>
+    </div>
+  </footer>
+
+  <script src="/js/vendors/supabase.min.js"></script>
+  <script type="module" src="/js/subir-documentos.js"></script>
+
+</body>
+</html>

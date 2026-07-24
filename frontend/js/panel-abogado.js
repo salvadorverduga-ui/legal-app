@@ -58,6 +58,7 @@ const SECCIONES = ['Inicio', 'Solicitudes', 'Resenas', 'Suscripcion', 'Seguimien
 // ─── Estado de la página ──────────────────────────────────────────────────────
 let perfilActual = null;         // fila propia de la tabla perfiles
 let abogadoActual = null;        // fila propia de la tabla abogados
+let estadoVerificacionActual = null; // fila más reciente de verificaciones (o null)
 let solicitudesActuales = [];    // caché local: cuenta de pendientes en Inicio y estado de seguimiento
 
 // ─── Entry point ─────────────────────────────────────────────────────────────
@@ -89,7 +90,11 @@ async function inicializar() {
   }
 
   // 4. Cargar la fila propia de abogados (no la vista pública, que oculta perfiles no visibles)
-  abogadoActual = await api.abogados.getPerfilPropio();
+  //    y el estado de verificación (para el banner de documentos pendientes) en paralelo.
+  [abogadoActual, estadoVerificacionActual] = await Promise.all([
+    api.abogados.getPerfilPropio(),
+    api.abogados.getEstadoVerificacion(),
+  ]);
   if (!abogadoActual) {
     mostrarError();
     return;
@@ -222,9 +227,10 @@ function renderizarResumenInicio(resenasTotales, casosTablon) {
   document.getElementById('inicioResenasTotales').textContent = String(resenasTotales);
 }
 
-// ─── Banners: vencimiento de suscripción y onboarding ────────────────────────
+// ─── Banners: vencimiento de suscripción, documentos y onboarding ────────────
 function actualizarBanners() {
   actualizarBannerSuscripcion();
+  actualizarBannerVerificacionDocumentos();
   actualizarBannerOnboarding();
 }
 
@@ -248,6 +254,16 @@ function actualizarBannerSuscripcion() {
   document.getElementById('bannerSuscripcionTexto').textContent =
     'Su suscripción no está activa. Su perfil no es visible para los clientes.';
   banner.hidden = false;
+}
+
+// Documentos de identidad no subidos: la fila PENDIENTE se crea vacía al
+// registrarse (migración 20260725_061), así que esta condición detecta tanto
+// al abogado que nunca los subió como al que aún no confirmó/ingresó.
+function actualizarBannerVerificacionDocumentos() {
+  const banner = document.getElementById('bannerVerificacionDocumentos');
+  const faltanDocumentos = abogadoActual.verificacion === 'PENDIENTE'
+    && !estadoVerificacionActual?.doc_carnet_url;
+  banner.hidden = !faltanDocumentos;
 }
 
 function actualizarBannerOnboarding() {

@@ -634,9 +634,29 @@ export const abogados = {
   /**
    * Retorna el estado actual de la verificación del abogado autenticado.
    * Consulta la tabla verificaciones ordenada por created_at DESC (la más reciente).
-   * Retorna { estado, motivo_rechazo, created_at } o null si nunca envió documentos.
+   * Incluye doc_carnet_url para que el panel sepa si ya subió documentos
+   * (la fila PENDIENTE se crea vacía al registrarse, ver migración 061).
+   * Retorna { id, estado, motivo_rechazo, doc_carnet_url, created_at } o null
+   * si no hay sesión, no existe ninguna fila, o falla la consulta.
    */
-  async getEstadoVerificacion() {},
+  async getEstadoVerificacion() {
+    const { data: { user }, error: errUser } = await _cliente.auth.getUser();
+    if (errUser || !user) return null;
+
+    const { data, error } = await _cliente
+      .from('verificaciones')
+      .select('id, estado, motivo_rechazo, doc_carnet_url, created_at')
+      .eq('abogado_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      console.error('[api.abogados.getEstadoVerificacion]', error.message);
+      return null;
+    }
+    return data;
+  },
 
   /**
    * Retorna las provincias donde el abogado autenticado presta servicios

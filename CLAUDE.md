@@ -78,7 +78,8 @@ legal-app/
 │   │   ├── editar-perfil-cliente.js ← lógica de editar-perfil-cliente.html, página independiente (ver §27)
 │   │   ├── editar-perfil-abogado.js ← lógica de editar-perfil-abogado.html, página independiente (ver §27)
 │   │   ├── notificaciones-pagina.js ← lógica de notificaciones.html: todas las notificaciones, agrupadas y paginadas (ver §31)
-│   │   └── configuracion-cuenta.js  ← lógica de configuracion-cuenta.html: usuarios bloqueados y preferencias (ver §38)
+│   │   ├── configuracion-cuenta.js  ← lógica de configuracion-cuenta.html: usuarios bloqueados y preferencias (ver §38)
+│   │   └── subir-documentos.js      ← lógica de subir-documentos.html: subida de documentos de verificación tras confirmar correo (ver §40)
 │   └── pages/
 │       ├── busqueda.html
 │       ├── perfil-abogado.html
@@ -99,7 +100,8 @@ legal-app/
 │       ├── editar-perfil-cliente.html ← edición de perfil de cliente, página independiente (ver §27)
 │       ├── editar-perfil-abogado.html ← edición de perfil de abogado, página independiente (ver §27)
 │       ├── notificaciones.html        ← todas las notificaciones del usuario, agrupadas por fecha y paginadas (ver §31)
-│       └── configuracion-cuenta.html  ← usuarios bloqueados (desbloquear) y preferencias (placeholder) (ver §38)
+│       ├── configuracion-cuenta.html  ← usuarios bloqueados (desbloquear) y preferencias (placeholder) (ver §38)
+│       └── subir-documentos.html      ← formulario de subida de documentos de verificación tras confirmar correo (ver §40)
 ├── supabase/
 │   ├── config.toml            ← project_id para el Supabase CLI (link/deploy)
 │   ├── migrations/            ← archivos SQL en orden cronológico
@@ -951,6 +953,24 @@ Migración `063`: `abogados.visible_publico` (boolean, default `false`) y `aboga
 Migración `064`: `casos_tablon.visualizaciones` (integer, default `0`), incrementada por la función `registrar_visualizacion_caso_tablon(p_caso_id)` (`SECURITY DEFINER`, `GRANT EXECUTE TO authenticated`) — ni el cliente dueño ni un abogado tienen ningún permiso de `UPDATE` general sobre `casos_tablon` (solo `cliente_cierra_caso_tablon` para la transición a `CERRADO`), así que incrementar el contador necesita este mecanismo, mismo criterio que otras funciones `SECURITY DEFINER` de utilidad acotada (`fn_existe_bloqueo`, `validar_codigo_referido`). La columna se agregó al final de las tres vistas que la exponen (`tablon_casos_abogado`, `tablon_casos_cliente`, `tablon_caso_detalle`) — `solicitudes-tablon.html` (vista cliente) no necesitó ningún cambio de backend porque ya consume `tablon_casos_cliente` completa (§28).
 
 `tablon-caso.js` llama a `api.tablon.registrarVisualizacion(casoId)` sin esperar la respuesta (fire-and-forget: es una métrica secundaria, no debe retrasar ni bloquear la carga de la página si falla) e incrementa `casoActual.visualizaciones` localmente en 1 para reflejarlo de inmediato en la cabecera, sin volver a consultar el detalle. `generarContadorVisualizaciones(total)` (ícono de ojo SVG inline + número, `utils.js`) se reutiliza en la tarjeta de `tablon.html` (ambas vistas, cliente y abogado), en la cabecera de `tablon-caso.html` y en la tarjeta de `solicitudes-tablon.html` (vista cliente).
+
+---
+
+## 40. Flujo de subida de documentos post-registro para abogados
+
+### Diagnóstico
+Reportado como "las tarjetas de verificación del panel admin no muestran links de documentos". `SELECT` directo sobre `verificaciones` confirmó que las 5 columnas `doc_*_url` estaban en `NULL` en el 100% de las filas — no era un bug de renderizado de `panel-admin.js` (que ya filtraba correctamente por `doc.path` truthy, ver §39 módulo pendiente de smoke test), sino que ningún documento se había subido nunca. Causa raíz: en `registro.js`, `enviarDocumentosVerificacion()` solo se llamaba dentro de `if (data?.session)` tras el `signUp()` — con confirmación de correo obligatoria (el flujo real de producción) `data.session` nunca viene truthy, así que ese bloque jamás se ejecuta. La migración `20260725_061` (§39 módulo 2) ya había resuelto que al menos se cree la fila `PENDIENTE` vacía, pero el mensaje que veía el usuario ("Podrá subir sus documentos al confirmar su correo e ingresar por primera vez") no tenía ningún flujo real detrás — ni `app.js` ni `panel-abogado.js` ofrecían ningún punto para subirlos después del login.
+
+### `frontend/pages/subir-documentos.html` + `frontend/js/subir-documentos.js`
+Página nueva, con sesión requerida, para `rol IN ('abogado', 'estudio')` — muestra los 3 campos de abogado (carné, cédula anverso/reverso) o los 2 de estudio (RUC, nombramiento) según `perfiles.rol`, y llama a `api.abogados.enviarDocumentosVerificacion()`/`api.estudios.enviarDocumentosVerificacion()` respectivamente (ninguna de las dos cambió — ya soportaban ser invocadas fuera del registro; la del abogado ya reutiliza la fila `PENDIENTE` existente en vez de duplicarla, ver §39 módulo 2). Es el único punto del frontend, fuera de `registro.js`, que las invoca. Tras un envío exitoso: toast de confirmación y redirección a `rutaPanelPropio(rol)`.
+
+`validarArchivo()` (JPG/PNG/PDF, máximo 5 MB) estaba duplicada en `registro.js` sin exportarse; se movió a `utils.js` para que `subir-documentos.js` la reutilice sin duplicar de nuevo una validación de seguridad — `registro.js` ahora la importa en vez de definirla.
+
+### Banner en `panel-abogado.html`
+`api.abogados.getEstadoVerificacion()` (antes un stub vacío en `api.js`, con el JSDoc ya escrito pero sin cuerpo) se implementó para traer la fila más reciente de `verificaciones` del abogado autenticado, incluyendo `doc_carnet_url`. `panel-abogado.js` la consulta en paralelo con `getPerfilPropio()` al cargar el panel y muestra un banner nuevo (`#bannerVerificacionDocumentos`, `.panel-banner--alerta` — mismo estilo que el de suscripción vencida, distinto del `--info` de onboarding) cuando `abogadoActual.verificacion === 'PENDIENTE' && !doc_carnet_url`. Como la condición se reevalúa en cada carga del panel, el banner desaparece solo la próxima vez que el abogado entra al panel después de subir documentos — no hace falta ningún mecanismo adicional de sincronización.
+
+### Mensaje de registro
+`registro.js` cambió el texto que prometía la subida diferida ("Podrá subir sus documentos de verificación al confirmar su correo e ingresar por primera vez", en los flujos de abogado y de estudio) por uno que describe el flujo real: "Tras confirmar su correo e ingresar, se le pedirá que suba sus documentos de verificación para que el administrador pueda revisar su solicitud."
 
 ---
 
