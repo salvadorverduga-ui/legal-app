@@ -507,7 +507,8 @@ export const abogados = {
   /**
    * Actualiza los datos profesionales del abogado autenticado en la tabla abogados.
    * Campos permitidos: especialidades, casos_frecuentes, descripcion,
-   *                    precio_consulta, numero_registro, provincia_id, canton_id.
+   *                    precio_consulta, numero_registro, provincia_id, canton_id,
+   *                    visible_publico, campos_publicos.
    * verificacion y suscripcion_vigente_hasta no se pueden modificar desde el cliente.
    * Retorna { data, error }.
    */
@@ -517,7 +518,7 @@ export const abogados = {
       return { data: null, error: errUser ?? { message: 'No hay sesión activa.' } };
     }
 
-    const CAMPOS_PERMITIDOS = ['especialidades', 'casos_frecuentes', 'descripcion', 'precio_consulta', 'numero_registro', 'provincia_id', 'canton_id'];
+    const CAMPOS_PERMITIDOS = ['especialidades', 'casos_frecuentes', 'descripcion', 'precio_consulta', 'numero_registro', 'provincia_id', 'canton_id', 'visible_publico', 'campos_publicos'];
     const actualizacion = {};
     for (const campo of CAMPOS_PERMITIDOS) {
       if (datos[campo] !== undefined) actualizacion[campo] = datos[campo];

@@ -143,6 +143,56 @@
           </button>
         </form>
 
+        <section class="visibilidad-publica" aria-labelledby="tituloVisibilidadPublica">
+          <h2 class="auth__titulo" id="tituloVisibilidadPublica">Visibilidad pública</h2>
+          <p class="campo__ayuda">
+            Controle si su perfil aparece en la búsqueda para visitantes que todavía no tienen
+            cuenta, y qué datos se muestran en su tarjeta en ese caso. Los clientes con sesión
+            iniciada siempre ven su perfil completo — esta configuración no los afecta.
+          </p>
+
+          <div class="visibilidad-publica__layout">
+            <form class="formulario" id="formVisibilidad" novalidate>
+              <div class="campo">
+                <label class="toggle-switch">
+                  <input type="checkbox" id="visiblePublico">
+                  <span class="toggle-switch__pista" aria-hidden="true"></span>
+                  <span class="toggle-switch__etiqueta">Aparecer en búsqueda pública (sin necesidad de cuenta)</span>
+                </label>
+              </div>
+
+              <div class="campo" id="camposPublicosContenedor" hidden>
+                <span class="campo__etiqueta">Qué mostrar a visitantes sin cuenta</span>
+                <div class="radio-pills radio-pills--multiple" id="camposPublicosLista">
+                  <label class="radio-pills__opcion"><input type="checkbox" name="campo_publico" value="foto"><span>Foto de perfil</span></label>
+                  <label class="radio-pills__opcion"><input type="checkbox" name="campo_publico" value="especialidades"><span>Especialidades</span></label>
+                  <label class="radio-pills__opcion"><input type="checkbox" name="campo_publico" value="provincia"><span>Provincia y cantón</span></label>
+                  <label class="radio-pills__opcion"><input type="checkbox" name="campo_publico" value="precio"><span>Precio de consulta</span></label>
+                  <label class="radio-pills__opcion"><input type="checkbox" name="campo_publico" value="rating"><span>Rating y reseñas</span></label>
+                  <label class="radio-pills__opcion"><input type="checkbox" name="campo_publico" value="zonas_servicio"><span>Badge "También atiende en..."</span></label>
+                </div>
+              </div>
+
+              <p class="campo__error" id="errorVisibilidad" role="alert" aria-live="polite"></p>
+              <p class="mensaje-exito" id="exitoVisibilidad" role="status" aria-live="polite" hidden>
+                Configuración de visibilidad guardada.
+              </p>
+
+              <button type="submit" class="btn btn--primario" id="btnGuardarVisibilidad">
+                Guardar configuración de visibilidad
+              </button>
+            </form>
+
+            <div class="visibilidad-publica__preview">
+              <p class="visibilidad-publica__preview-etiqueta">Así se vería su tarjeta en la búsqueda pública</p>
+              <p class="campo__ayuda" id="previewInactivo">
+                Active "Aparecer en búsqueda pública" para configurar y previsualizar su tarjeta.
+              </p>
+              <div class="visibilidad-publica__preview-card" id="previewTarjetaContenedor" role="list" hidden></div>
+            </div>
+          </div>
+        </section>
+
       </div>
     </div>
   </main>

@@ -2306,6 +2306,43 @@ p {
   color: var(--color-texto);
 }
 
+/* ── Visibilidad pública (editar-perfil-abogado.html) ──────── */
+.visibilidad-publica {
+  margin-top: var(--esp-6);
+  padding-top: var(--esp-6);
+  border-top: 1px solid var(--color-borde);
+}
+
+.visibilidad-publica__layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--esp-6);
+  margin-top: var(--esp-4);
+}
+
+.visibilidad-publica__preview {
+  position: sticky;
+  top: var(--esp-4);
+  align-self: start;
+}
+
+.visibilidad-publica__preview-etiqueta {
+  font-size: var(--texto-sm);
+  color: var(--color-texto-suave);
+  margin-bottom: var(--esp-3);
+}
+
+.visibilidad-publica__preview-card {
+  max-width: 360px;
+}
+
+@media (min-width: 900px) {
+  .visibilidad-publica__layout {
+    grid-template-columns: 1.2fr 1fr;
+    align-items: start;
+  }
+}
+
 /* ── Navegación por secciones ──────────────────────────────── */
 .panel-tabs {
   display: flex;

@@ -85,6 +85,21 @@ function configurarEventos() {
 
   document.getElementById('perfilProvincia').addEventListener('change', manejarCambioProvinciaPrincipal);
   document.getElementById('zonasServicioPerfil').addEventListener('change', manejarCambioZonaServicio);
+
+  // Visibilidad pública: cualquier campo que aparezca en la tarjeta de
+  // vista previa dispara un re-render inmediato, sin esperar a guardar.
+  document.getElementById('especialidadesPerfil').addEventListener('change', renderizarPreview);
+  document.getElementById('perfilPrecio').addEventListener('input', renderizarPreview);
+  document.getElementById('perfilProvincia').addEventListener('change', renderizarPreview);
+  document.getElementById('perfilCanton').addEventListener('change', renderizarPreview);
+  document.getElementById('zonasServicioPerfil').addEventListener('change', renderizarPreview);
+
+  document.getElementById('visiblePublico').addEventListener('change', () => {
+    actualizarVisibilidadUI();
+    renderizarPreview();
+  });
+  document.getElementById('camposPublicosLista').addEventListener('change', renderizarPreview);
+  document.getElementById('formVisibilidad').addEventListener('submit', manejarGuardarVisibilidad);
 }
 
 // ─── Foto ──────────────────────────────────────────────────────────────────
@@ -280,6 +295,14 @@ async function rellenarFormularioPerfil() {
   await renderizarZonasServicio();
 
   actualizarProgresoPerfil();
+
+  document.getElementById('visiblePublico').checked = Boolean(abogadoActual.visible_publico);
+  const camposPublicos = abogadoActual.campos_publicos ?? {};
+  document.querySelectorAll('#camposPublicosLista input[type="checkbox"]').forEach(chk => {
+    chk.checked = Boolean(camposPublicos[chk.value]);
+  });
+  actualizarVisibilidadUI();
+  renderizarPreview();
 }
 
 // 5 campos = 20% cada uno: foto, descripción, especialidades, precio, provincia
@@ -355,6 +378,161 @@ async function manejarGuardarPerfil() {
   } finally {
     btn.disabled = false;
     btn.textContent = 'Guardar cambios';
+  }
+}
+
+// ─── Visibilidad pública ───────────────────────────────────────────────────
+function actualizarVisibilidadUI() {
+  const activo = document.getElementById('visiblePublico').checked;
+  document.getElementById('camposPublicosContenedor').hidden = !activo;
+  document.getElementById('previewInactivo').hidden = activo;
+  document.getElementById('previewTarjetaContenedor').hidden = !activo;
+}
+
+function leerCamposPublicosSeleccionados() {
+  const seleccionados = {};
+  document.querySelectorAll('#camposPublicosLista input[type="checkbox"]').forEach(chk => {
+    seleccionados[chk.value] = chk.checked;
+  });
+  return seleccionados;
+}
+
+// Vista previa en tiempo real de la tarjeta pública (busqueda.html), armada
+// con los datos ya cargados del perfil y el estado actual (sin guardar) de
+// los checkboxes de especialidades/precio/provincia/cantón/campos públicos —
+// mismo markup que generarCardAbogado() de busqueda.js, para que la
+// previsualización sea fiel a la tarjeta real.
+function renderizarPreview() {
+  if (!document.getElementById('visiblePublico').checked) return;
+
+  const contenedor = document.getElementById('previewTarjetaContenedor');
+  const campos = leerCamposPublicosSeleccionados();
+
+  const fotoUrl = campos.foto && perfilActual.foto_url
+    ? api.storage.getPublicUrl('avatares', perfilActual.foto_url)
+    : null;
+  const avatarHtml = fotoUrl
+    ? `<img src="${escaparAtrib(fotoUrl)}" alt="Foto de ${escaparAtrib(perfilActual.nombre_completo)}">`
+    : `<div class="avatar-placeholder" aria-hidden="true">${escaparHtml(obtenerIniciales(perfilActual.nombre_completo))}</div>`;
+
+  const provinciaSelect = document.getElementById('perfilProvincia');
+  const cantonSelect = document.getElementById('perfilCanton');
+  const provinciaNombre = provinciaSelect.selectedOptions[0]?.textContent ?? '';
+  const cantonNombre = cantonSelect.selectedOptions[0]?.textContent ?? '';
+  const ubicacion = campos.provincia
+    ? [cantonSelect.value ? cantonNombre : '', provinciaSelect.value ? provinciaNombre : ''].filter(Boolean).map(escaparHtml).join(', ')
+    : '';
+
+  const especialidadesSeleccionadas = campos.especialidades
+    ? Array.from(document.querySelectorAll('#especialidadesPerfil input[type="checkbox"]:checked')).map(chk => chk.value)
+    : [];
+  const especialidades = especialidadesSeleccionadas.slice(0, 3);
+  const extras = especialidadesSeleccionadas.length - 3;
+  const especialidadesHtml = especialidades.map(e => `<span class="chip">${escaparHtml(e)}</span>`).join('');
+  const masHtml = extras > 0 ? `<span class="chip chip--mas">+${extras}</span>` : '';
+
+  const precioActual = document.getElementById('perfilPrecio').value;
+  const precioHtml = campos.precio && precioActual
+    ? `<p class="card-abogado__precio">Consulta desde $${escaparHtml(precioActual)}</p>`
+    : '';
+
+  const zonaHtml = campos.zonas_servicio && zonasServicioSeleccionadas.size > 0
+    ? `<span class="badge badge--zona-servicio">También atiende en otras provincias</span>`
+    : '';
+
+  const tipoBadge = abogadoActual.estudio_id ? 'estudio' : (abogadoActual.red_id ? 'red' : 'individual');
+  const etiquetaTipo = { individual: 'Individual', estudio: 'Estudio', red: 'Red' }[tipoBadge];
+
+  contenedor.innerHTML = `
+    <article class="card-abogado" role="listitem">
+      <div class="card-abogado__header">
+        <div class="card-abogado__avatar">${avatarHtml}</div>
+        <div class="card-abogado__meta">
+          <div class="card-abogado__badges">
+            <span class="badge badge--${tipoBadge}">${etiquetaTipo}</span>
+            <span class="badge badge--verificado">Verificado</span>
+          </div>
+          <h3 class="card-abogado__nombre">${escaparHtml(perfilActual.nombre_completo)}</h3>
+          ${ubicacion ? `<p class="card-abogado__ubicacion">${ubicacion}</p>` : ''}
+          ${zonaHtml}
+        </div>
+      </div>
+
+      ${especialidades.length ? `
+        <div class="card-abogado__especialidades">
+          ${especialidadesHtml}${masHtml}
+        </div>
+      ` : ''}
+
+      <div class="card-abogado__footer">
+        <div class="card-abogado__info-footer">
+          <div class="rating">
+            ${campos.rating ? generarEstrellasPreview(abogadoActual.rating_promedio, abogadoActual.total_resenas) : generarEstrellasPreview(null, 0)}
+          </div>
+          ${precioHtml}
+        </div>
+        <span class="btn btn--primario btn--sm" aria-hidden="true">Ver perfil</span>
+      </div>
+    </article>
+  `;
+}
+
+function generarEstrellasPreview(rating, total) {
+  if (!total || total === 0) {
+    return `
+      <span class="rating__estrellas rating__estrellas--vacio" aria-label="Sin reseñas">
+        &#9733;&#9733;&#9733;&#9733;&#9733;
+      </span>
+      <span class="rating__count">Sin reseñas</span>
+    `;
+  }
+
+  const redondeado = Math.min(5, Math.max(0, Math.round(rating)));
+  const llenas = '&#9733;'.repeat(redondeado);
+  const vacias = '&#9734;'.repeat(5 - redondeado);
+
+  return `
+    <span class="rating__estrellas" aria-label="${rating} de 5 estrellas">${llenas}${vacias}</span>
+    <span class="rating__count">(${total})</span>
+  `;
+}
+
+async function manejarGuardarVisibilidad(e) {
+  e.preventDefault();
+
+  const btn = document.getElementById('btnGuardarVisibilidad');
+  const errorEl = document.getElementById('errorVisibilidad');
+  const exitoEl = document.getElementById('exitoVisibilidad');
+
+  errorEl.textContent = '';
+  exitoEl.hidden = true;
+  btn.disabled = true;
+  btn.textContent = 'Guardando...';
+
+  const visible_publico = document.getElementById('visiblePublico').checked;
+  const campos_publicos = leerCamposPublicosSeleccionados();
+
+  try {
+    const { data, error } = await api.abogados.actualizarPerfilAbogado({ visible_publico, campos_publicos });
+
+    if (error) {
+      const mensaje = mensajeAmigable(error, 'Ocurrió un error. Intente de nuevo.');
+      errorEl.textContent = mensaje;
+      toast.error(mensaje);
+      return;
+    }
+
+    abogadoActual = data;
+    exitoEl.hidden = false;
+    toast.exito('Configuración de visibilidad guardada.');
+
+  } catch (err) {
+    console.error('[editar-perfil-abogado] Error inesperado al guardar visibilidad:', err);
+    errorEl.textContent = 'Ocurrió un error. Intente de nuevo.';
+    toast.error('Ocurrió un error. Intente de nuevo.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Guardar configuración de visibilidad';
   }
 }
 
