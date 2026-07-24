@@ -191,6 +191,52 @@ function generarAvatarVerificacion(fotoPath, nombre) {
     : `<div class="avatar-placeholder" aria-hidden="true">${escaparHtml(obtenerIniciales(nombre))}</div>`;
 }
 
+// Número de intento visible en la tarjeta de verificaciones pendientes.
+// intentos_verificacion cuenta reintentos tras un rechazo (ver CLAUDE.md §43,
+// migración 068) — 0 es siempre la primera solicitud, nunca un reintento.
+function generarBadgeIntento(intentos) {
+  const n = intentos ?? 0;
+  if (n === 0) {
+    return '<span class="badge badge--verificado">Primera solicitud</span>';
+  }
+  if (n >= 3) {
+    return '<span class="badge badge--rechazado">Reintento 3 de 3 — último intento</span>';
+  }
+  return `<span class="badge badge--pendiente">Reintento ${n} de 3</span>`;
+}
+
+// Datos que el abogado/estudio ingresó al registrarse, para que el admin
+// pueda cotejarlos contra los documentos subidos antes de aprobar/rechazar.
+function generarDatosRegistro(v) {
+  const filas = v.tipo === 'estudio'
+    ? [
+        ['Nombre del estudio', v.nombre_estudio],
+        ['RUC', v.ruc_estudio],
+        ['Representante legal', v.nombre_solicitante],
+        ['Provincia', v.provincia],
+      ]
+    : [
+        ['Nombre completo', v.nombre_solicitante],
+        ['Cédula', v.cedula_solicitante],
+        ['Número de carné', v.numero_registro],
+        ['Provincia', v.provincia],
+        ['Especialidades', (v.especialidades ?? []).join(', ')],
+      ];
+
+  const filasHtml = filas
+    .filter(([, valor]) => valor)
+    .map(([etiqueta, valor]) => `
+      <p class="verificacion-item__detalle">
+        <span class="verificacion-item__detalle-etiqueta">${escaparHtml(etiqueta)}:</span> ${escaparHtml(valor)}
+      </p>
+    `)
+    .join('');
+
+  if (!filasHtml) return '';
+
+  return `<div class="verificacion-item__datos-registro">${filasHtml}</div>`;
+}
+
 async function generarVerificacionCard(v) {
   const idSeguro = escaparAtrib(v.id);
   const etiquetaTipo = ETIQUETAS_TIPO_SOLICITANTE[v.tipo] ?? v.tipo;
@@ -203,6 +249,7 @@ async function generarVerificacionCard(v) {
   const avatarHtml = generarAvatarVerificacion(v.foto_url, nombreParaAvatar);
 
   const documentosHtml = await generarEnlacesDocumentos(v);
+  const datosRegistroHtml = generarDatosRegistro(v);
   const rechazoAbierto = verificacionConRechazoAbierto === v.id;
 
   return `
@@ -211,10 +258,12 @@ async function generarVerificacionCard(v) {
         <div class="verificacion-item__avatar" aria-hidden="true">${avatarHtml}</div>
         <div>
           <span class="badge badge--${v.tipo === 'estudio' ? 'estudio' : 'individual'}">${etiquetaTipo}</span>
+          ${generarBadgeIntento(v.intentos_verificacion)}
           <p class="verificacion-item__nombre">${nombreMostrado}</p>
           <p class="verificacion-item__fecha">Solicitado el ${formatearFecha(v.created_at)}</p>
         </div>
       </div>
+      ${datosRegistroHtml}
       ${documentosHtml}
       <div class="verificacion-item__acciones">
         <button class="btn btn--primario btn--sm" type="button" data-accion="aprobar" data-id="${idSeguro}">

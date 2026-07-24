@@ -2929,6 +2929,19 @@ p {
   color: var(--color-texto);
 }
 
+.verificacion-item__datos-registro {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-1);
+  padding: var(--esp-3);
+  background-color: var(--color-fondo);
+  border-radius: var(--radio-md);
+}
+
+.verificacion-item__datos-registro .verificacion-item__detalle {
+  margin: 0;
+}
+
 .verificacion-item__documentos {
   display: flex;
   flex-wrap: wrap;
