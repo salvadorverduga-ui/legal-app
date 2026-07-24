@@ -974,4 +974,21 @@ Página nueva, con sesión requerida, para `rol IN ('abogado', 'estudio')` — m
 
 ---
 
+## 41. Registro con sesión inmediata, doble campo de email, fix RLS en verificaciones
+
+### Confirmación de correo: preparado para desactivarse, no desactivado
+Desactivar "Confirm email" es una configuración de Supabase Dashboard → Authentication → Email, no de código — sigue **activa** en producción tras esta ronda. Lo que cambió es que `registro.js` ahora maneja correctamente los dos casos posibles de `signUp()` en los tres flujos (`manejarRegistroCliente`/`Abogado`/`Estudio`): si `data.session` viene truthy (confirmación desactivada) sube los documentos (abogado/estudio) y redirige directo a `rutaPanelPropio(rol)`; si `data.session` es `null` (comportamiento actual en producción) muestra el mensaje de "revise su correo", sin cambios de fondo ahí. Antes, el caso `data.session` truthy sí subía los documentos pero igual mostraba el mensaje de "revisar correo" y redirigía a `/` con el contador de 5 segundos — nunca llevaba al panel. `manejarRegistroCliente` no tenía ninguna rama para sesión inmediata (el cliente no sube documentos, pero tampoco lo llevaba a su panel).
+
+Si falla la subida de documentos en el camino de sesión inmediata, no se bloquea el registro: se avisa por toast que puede subirlos después y se redirige igual al panel — el banner de `panel-abogado.js` (`#bannerVerificacionDocumentos`, ver §40) ya cubre ese reintento.
+
+### Doble campo de email
+`registro.html` agrega "Confirme su correo electrónico" (`clienteEmailConfirmar`/`abogadoEmailConfirmar`/`estudioEmailConfirmar`) debajo del campo de email en los tres formularios. `registro.js` valida `email === emailConfirmar` antes de las demás validaciones de cada handler; si no coinciden, `MENSAJE_EMAILS_NO_COINCIDEN` ("Los correos electrónicos no coinciden. Por favor verifique.").
+
+### Fix: recursión RLS en `verificaciones`
+Diagnóstico vía MCP (`pg_policies`): la política `abogado_actualiza_verificacion_pendiente` (migración 061) comparaba contra la fila previa con subconsultas `(SELECT estado FROM verificaciones WHERE id = verificaciones.id)`. Sin alias explícito, el `FROM verificaciones` interno de la subconsulta capturaba también la referencia calificada `verificaciones.id`, así que ambos lados de la comparación resolvían contra la misma relación interna — Postgres lo guardaba literalmente como `verificaciones_1.id = verificaciones_1.id`, una tautología. Dos consecuencias: (1) la restricción de columnas congeladas (`estado`/`revisado_por`/`revisado_at`/`motivo_rechazo`) nunca se aplicaba de verdad, y (2) evaluar una subconsulta contra la misma tabla que la política protege dispara "infinite recursion detected in policy" (42P17) — mismo patrón ya documentado en §34.
+
+Migración `20260726_066_fix_recursion_verificaciones.sql`: `fn_verificacion_previa(p_id uuid) RETURNS verificaciones` (`SECURITY DEFINER`, mismo patrón que `fn_existe_bloqueo`/`fn_cliente_dueno_caso_tablon`) reemplaza las cinco subconsultas correlacionadas. Al tomar el id como parámetro explícito no hay ninguna relación `verificaciones` adicional que genere ambigüedad, así que corrige la recursión y la comparación real contra la fila previa a la vez. Verificado en vivo contra producción (transacción con `ROLLBACK`, `SET LOCAL ROLE authenticated` + `request.jwt.claims`, mismo método que §34): el `UPDATE` de `doc_carnet_url` ahora funciona sin error, y un intento de cambiar `estado` a mano (antes silenciosamente permitido por la tautología) es rechazado por RLS.
+
+---
+
 *Actualizar este archivo con cada decisión técnica relevante*

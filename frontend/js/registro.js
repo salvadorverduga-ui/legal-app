@@ -5,7 +5,9 @@
 
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
-import { toast, validarArchivo } from './utils.js';
+import { toast, validarArchivo, rutaPanelPropio } from './utils.js';
+
+const MENSAJE_EMAILS_NO_COINCIDEN = 'Los correos electrónicos no coinciden. Por favor verifique.';
 
 let tipoProfesionalActivo = null; // 'individual' | 'estudio' | 'red'
 let codigoReferido = null; // ?ref= en la URL, capturado en inicializar() y asociado al registro de abogado
@@ -118,12 +120,17 @@ async function manejarRegistroCliente(evento) {
 
   const nombre_completo = document.getElementById('clienteNombre').value.trim();
   const email = document.getElementById('clienteEmail').value.trim();
+  const emailConfirmar = document.getElementById('clienteEmailConfirmar').value.trim();
   const password = document.getElementById('clientePassword').value;
   const errorEl = document.getElementById('errorCliente');
   const btnEl = document.getElementById('btnRegistrarCliente');
 
-  if (!nombre_completo || !email || !password) {
+  if (!nombre_completo || !email || !emailConfirmar || !password) {
     errorEl.textContent = 'Complete todos los campos.';
+    return;
+  }
+  if (email !== emailConfirmar) {
+    errorEl.textContent = MENSAJE_EMAILS_NO_COINCIDEN;
     return;
   }
   if (password.length < 8) {
@@ -136,12 +143,24 @@ async function manejarRegistroCliente(evento) {
   btnEl.textContent = 'Creando cuenta...';
 
   try {
-    const { error } = await api.auth.registrarCliente({ email, password, nombre_completo });
+    const { data, error } = await api.auth.registrarCliente({ email, password, nombre_completo });
 
     if (error) {
       const mensaje = traducirErrorAuth(error);
       errorEl.textContent = mensaje;
       toast.error(mensaje);
+      return;
+    }
+
+    // Sesión inmediata: signUp() no requiere confirmación de correo (a
+    // futuro, cuando "Confirm email" esté desactivado en el dashboard de
+    // Supabase — ver CLAUDE.md). El cliente no tiene documentos que subir,
+    // así que solo redirige a su panel.
+    if (data?.session) {
+      toast.exito('Cuenta creada. Ya puede buscar abogados.');
+      setTimeout(() => {
+        window.location.href = rutaPanelPropio('cliente');
+      }, 1200);
       return;
     }
 
@@ -167,6 +186,7 @@ async function manejarRegistroAbogado(evento) {
   const cedula = document.getElementById('abogadoCedula').value.trim();
   const numero_carnet = document.getElementById('abogadoCarnet').value.trim();
   const email = document.getElementById('abogadoEmail').value.trim();
+  const emailConfirmar = document.getElementById('abogadoEmailConfirmar').value.trim();
   const password = document.getElementById('abogadoPassword').value;
   const provincia = document.getElementById('abogadoProvincia').value;
   const especialidades = obtenerEspecialidadesSeleccionadas('especialidadesAbogado');
@@ -176,8 +196,12 @@ async function manejarRegistroAbogado(evento) {
   const errorEl = document.getElementById('errorAbogado');
   const btnEl = document.getElementById('btnRegistrarAbogado');
 
-  if (!nombre_completo || !cedula || !numero_carnet || !email || !password || !provincia) {
+  if (!nombre_completo || !cedula || !numero_carnet || !email || !emailConfirmar || !password || !provincia) {
     errorEl.textContent = 'Complete todos los campos.';
+    return;
+  }
+  if (email !== emailConfirmar) {
+    errorEl.textContent = MENSAJE_EMAILS_NO_COINCIDEN;
     return;
   }
   if (!validarCedula(cedula)) {
@@ -225,14 +249,31 @@ async function manejarRegistroAbogado(evento) {
       return;
     }
 
-    let notaDocumentos = 'Tras confirmar su correo e ingresar, se le pedirá que suba sus documentos de verificación para que el administrador pueda revisar su solicitud.';
+    // Sesión inmediata: signUp() no requiere confirmación de correo (a
+    // futuro, cuando "Confirm email" esté desactivado en el dashboard de
+    // Supabase — ver CLAUDE.md). Se suben los documentos en el mismo acto
+    // y se redirige directo al panel — no hay correo que confirmar.
     if (data?.session) {
       const { error: errorDocs } = await api.abogados.enviarDocumentosVerificacion({
         carnet: docCarnet,
         cedulaAnverso: docCedulaAnverso,
         cedulaReverso: docCedulaReverso,
       });
-      if (!errorDocs) notaDocumentos = 'Sus documentos de verificación fueron enviados.';
+
+      if (errorDocs) {
+        // No dejamos al abogado varado: su cuenta ya existe y el banner de
+        // "Subir documentos" en panel-abogado.js (que consulta la misma
+        // fila PENDIENTE) le permite reintentar desde ahí.
+        console.error('[registro] Error al subir documentos con sesión inmediata:', errorDocs.message);
+        toast.error('Su cuenta fue creada, pero no pudimos subir sus documentos. Podrá subirlos desde su panel.');
+      } else {
+        toast.exito('Cuenta creada y documentos enviados. Su perfil será visible tras la verificación.');
+      }
+
+      setTimeout(() => {
+        window.location.href = rutaPanelPropio('abogado');
+      }, 1500);
+      return;
     }
 
     const notaRed = tipoProfesionalActivo === 'red'
@@ -240,7 +281,7 @@ async function manejarRegistroAbogado(evento) {
       : '';
 
     mostrarConfirmacion('formAbogado', 'confirmacionAbogado',
-      `Le enviamos un enlace de confirmación. ${notaDocumentos} Su perfil será visible tras verificación en 24–48 horas hábiles.${notaRed}`,
+      `Le enviamos un enlace de confirmación. Tras confirmar su correo e ingresar, se le pedirá que suba sus documentos de verificación para que el administrador pueda revisar su solicitud. Su perfil será visible tras verificación en 24–48 horas hábiles.${notaRed}`,
       { redireccionAutomatica: true });
 
   } catch (err) {
@@ -262,6 +303,7 @@ async function manejarRegistroEstudio(evento) {
   const ruc = document.getElementById('estudioRuc').value.trim();
   const nombre_representante = document.getElementById('estudioRepresentante').value.trim();
   const email = document.getElementById('estudioEmail').value.trim();
+  const emailConfirmar = document.getElementById('estudioEmailConfirmar').value.trim();
   const password = document.getElementById('estudioPassword').value;
   const provincia = document.getElementById('estudioProvincia').value;
   const especialidades = obtenerEspecialidadesSeleccionadas('especialidadesEstudio');
@@ -270,8 +312,12 @@ async function manejarRegistroEstudio(evento) {
   const errorEl = document.getElementById('errorEstudio');
   const btnEl = document.getElementById('btnRegistrarEstudio');
 
-  if (!nombre_estudio || !ruc || !nombre_representante || !email || !password || !provincia) {
+  if (!nombre_estudio || !ruc || !nombre_representante || !email || !emailConfirmar || !password || !provincia) {
     errorEl.textContent = 'Complete todos los campos.';
+    return;
+  }
+  if (email !== emailConfirmar) {
+    errorEl.textContent = MENSAJE_EMAILS_NO_COINCIDEN;
     return;
   }
   if (!validarRuc(ruc)) {
@@ -313,14 +359,28 @@ async function manejarRegistroEstudio(evento) {
       return;
     }
 
-    let notaDocumentos = 'Tras confirmar su correo e ingresar, se le pedirá que suba sus documentos de verificación para que el administrador pueda revisar su solicitud.';
+    // Sesión inmediata: signUp() no requiere confirmación de correo (a
+    // futuro, cuando "Confirm email" esté desactivado en el dashboard de
+    // Supabase — ver CLAUDE.md). Se suben los documentos en el mismo acto
+    // y se redirige directo al panel — no hay correo que confirmar.
     if (data?.session) {
       const { error: errorDocs } = await api.estudios.enviarDocumentosVerificacion({ ruc: docRuc, nombramiento: docNombramiento });
-      if (!errorDocs) notaDocumentos = 'Sus documentos de verificación fueron enviados.';
+
+      if (errorDocs) {
+        console.error('[registro] Error al subir documentos con sesión inmediata:', errorDocs.message);
+        toast.error('Su cuenta fue creada, pero no pudimos subir sus documentos. Podrá subirlos desde su panel.');
+      } else {
+        toast.exito('Cuenta creada y documentos enviados. Su perfil será visible tras la verificación.');
+      }
+
+      setTimeout(() => {
+        window.location.href = rutaPanelPropio('estudio');
+      }, 1500);
+      return;
     }
 
     mostrarConfirmacion('formEstudio', 'confirmacionEstudio',
-      `Le enviamos un enlace de confirmación. ${notaDocumentos} Su perfil será visible tras verificación en 24–48 horas hábiles.`);
+      'Le enviamos un enlace de confirmación. Tras confirmar su correo e ingresar, se le pedirá que suba sus documentos de verificación para que el administrador pueda revisar su solicitud. Su perfil será visible tras verificación en 24–48 horas hábiles.');
 
   } catch (err) {
     console.error('[registro] ERROR COMPLETO (debug temporal, estudio):', err);
