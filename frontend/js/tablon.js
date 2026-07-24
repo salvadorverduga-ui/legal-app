@@ -8,7 +8,7 @@
 
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
-import { toast, mensajeAmigable, generarCheckboxSeguimiento, MENSAJE_AGREGADO_SEGUIMIENTO } from './utils.js';
+import { toast, mensajeAmigable, generarCheckboxSeguimiento, generarContadorVisualizaciones, MENSAJE_AGREGADO_SEGUIMIENTO } from './utils.js';
 import { inicializarHeader } from './header.js';
 
 // ─── Etiquetas y estilos por estado ───────────────────────────────────────────
@@ -236,7 +236,10 @@ function generarCasoClienteCard(c) {
           <p class="caso-tablon-card__titulo"><a href="/pages/tablon-caso?id=${idSeguro}">${escaparHtml(c.titulo)}</a></p>
           <p class="solicitud-item__fecha">${formatearTiempoTranscurrido(c.created_at)} · ${especialidadTexto}${ubicacionHtml}</p>
         </div>
-        <span class="badge ${claseEstado}">${etiquetaEstado}</span>
+        <div class="solicitud-item__header-derecha">
+          <span class="badge ${claseEstado}">${etiquetaEstado}</span>
+          ${generarContadorVisualizaciones(c.visualizaciones ?? 0)}
+        </div>
       </div>
       <p class="solicitud-item__detalle">${escaparHtml(c.descripcion)}</p>
       ${casoComunHtml}
@@ -310,7 +313,10 @@ function generarCasoAbogadoCard(c) {
           <p class="caso-tablon-card__titulo"><a href="/pages/tablon-caso?id=${idSeguro}">${escaparHtml(c.titulo)}</a></p>
           <p class="solicitud-item__fecha">${formatearTiempoTranscurrido(c.created_at)} · ${especialidadTexto}${ubicacionHtml} · ${escaparHtml(c.cliente_nombre)}</p>
         </div>
-        <span class="badge badge--pendiente">${c.total_aplicaciones} ${c.total_aplicaciones === 1 ? 'aplicación' : 'aplicaciones'}</span>
+        <div class="solicitud-item__header-derecha">
+          <span class="badge badge--pendiente">${c.total_aplicaciones} ${c.total_aplicaciones === 1 ? 'aplicación' : 'aplicaciones'}</span>
+          ${generarContadorVisualizaciones(c.visualizaciones ?? 0)}
+        </div>
       </div>
       <p class="solicitud-item__detalle">${escaparHtml(c.descripcion)}</p>
       ${casoComunHtml}

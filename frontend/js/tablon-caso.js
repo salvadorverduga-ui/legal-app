@@ -5,7 +5,7 @@
 
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
-import { toast, mensajeAmigable, confirmar, generarCheckboxSeguimiento, MENSAJE_AGREGADO_SEGUIMIENTO } from './utils.js';
+import { toast, mensajeAmigable, confirmar, generarCheckboxSeguimiento, generarContadorVisualizaciones, MENSAJE_AGREGADO_SEGUIMIENTO } from './utils.js';
 import { inicializarHeader } from './header.js';
 
 const ETIQUETAS_ESTADO_CASO = {
@@ -75,6 +75,12 @@ async function inicializar() {
     return;
   }
 
+  // Fire-and-forget: es una métrica secundaria, no debe retrasar la carga
+  // de la página ni bloquearla si falla. Se refleja de inmediato en la
+  // cabecera sumando 1 localmente, sin volver a consultar el detalle.
+  api.tablon.registrarVisualizacion(casoId);
+  casoActual.visualizaciones = (casoActual.visualizaciones ?? 0) + 1;
+
   let urlPerfilPublico;
   if (perfilActual.rol === 'abogado') {
     const abogadoActual = await api.abogados.getPerfilPropio();
@@ -135,6 +141,7 @@ function renderizarCaso() {
   document.getElementById('casoTitulo').textContent = c.titulo;
   document.getElementById('casoEstadoBadge').textContent = etiquetaEstado;
   document.getElementById('casoEstadoBadge').className = `badge ${claseEstado}`;
+  document.getElementById('casoVisualizaciones').innerHTML = generarContadorVisualizaciones(c.visualizaciones ?? 0);
 
   const metaPartes = [formatearFecha(c.created_at), c.especialidad, c.cliente_nombre].filter(Boolean);
   document.getElementById('casoMeta').textContent = metaPartes.join(' · ');

@@ -715,6 +715,15 @@ p {
   border-color: var(--badge-pendiente-borde);
 }
 
+/* Contador de visualizaciones — El Tablón (tablon.html/tablon-caso.html) */
+.contador-visualizaciones {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--esp-1);
+  font-size: var(--texto-sm);
+  color: var(--color-texto-suave);
+}
+
 /* Estado de solicitud */
 .badge--estado-pendiente    { background-color: #FFF7ED; color: #9A3412; border-color: #FED7AA; }
 .badge--estado-aceptada     { background-color: var(--badge-verificado-bg); color: var(--badge-verificado-color); border-color: var(--badge-verificado-borde); }
@@ -2085,6 +2094,13 @@ p {
   align-items: center;
   gap: var(--esp-4);
   min-width: 0;
+}
+
+.panel-cabecera__acciones {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-3);
+  flex-wrap: wrap;
 }
 
 .panel-cabecera__avatar {

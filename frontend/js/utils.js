@@ -36,6 +36,22 @@ export function generarCheckboxSeguimiento(idSeguro, marcado) {
   `;
 }
 
+// ─── Contador de visualizaciones (El Tablón) ───────────────────────────────
+// Icono de ojo + número, reutilizado en la tarjeta de caso de tablon.html y
+// en la cabecera de tablon-caso.html (casos_tablon.visualizaciones, migración
+// 20260725_064). total debe venir ya validado como número por el call site.
+export function generarContadorVisualizaciones(total) {
+  return `
+    <span class="contador-visualizaciones" aria-label="${total} ${total === 1 ? 'visualización' : 'visualizaciones'}">
+      <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+        <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+        <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/>
+      </svg>
+      ${total}
+    </span>
+  `;
+}
+
 // ─── Botón de favorito (corazón) ───────────────────────────────────────────
 // Reutilizado en las tarjetas de busqueda.html y en el encabezado de
 // perfil-abogado.html — solo se renderiza para clientes con sesión activa

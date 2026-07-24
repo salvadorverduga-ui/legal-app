@@ -1641,6 +1641,19 @@ export const tablon = {
   },
 
   /**
+   * Incrementa en 1 el contador de visualizaciones de un caso de El Tablón
+   * (columna casos_tablon.visualizaciones, migración 20260725_064). Vía RPC
+   * porque ni el cliente dueño ni un abogado tienen permiso de UPDATE
+   * general sobre casos_tablon — no falla de forma visible si el RPC no
+   * responde, es una métrica secundaria y no debe interrumpir la carga de
+   * la página.
+   */
+  async registrarVisualizacion(casoId) {
+    const { error } = await _cliente.rpc('registrar_visualizacion_caso_tablon', { p_caso_id: casoId });
+    if (error) console.error('[api.tablon.registrarVisualizacion]', error.message);
+  },
+
+  /**
    * Publica un nuevo caso en El Tablón. Solo clientes con rol='cliente'
    * (política RLS de INSERT). El trigger fn_verificar_limite_casos_tablon
    * rechaza el INSERT si el cliente ya alcanzó config_tablon.limite_publicaciones_diarias_cliente

@@ -15,7 +15,7 @@
 
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
-import { toast, mensajeAmigable, rutaPanelPropio, generarCheckboxSeguimiento, generarBotonFavorito, generarMenuTarjeta, inicializarMenuTarjeta, actualizarControlesFavorito, abrirModalBloqueo, MENSAJE_AGREGADO_SEGUIMIENTO } from './utils.js';
+import { toast, mensajeAmigable, rutaPanelPropio, generarCheckboxSeguimiento, generarBotonFavorito, generarMenuTarjeta, inicializarMenuTarjeta, actualizarControlesFavorito, abrirModalBloqueo, generarContadorVisualizaciones, MENSAJE_AGREGADO_SEGUIMIENTO } from './utils.js';
 import { inicializarHeader } from './header.js';
 
 const ORIGEN = 'tablon';
@@ -301,7 +301,10 @@ function generarCasoClienteCard(c) {
           <p class="solicitud-item__fecha">Publicado el ${formatearFecha(c.created_at)} · ${especialidadTexto}</p>
           ${tiempoRestanteHtml}
         </div>
-        <span class="badge ${claseEstado}">${etiquetaEstado}</span>
+        <div class="solicitud-item__header-derecha">
+          <span class="badge ${claseEstado}">${etiquetaEstado}</span>
+          ${generarContadorVisualizaciones(c.visualizaciones ?? 0)}
+        </div>
       </div>
       ${abogadoElegidoHtml}
       ${accionesSolicitudHtml}
