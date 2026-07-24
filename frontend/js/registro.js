@@ -5,7 +5,7 @@
 
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
-import { toast, validarArchivo } from './utils.js';
+import { toast } from './utils.js';
 
 const MENSAJE_EMAILS_NO_COINCIDEN = 'Los correos electrónicos no coinciden. Por favor verifique.';
 
@@ -178,9 +178,6 @@ async function manejarRegistroAbogado(evento) {
   const password = document.getElementById('abogadoPassword').value;
   const provincia = document.getElementById('abogadoProvincia').value;
   const especialidades = obtenerEspecialidadesSeleccionadas('especialidadesAbogado');
-  const docCarnet = document.getElementById('abogadoDocCarnet').files[0];
-  const docCedulaAnverso = document.getElementById('abogadoDocCedulaAnverso').files[0];
-  const docCedulaReverso = document.getElementById('abogadoDocCedulaReverso').files[0];
   const errorEl = document.getElementById('errorAbogado');
   const btnEl = document.getElementById('btnRegistrarAbogado');
 
@@ -202,21 +199,6 @@ async function manejarRegistroAbogado(evento) {
   }
   if (especialidades.length === 0) {
     errorEl.textContent = 'Seleccione al menos una especialidad.';
-    return;
-  }
-  const errorCarnet = validarArchivo(docCarnet);
-  if (errorCarnet) {
-    errorEl.textContent = `Carné de abogado: ${errorCarnet}`;
-    return;
-  }
-  const errorCedulaAnverso = validarArchivo(docCedulaAnverso);
-  if (errorCedulaAnverso) {
-    errorEl.textContent = `Cédula — parte frontal: ${errorCedulaAnverso}`;
-    return;
-  }
-  const errorCedulaReverso = validarArchivo(docCedulaReverso);
-  if (errorCedulaReverso) {
-    errorEl.textContent = `Cédula — parte posterior: ${errorCedulaReverso}`;
     return;
   }
 
@@ -271,8 +253,6 @@ async function manejarRegistroEstudio(evento) {
   const password = document.getElementById('estudioPassword').value;
   const provincia = document.getElementById('estudioProvincia').value;
   const especialidades = obtenerEspecialidadesSeleccionadas('especialidadesEstudio');
-  const docRuc = document.getElementById('estudioDocRuc').files[0];
-  const docNombramiento = document.getElementById('estudioDocNombramiento').files[0];
   const errorEl = document.getElementById('errorEstudio');
   const btnEl = document.getElementById('btnRegistrarEstudio');
 
@@ -294,16 +274,6 @@ async function manejarRegistroEstudio(evento) {
   }
   if (especialidades.length === 0) {
     errorEl.textContent = 'Seleccione al menos una especialidad.';
-    return;
-  }
-  const errorRuc = validarArchivo(docRuc);
-  if (errorRuc) {
-    errorEl.textContent = `Documento de RUC: ${errorRuc}`;
-    return;
-  }
-  const errorNombramiento = validarArchivo(docNombramiento);
-  if (errorNombramiento) {
-    errorEl.textContent = `Nombramiento del representante: ${errorNombramiento}`;
     return;
   }
 
