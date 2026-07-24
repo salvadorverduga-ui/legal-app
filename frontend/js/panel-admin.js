@@ -182,12 +182,19 @@ async function generarVerificacionCard(v) {
     ? `${escaparHtml(v.nombre_estudio)} <span class="verificacion-item__detalle-etiqueta">(representante: ${escaparHtml(v.nombre_solicitante)})</span>`
     : escaparHtml(v.nombre_solicitante);
 
+  const nombreParaAvatar = v.tipo === 'estudio' ? v.nombre_estudio : v.nombre_solicitante;
+  const fotoUrl = v.foto_url ? api.storage.getPublicUrl('avatares', v.foto_url) : null;
+  const avatarHtml = fotoUrl
+    ? `<img src="${escaparAtrib(fotoUrl)}" alt="Foto de ${escaparAtrib(nombreParaAvatar)}">`
+    : `<div class="avatar-placeholder" aria-hidden="true">${escaparHtml(obtenerIniciales(nombreParaAvatar))}</div>`;
+
   const documentosHtml = await generarEnlacesDocumentos(v);
   const rechazoAbierto = verificacionConRechazoAbierto === v.id;
 
   return `
     <article class="verificacion-item">
       <div class="verificacion-item__header">
+        <div class="verificacion-item__avatar" aria-hidden="true">${avatarHtml}</div>
         <div>
           <span class="badge badge--${v.tipo === 'estudio' ? 'estudio' : 'individual'}">${etiquetaTipo}</span>
           <p class="verificacion-item__nombre">${nombreMostrado}</p>
@@ -498,6 +505,16 @@ async function manejarSubmitConfigTablon(e) {
 }
 
 // ─── Helpers de presentación ────────────────────────────────────────────────
+function obtenerIniciales(nombre) {
+  if (!nombre) return '?';
+  return nombre
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map(p => p[0]?.toUpperCase() ?? '')
+    .join('');
+}
+
 function formatearFecha(fechaIso) {
   if (!fechaIso) return '';
   return new Date(fechaIso).toLocaleDateString('es-EC', {
