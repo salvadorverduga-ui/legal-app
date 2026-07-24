@@ -917,4 +917,41 @@ Accesible para cualquier rol autenticado desde "Configuración de cuenta" en el 
 
 ---
 
+## 39. Fixes y mejoras de smoke test (2026-07-25)
+
+Ronda de 7 módulos detectados durante smoke test, cada uno con su propio commit en `main`. Migraciones nuevas: `20260725_061_verificacion_pendiente_automatica.sql`, `062_notificacion_nueva_solicitud_url.sql`, `063_visibilidad_publica_abogado.sql`, `064_visualizaciones_tablon.sql` — todas aplicadas vía Supabase MCP.
+
+### Módulo 1 — Mensaje y redirección post-registro abogado
+`mostrarConfirmacion()` (`registro.js`) acepta ahora un cuarto parámetro opcional `{ redireccionAutomatica }`, usado solo en el flujo de abogado (cliente y estudio no cambian). Cuando es `true`, muestra el toast "Registro exitoso..." y arranca `iniciarRedireccionAutomatica()`: un contador visible de 5 segundos (`#contadorRedireccion`) que redirige a `/` al llegar a 0.
+
+### Módulo 2 — Verificación pendiente automática
+Diagnóstico confirmado en producción vía MCP: `fn_crear_fila_abogado` nunca insertaba en `verificaciones` — la única vía era `enviarDocumentosVerificacion()`, que solo corre si el `signUp` devuelve sesión de inmediato (nunca ocurre con confirmación de correo obligatoria). Resultado: ningún abogado nuevo generaba fila, así que `admin_verificaciones_pendientes` siempre estaba vacía.
+
+Fix: `fn_crear_fila_abogado` gana un segundo bloque `BEGIN/EXCEPTION` (subtransacción independiente, mismo criterio que el bloque de referidos ya existente) que inserta una fila `PENDIENTE` vacía al crear el abogado. Para no duplicar esa fila si el signUp sí trae sesión activa, `enviarDocumentosVerificacion()` (`api.js`) ahora busca la fila `PENDIENTE` existente del abogado y la actualiza (`UPDATE`) en vez de insertar una nueva — requirió una política RLS nueva, `abogado_actualiza_verificacion_pendiente` (UPDATE, solo mientras `estado='PENDIENTE'`, congela `estado`/`revisado_por`/`revisado_at`/`motivo_rechazo`, mismo patrón "congelado" que `20260707_033_editar_solicitud.sql`). La migración incluye un backfill de los abogados existentes sin ninguna fila en `verificaciones`.
+
+### Módulo 3 — Ocultar formulario de solicitud tras envío
+`perfil-abogado.html`: nuevo botón "Hacer otra consulta a este abogado" en `.mensaje-confirmacion__botones` (junto a "Ver mi panel"/"Volver a la búsqueda"). Al enviar la solicitud, se ocultan tanto `#formSolicitud` como `#tituloSolicitud` (antes solo se ocultaba el formulario, el título "Solicitar consulta" quedaba visible sobre la confirmación). El botón nuevo llama a `reiniciarFormularioSolicitud()` (`form.reset()` + contador + error limpios) y vuelve a mostrar título y formulario.
+
+### Módulo 4 — Redirección tras login desde perfil de abogado
+`perfil-abogado.js` agrega un listener sobre cualquier `a[href="/"]` de la página (cubre tanto el "Iniciar sesión" del header como "Inicie sesión para contactar a este abogado" de `#seccionSinSesion`) que guarda `sessionStorage.setItem('redirect_after_login', window.location.href)` antes de navegar. `app.js`, en `manejarIngresar()`, revisa ese valor tras un login exitoso (después de validar que el rol coincide con el flujo elegido) y redirige ahí en vez de al panel por rol, limpiando la clave. Sin cambios en `index.html` — el mecanismo es genérico y no afecta el flujo normal de login (la clave nunca se setea si no se pasó primero por un enlace `href="/"` de una página anónima).
+
+### Módulo 5 — Notificación de nueva solicitud lleva a la solicitud concreta
+`fn_notificar_nueva_solicitud()` arma `url_destino` con el id de la solicitud en vez de apuntar siempre a `/pages/panel-abogado?tab=solicitudes`. Como esta misma función también se dispara para solicitudes creadas desde El Tablón (`fn_crear_solicitud_desde_tablon` hace su `INSERT` sobre la misma tabla `solicitudes`), la URL se resuelve según `NEW.caso_tablon_id`: `NULL` → `/pages/solicitudes-directas?solicitud=<id>`, no `NULL` → `/pages/solicitudes-tablon?solicitud=<id>` (esa página no resalta la tarjeta, pero al menos no manda a un listado que estructuralmente no la mostraría — `solicitudes-directas.html` filtra `.is('caso_tablon_id', null)`).
+
+`solicitudes-directas.js` lee `?solicitud=` de la URL al cargar (`resaltarSolicitudDesdeUrl()`), hace scroll a la tarjeta (`#solicitud-<id>`, id nuevo en el `<article>`) y le agrega la clase `.solicitud-item--resaltada` (borde/fondo dorado) por 3 segundos.
+
+### Módulo 6 — Visibilidad pública configurable con preview
+Migración `063`: `abogados.visible_publico` (boolean, default `false`) y `abogados.campos_publicos` (jsonb, default con `foto`/`especialidades`/`provincia`/`rating` en `true` y `precio`/`zonas_servicio` en `false`). Ambas columnas son de edición libre por el propio abogado — `abogado_update_propio` no las congela, solo `verificacion`/`suscripcion_vigente_hasta`/`codigo_referido`.
+
+**La restricción es exclusiva de visitantes sin sesión.** La vista `busqueda_abogados` (única superficie de lectura de `anon`, que no tiene ningún GRANT directo sobre la tabla `abogados`) gana en el `WHERE` la condición `(auth.uid() IS NOT NULL OR visible_publico = true)` — un cliente con sesión sigue viendo todos los abogados verificados con suscripción vigente, sin ningún cambio. Los campos foto/especialidades/provincia-cantón/precio/rating/zonas_servicio se enmascaran a `NULL` (o `0`/`'{}'` según tipo) solo cuando `auth.uid() IS NULL`, según cada flag de `campos_publicos` — nunca para sesiones autenticadas. `busqueda.js`/`perfil-abogado.js` no necesitaron ningún cambio: ya manejaban con gracia campos `null`/vacíos (avatar con iniciales, sin chips de especialidad, sin precio, "Sin reseñas", etc.).
+
+`editar-perfil-abogado.html` agrega la sección "Visibilidad pública": toggle principal (`.toggle-switch`, reutilizado de `toggleDisponible`), seis checkboxes (`.radio-pills--multiple`, mismo componente que especialidades) y un preview en vivo a la derecha en desktop (`.visibilidad-publica__layout`, grid `1.2fr 1fr` desde 900px) que reutiliza el markup de `.card-abogado` de `busqueda.js`. El preview reacciona a cualquier campo que aparezca en la tarjeta (especialidades/precio/provincia/cantón de `formPerfil`, zonas de servicio, y los checkboxes de visibilidad) sin necesidad de guardar — lee directamente los inputs del DOM, no un estado separado. Guarda con `api.abogados.actualizarPerfilAbogado({ visible_publico, campos_publicos })` (mismo endpoint que el resto del perfil, ambos campos se agregaron a su lista blanca), en un formulario (`#formVisibilidad`) independiente del formulario principal.
+
+### Módulo 7 — Contador de visualizaciones en El Tablón
+Migración `064`: `casos_tablon.visualizaciones` (integer, default `0`), incrementada por la función `registrar_visualizacion_caso_tablon(p_caso_id)` (`SECURITY DEFINER`, `GRANT EXECUTE TO authenticated`) — ni el cliente dueño ni un abogado tienen ningún permiso de `UPDATE` general sobre `casos_tablon` (solo `cliente_cierra_caso_tablon` para la transición a `CERRADO`), así que incrementar el contador necesita este mecanismo, mismo criterio que otras funciones `SECURITY DEFINER` de utilidad acotada (`fn_existe_bloqueo`, `validar_codigo_referido`). La columna se agregó al final de las tres vistas que la exponen (`tablon_casos_abogado`, `tablon_casos_cliente`, `tablon_caso_detalle`) — `solicitudes-tablon.html` (vista cliente) no necesitó ningún cambio de backend porque ya consume `tablon_casos_cliente` completa (§28).
+
+`tablon-caso.js` llama a `api.tablon.registrarVisualizacion(casoId)` sin esperar la respuesta (fire-and-forget: es una métrica secundaria, no debe retrasar ni bloquear la carga de la página si falla) e incrementa `casoActual.visualizaciones` localmente en 1 para reflejarlo de inmediato en la cabecera, sin volver a consultar el detalle. `generarContadorVisualizaciones(total)` (ícono de ojo SVG inline + número, `utils.js`) se reutiliza en la tarjeta de `tablon.html` (ambas vistas, cliente y abogado), en la cabecera de `tablon-caso.html` y en la tarjeta de `solicitudes-tablon.html` (vista cliente).
+
+---
+
 *Actualizar este archivo con cada decisión técnica relevante*
