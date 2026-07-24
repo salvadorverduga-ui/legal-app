@@ -250,7 +250,8 @@ async function manejarRegistroAbogado(evento) {
       : '';
 
     mostrarConfirmacion('formAbogado', 'confirmacionAbogado',
-      `Le enviamos un enlace de confirmación. ${notaDocumentos} Su perfil será visible tras verificación en 24–48 horas hábiles.${notaRed}`);
+      `Le enviamos un enlace de confirmación. ${notaDocumentos} Su perfil será visible tras verificación en 24–48 horas hábiles.${notaRed}`,
+      { redireccionAutomatica: true });
 
   } catch (err) {
     console.error('[registro] ERROR COMPLETO (debug temporal, abogado):', err);
@@ -343,15 +344,40 @@ async function manejarRegistroEstudio(evento) {
 }
 
 // ─── Confirmación post-registro ───────────────────────────────────────────────
-function mostrarConfirmacion(idFormulario, idConfirmacion, mensaje) {
+// `redireccionAutomatica` solo se usa en el flujo de abogado (§ registro abogado):
+// muestra un contador visible de 5 segundos y redirige a la landing. Cliente y
+// estudio conservan el comportamiento anterior (mensaje sin redirección).
+function mostrarConfirmacion(idFormulario, idConfirmacion, mensaje, { redireccionAutomatica = false } = {}) {
   document.getElementById(idFormulario).hidden = true;
   const contenedor = document.getElementById(idConfirmacion);
   contenedor.hidden = false;
   contenedor.innerHTML = `
     <p class="mensaje-confirmacion__titulo">Revise su correo</p>
     <p>${mensaje}</p>
+    ${redireccionAutomatica ? '<p class="mensaje-confirmacion__redireccion" id="contadorRedireccion"></p>' : ''}
   `;
-  toast.exito('Cuenta creada. Revise su correo para confirmar.');
+
+  if (redireccionAutomatica) {
+    toast.exito('Registro exitoso. Revise su correo para confirmar su cuenta. Una vez confirmada, podrá completar su perfil.');
+    iniciarRedireccionAutomatica('contadorRedireccion');
+  } else {
+    toast.exito('Cuenta creada. Revise su correo para confirmar.');
+  }
+}
+
+function iniciarRedireccionAutomatica(idContador) {
+  const el = document.getElementById(idContador);
+  let segundos = 5;
+  el.textContent = `Redirigiendo en ${segundos}...`;
+  const intervalo = setInterval(() => {
+    segundos--;
+    if (segundos <= 0) {
+      clearInterval(intervalo);
+      window.location.href = '/';
+      return;
+    }
+    el.textContent = `Redirigiendo en ${segundos}...`;
+  }, 1000);
 }
 
 // ─── Traducción de errores de Supabase Auth ───────────────────────────────────

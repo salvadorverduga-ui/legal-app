@@ -785,6 +785,11 @@ p {
   flex-wrap: wrap;
 }
 
+.mensaje-confirmacion__redireccion {
+  font-size: var(--texto-sm);
+  color: var(--color-texto-suave);
+}
+
 /* Stepper: estado visual de la solicitud (Enviada → Respondida → Consulta realizada) */
 .stepper {
   display: flex;
