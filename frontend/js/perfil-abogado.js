@@ -221,7 +221,24 @@ function configurarEventos(abogadoId) {
     manejarEnvioSolicitud(abogadoId);
   });
 
+  document.getElementById('btnNuevaConsulta').addEventListener('click', () => {
+    document.getElementById('confirmacionSolicitud').hidden = true;
+    document.getElementById('tituloSolicitud').hidden = false;
+    reiniciarFormularioSolicitud();
+    document.getElementById('seccionSolicitud').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  });
+
   document.getElementById('perfilFavoritoContenedor').addEventListener('click', manejarClickFavorito);
+}
+
+// Vacía el formulario y lo vuelve a mostrar tras "Hacer otra consulta a este
+// abogado" — mismos campos que deja limpios un primer ingreso a la página.
+function reiniciarFormularioSolicitud() {
+  const form = document.getElementById('formSolicitud');
+  form.reset();
+  document.getElementById('contadorDescripcion').textContent = '0 / 500';
+  document.getElementById('errorSolicitud').textContent = '';
+  form.hidden = false;
 }
 
 // ─── Favoritos ─────────────────────────────────────────────────────────────
@@ -313,6 +330,7 @@ async function manejarEnvioSolicitud(abogadoId) {
       return;
     }
 
+    document.getElementById('tituloSolicitud').hidden = true;
     document.getElementById('formSolicitud').hidden = true;
     document.getElementById('confirmacionSolicitud').hidden = false;
     toast.exito('Solicitud enviada.');
