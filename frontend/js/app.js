@@ -219,6 +219,16 @@ async function manejarIngresar(evento) {
       return;
     }
 
+    // Si el visitante llegó al login desde el perfil público de un abogado
+    // (o cualquier otra página anónima que guarde este valor antes de
+    // redirigir, ver perfil-abogado.js), vuelve ahí en vez de a su panel.
+    const redireccionGuardada = sessionStorage.getItem('redirect_after_login');
+    if (redireccionGuardada) {
+      sessionStorage.removeItem('redirect_after_login');
+      window.location.href = redireccionGuardada;
+      return;
+    }
+
     redirigirSegunRol(perfil.rol);
 
   } catch (err) {

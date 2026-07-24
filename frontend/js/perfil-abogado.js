@@ -229,6 +229,16 @@ function configurarEventos(abogadoId) {
   });
 
   document.getElementById('perfilFavoritoContenedor').addEventListener('click', manejarClickFavorito);
+
+  // Un visitante sin cuenta puede iniciar sesión desde el enlace del header
+  // o desde "Inicie sesión para contactar a este abogado" (#seccionSinSesion)
+  // — ambos apuntan a "/". Guardamos esta URL para volver aquí tras el login
+  // exitoso (ver app.js, manejarIngresar).
+  document.querySelectorAll('a[href="/"]').forEach(enlace => {
+    enlace.addEventListener('click', () => {
+      sessionStorage.setItem('redirect_after_login', window.location.href);
+    });
+  });
 }
 
 // Vacía el formulario y lo vuelve a mostrar tras "Hacer otra consulta a este
