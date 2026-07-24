@@ -99,6 +99,22 @@ async function inicializar() {
 
   mostrarContenido();
   configurarEventos();
+  resaltarSolicitudDesdeUrl();
+}
+
+// Notificación "Nueva solicitud de consulta" (fn_notificar_nueva_solicitud,
+// migración 20260725_062): llega con ?solicitud=<id> en la URL para que el
+// abogado la ubique directamente en vez de buscarla en toda la lista.
+function resaltarSolicitudDesdeUrl() {
+  const idResaltar = new URLSearchParams(window.location.search).get('solicitud');
+  if (!idResaltar) return;
+
+  const elemento = document.getElementById(`solicitud-${idResaltar}`);
+  if (!elemento) return;
+
+  elemento.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  elemento.classList.add('solicitud-item--resaltada');
+  setTimeout(() => elemento.classList.remove('solicitud-item--resaltada'), 3000);
 }
 
 // ─── Control de estados visuales ─────────────────────────────────────────────
@@ -234,7 +250,7 @@ function generarSolicitudCardAbogado(s) {
   ]);
 
   return `
-    <article class="solicitud-item">
+    <article class="solicitud-item" id="solicitud-${idSeguro}">
       <div class="solicitud-item__header">
         <div class="solicitud-item__cliente">
           <div class="solicitud-item__avatar">${avatarHtml}</div>
@@ -377,7 +393,7 @@ function generarSolicitudCardCliente(s) {
   ]);
 
   return `
-    <article class="solicitud-item">
+    <article class="solicitud-item" id="solicitud-${idSeguro}">
       <div class="solicitud-item__header">
         <div class="solicitud-item__cliente">
           <div class="solicitud-item__avatar">${avatarHtml}</div>

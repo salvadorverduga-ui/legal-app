@@ -2441,6 +2441,15 @@ p {
   display: flex;
   flex-direction: column;
   gap: var(--esp-3);
+  transition: border-color 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease;
+}
+
+/* Resalta la tarjeta señalada por ?solicitud=<id> (notificación "Nueva
+   solicitud de consulta") durante 3 segundos, ver solicitudes-directas.js. */
+.solicitud-item--resaltada {
+  border-color: var(--color-acento);
+  background-color: var(--color-primario-suave);
+  box-shadow: 0 0 0 3px var(--color-acento-hover, var(--color-acento));
 }
 
 .solicitud-item__header {
