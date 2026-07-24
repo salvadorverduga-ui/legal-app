@@ -34,47 +34,73 @@
           <div id="contenidoFormulario" hidden>
             <h1 class="auth__titulo" id="tituloSubirDocumentos">Documentos de verificación</h1>
             <p class="auth__aviso">
-              Para completar su verificación, suba los siguientes documentos. Su perfil no será
-              visible en las búsquedas hasta que el administrador los revise y apruebe.
+              Mientras su cuenta esté pendiente de verificación no podrá recibir solicitudes de
+              clientes ni usar El Tablón. Suba los siguientes documentos para que el administrador
+              revise su solicitud — la revisión toma entre 24 y 48 horas hábiles.
             </p>
 
             <form id="formSubirDocumentos" class="formulario" novalidate>
 
               <!-- Campos para abogado individual -->
               <div id="camposAbogado" hidden>
-                <div class="campo">
+                <div class="campo campo-documento">
                   <label for="docCarnet" class="campo__etiqueta">Foto del carné de abogado</label>
+                  <p class="campo-documento__motivo">Confirma que está habilitado para ejercer la abogacía en Ecuador.</p>
                   <input type="file" id="docCarnet" name="doc_carnet" class="campo__input campo__input--archivo"
-                    accept="image/jpeg,image/png,application/pdf">
+                    accept="image/jpeg,image/png,application/pdf" data-campo="carnet">
                   <span class="campo__ayuda">JPG, PNG o PDF. Máximo 5 MB.</span>
+                  <div class="subida-progreso" id="progresoCarnet" hidden>
+                    <div class="subida-progreso__barra"><div class="subida-progreso__relleno" id="progresoCarnetRelleno"></div></div>
+                    <span class="subida-progreso__estado" id="progresoCarnetEstado"></span>
+                  </div>
                 </div>
-                <div class="campo">
+                <div class="campo campo-documento">
                   <label for="docCedulaAnverso" class="campo__etiqueta">Cédula — parte frontal</label>
+                  <p class="campo-documento__motivo">Verifica su identidad.</p>
                   <input type="file" id="docCedulaAnverso" name="doc_cedula_anverso" class="campo__input campo__input--archivo"
-                    accept="image/jpeg,image/png,application/pdf">
+                    accept="image/jpeg,image/png,application/pdf" data-campo="cedulaAnverso">
                   <span class="campo__ayuda">JPG, PNG o PDF. Máximo 5 MB.</span>
+                  <div class="subida-progreso" id="progresoCedulaAnverso" hidden>
+                    <div class="subida-progreso__barra"><div class="subida-progreso__relleno" id="progresoCedulaAnversoRelleno"></div></div>
+                    <span class="subida-progreso__estado" id="progresoCedulaAnversoEstado"></span>
+                  </div>
                 </div>
-                <div class="campo">
+                <div class="campo campo-documento">
                   <label for="docCedulaReverso" class="campo__etiqueta">Cédula — parte posterior</label>
+                  <p class="campo-documento__motivo">Verifica su identidad.</p>
                   <input type="file" id="docCedulaReverso" name="doc_cedula_reverso" class="campo__input campo__input--archivo"
-                    accept="image/jpeg,image/png,application/pdf">
+                    accept="image/jpeg,image/png,application/pdf" data-campo="cedulaReverso">
                   <span class="campo__ayuda">JPG, PNG o PDF. Máximo 5 MB.</span>
+                  <div class="subida-progreso" id="progresoCedulaReverso" hidden>
+                    <div class="subida-progreso__barra"><div class="subida-progreso__relleno" id="progresoCedulaReversoRelleno"></div></div>
+                    <span class="subida-progreso__estado" id="progresoCedulaReversoEstado"></span>
+                  </div>
                 </div>
               </div>
 
               <!-- Campos para estudio jurídico -->
               <div id="camposEstudio" hidden>
-                <div class="campo">
+                <div class="campo campo-documento">
                   <label for="docRuc" class="campo__etiqueta">Documento de RUC</label>
+                  <p class="campo-documento__motivo">Confirma que el estudio está registrado legalmente.</p>
                   <input type="file" id="docRuc" name="doc_ruc" class="campo__input campo__input--archivo"
-                    accept="image/jpeg,image/png,application/pdf">
+                    accept="image/jpeg,image/png,application/pdf" data-campo="ruc">
                   <span class="campo__ayuda">JPG, PNG o PDF. Máximo 5 MB.</span>
+                  <div class="subida-progreso" id="progresoRuc" hidden>
+                    <div class="subida-progreso__barra"><div class="subida-progreso__relleno" id="progresoRucRelleno"></div></div>
+                    <span class="subida-progreso__estado" id="progresoRucEstado"></span>
+                  </div>
                 </div>
-                <div class="campo">
+                <div class="campo campo-documento">
                   <label for="docNombramiento" class="campo__etiqueta">Nombramiento del representante legal</label>
+                  <p class="campo-documento__motivo">Confirma que usted es el representante legal autorizado del estudio.</p>
                   <input type="file" id="docNombramiento" name="doc_nombramiento" class="campo__input campo__input--archivo"
-                    accept="image/jpeg,image/png,application/pdf">
+                    accept="image/jpeg,image/png,application/pdf" data-campo="nombramiento">
                   <span class="campo__ayuda">JPG, PNG o PDF. Máximo 5 MB.</span>
+                  <div class="subida-progreso" id="progresoNombramiento" hidden>
+                    <div class="subida-progreso__barra"><div class="subida-progreso__relleno" id="progresoNombramientoRelleno"></div></div>
+                    <span class="subida-progreso__estado" id="progresoNombramientoEstado"></span>
+                  </div>
                 </div>
               </div>
 
@@ -83,6 +109,13 @@
                 Enviar documentos
               </button>
             </form>
+          </div>
+
+          <!-- Confirmación tras enviar -->
+          <div class="mensaje-confirmacion" id="confirmacionSubirDocumentos" hidden>
+            <p class="mensaje-confirmacion__titulo">Documentos enviados</p>
+            <p>Sus documentos fueron enviados. El administrador revisará su solicitud en 24-48 horas hábiles.</p>
+            <p class="mensaje-confirmacion__redireccion" id="contadorRedireccionDocumentos"></p>
           </div>
 
         </div>

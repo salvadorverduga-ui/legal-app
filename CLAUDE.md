@@ -991,4 +991,30 @@ Migración `20260726_066_fix_recursion_verificaciones.sql`: `fn_verificacion_pre
 
 ---
 
+## 42. Reversión de sesión inmediata: acceso limitado hasta aprobación del admin
+
+§41 preparó `registro.js` para sesión inmediata (confirmación de correo desactivada). Esta ronda revierte esa preparación — la confirmación de correo sigue obligatoria en producción — y la reemplaza por una estrategia distinta: el abogado/estudio confirma su correo, ingresa, y usa la app con **acceso limitado** hasta que el admin aprueba su verificación.
+
+### Reversión en `registro.js`
+Los tres handlers (`manejarRegistroCliente`/`Abogado`/`Estudio`) vuelven a mostrar siempre "Le enviamos un enlace de confirmación..." tras `signUp()`, sin ninguna rama para `data.session` — no hay sesión en ese punto (confirmación obligatoria), así que ya no se intenta `enviarDocumentosVerificacion()` en el registro. El doble campo de email (§41) no se tocó. Mensaje de abogado/estudio actualizado: "Tras confirmar su correo e ingresar, podrá subir sus documentos de verificación." `rutaPanelPropio` dejó de usarse en este archivo (ya no hay redirección directa al panel desde acá) y se quitó del import.
+
+### Acceso restringido para abogados no aprobados
+Nuevo helper `redirigirSiAbogadoNoAprobado(rol, abogadoPropio?)` en `utils.js`: si `rol === 'abogado'` y `abogados.verificacion` no es `VERIFICADO` (o sea, `PENDIENTE` o `RECHAZADO`), muestra `MENSAJE_ACCESO_RESTRINGIDO_ABOGADO` por toast y redirige a `/pages/panel-abogado`, retornando `true` para que el caller corte su propio `inicializar()` con `if (await redirigirSiAbogadoNoAprobado(rol)) return;`. El segundo parámetro es opcional — si el caller ya tiene la fila de `abogados` cargada (para armar `urlPerfilPublico`, patrón ya existente en varias páginas), se la pasa para no duplicar la consulta.
+
+Cableado en las cuatro páginas bloqueadas para abogados no aprobados: `busqueda.js`, `tablon.js`, `tablon-caso.js`, `solicitudes-directas.js` — siempre inmediatamente después de resolver el rol, antes de cualquier otra carga de datos. `tablon.js` tenía ya una noción parecida (`esAbogadoVerificado`, con un estado `#estadoNoVerificado` in-page) que databa de antes de este módulo — se reemplazó por el redirect uniforme y se eliminó el markup ahora inalcanzable de `tablon.html`. `solicitudes-tablon.html` no está en la lista de páginas bloqueadas (un abogado no aprobado nunca pudo aplicar a un caso del Tablón, así que esa página ya le queda estructuralmente vacía sin necesidad de bloquearla).
+
+### `panel-abogado.html`/`.js`: pestañas y banner
+`aplicarAccesoLimitado()` oculta `#tabSolicitudes`/`#tabResenas` (y los accesos rápidos equivalentes de Inicio, `#accesoRapidoSolicitudes`/`#accesoRapidoTablon`) cuando `abogadoActual.verificacion !== 'VERIFICADO'`. `cambiarTab()` gana una guarda que nunca activa una pestaña con el botón oculto, así que ni un click directo (imposible, el botón está oculto), ni un acceso rápido, ni un `?tab=solicitudes` en la URL pueden saltarse la restricción.
+
+El banner `#bannerVerificacionDocumentos` (§40) se generaliza: antes solo aparecía en `PENDIENTE` sin documentos subidos; ahora cubre todo el estado de acceso limitado (`PENDIENTE` o `RECHAZADO`, con o sin documentos ya enviados — mientras siga `PENDIENTE` el botón "Subir documentos" sigue siendo válido para reintentar). El texto varía por estado: `PENDIENTE` usa el texto pedido tal cual ("Su cuenta está pendiente de verificación..."); `RECHAZADO` arma un mensaje distinto que incluye `motivo_rechazo` si el admin lo completó.
+
+### `subir-documentos.html`/`.js`: contexto, progreso y confirmación
+Cada campo de archivo gana una línea `.campo-documento__motivo` explicando para qué se pide ese documento. `api.abogados.enviarDocumentosVerificacion()`/`api.estudios.enviarDocumentosVerificacion()` ganan un tercer parámetro opcional `{ onProgreso }` — `(campo, estado)` con `estado` `'subiendo'`/`'completado'`, invocado antes/después de cada `_subirDocumento()` interno (los archivos se suben en secuencia, nunca en paralelo, así que el callback siempre corresponde al archivo real que está subiéndose). `subir-documentos.js` usa ese callback para animar una barra de progreso por archivo (`.subida-progreso`) y marcarlo "Subido ✓" al completarse.
+
+La barra no es progreso real por bytes — la versión de `supabase-js` vendorizada en `frontend/js/vendors/supabase.min.js` (sin build step, CLAUDE.md §2) no expone `onUploadProgress` en `storage.upload()`. Se simula: al empezar, la barra transiciona a 90% con una transición larga (1.5s ease-out); al completarse, salta a 100% de inmediato. Mismo truco de "progreso simulado" que usan otras apps para operaciones sin progreso real disponible.
+
+Tras enviar todos los documentos: se oculta el formulario, se muestra `#confirmacionSubirDocumentos` ("Sus documentos fueron enviados. El administrador revisará su solicitud en 24-48 horas hábiles.") y arranca un contador de 5 segundos que redirige a `rutaPanelPropio(rolUsuario)` — mismo patrón que `iniciarRedireccionAutomatica()` de `registro.js`, con su propia copia local (contextos distintos: acá siempre redirige al panel propio, no a `/`).
+
+---
+
 *Actualizar este archivo con cada decisión técnica relevante*

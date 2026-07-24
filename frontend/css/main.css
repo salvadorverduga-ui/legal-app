@@ -567,6 +567,61 @@ p {
   min-height: 1.25rem; /* evita salto de layout cuando aparece */
 }
 
+/* ── Documento de verificación: motivo + barra de progreso por archivo ──── */
+.campo-documento__motivo {
+  font-size: var(--texto-xs);
+  color: var(--color-texto-suave);
+}
+
+.subida-progreso {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-3);
+  margin-top: var(--esp-1);
+}
+
+.subida-progreso[hidden] {
+  display: none;
+}
+
+.subida-progreso__barra {
+  flex: 1;
+  height: 6px;
+  border-radius: var(--radio-sm);
+  background-color: var(--color-borde-suave);
+  overflow: hidden;
+}
+
+.subida-progreso__relleno {
+  height: 100%;
+  width: 0%;
+  background-color: var(--color-primario);
+  transition: width 1.5s ease-out;
+}
+
+.subida-progreso__estado {
+  font-size: var(--texto-xs);
+  color: var(--color-texto-suave);
+  white-space: nowrap;
+}
+
+.subida-progreso--completo .subida-progreso__relleno {
+  background-color: var(--color-exito);
+}
+
+.subida-progreso--completo .subida-progreso__estado {
+  color: var(--color-exito);
+  font-weight: var(--peso-medio);
+}
+
+.subida-progreso--error .subida-progreso__relleno {
+  background-color: var(--color-error);
+}
+
+.subida-progreso--error .subida-progreso__estado {
+  color: var(--color-error);
+}
+
 .campo__error a {
   color: inherit;
   text-decoration: underline;

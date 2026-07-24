@@ -42,12 +42,9 @@
           <p id="bannerSuscripcionTexto"></p>
         </div>
 
-        <!-- Alerta: verificación pendiente sin documentos subidos -->
+        <!-- Alerta: cuenta con acceso limitado (verificación PENDIENTE o RECHAZADO) -->
         <div class="panel-banner panel-banner--alerta" id="bannerVerificacionDocumentos" hidden>
-          <p>
-            Para completar su verificación, debe subir sus documentos de identidad profesional.
-            Su perfil no será visible hasta que el administrador los revise y apruebe.
-          </p>
+          <p id="bannerVerificacionDocumentosTexto"></p>
           <a class="btn btn--primario btn--sm" href="/pages/subir-documentos">
             Subir documentos
           </a>
@@ -118,8 +115,8 @@
           </div>
 
           <div class="accesos-rapidos">
-            <button class="acceso-rapido" type="button" data-ir-a-tab="Solicitudes">Ver solicitudes</button>
-            <a href="/pages/tablon" class="acceso-rapido">El Tablón</a>
+            <button class="acceso-rapido" type="button" id="accesoRapidoSolicitudes" data-ir-a-tab="Solicitudes">Ver solicitudes</button>
+            <a href="/pages/tablon" class="acceso-rapido" id="accesoRapidoTablon">El Tablón</a>
             <a href="#" class="acceso-rapido" id="inicioVerPerfilPublico" target="_blank" rel="noopener noreferrer">
               Ver mi perfil público
             </a>

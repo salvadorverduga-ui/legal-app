@@ -413,6 +413,29 @@ export function rutaPanelPropio(rol) {
   return RUTAS_PANEL_POR_ROL[rol] ?? '/';
 }
 
+// ─── Acceso restringido para abogados no aprobados ─────────────────────────
+// Un abogado con abogados.verificacion PENDIENTE o RECHAZADO no puede usar
+// las páginas donde interactúa con clientes (búsqueda, El Tablón,
+// solicitudes) hasta que el administrador apruebe su verificación — solo
+// puede quedarse en su panel (pestañas Inicio/Suscripción), editar su
+// perfil, subir documentos, cambiar su contraseña o gestionar bloqueados.
+// `abogadoPropio` es opcional: si el caller ya cargó la fila de `abogados`
+// (ej. para armar urlPerfilPublico), se reutiliza en vez de volver a
+// consultarla.
+export const MENSAJE_ACCESO_RESTRINGIDO_ABOGADO =
+  'Su cuenta debe estar verificada por el administrador para acceder a esta sección.';
+
+export async function redirigirSiAbogadoNoAprobado(rol, abogadoPropio) {
+  if (rol !== 'abogado') return false;
+
+  const abogado = abogadoPropio ?? await api.abogados.getPerfilPropio();
+  if (abogado?.verificacion === 'VERIFICADO') return false;
+
+  toast.error(MENSAJE_ACCESO_RESTRINGIDO_ABOGADO);
+  window.location.href = '/pages/panel-abogado';
+  return true;
+}
+
 // ─── Validación de archivos de verificación (documentos de identidad) ──────
 // Usada en registro.js (registro de abogado/estudio) y subir-documentos.js
 // (subida diferida tras confirmar el correo) — mismas reglas en los dos.

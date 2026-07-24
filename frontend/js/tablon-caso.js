@@ -5,7 +5,7 @@
 
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
-import { toast, mensajeAmigable, confirmar, generarCheckboxSeguimiento, generarContadorVisualizaciones, MENSAJE_AGREGADO_SEGUIMIENTO } from './utils.js';
+import { toast, mensajeAmigable, confirmar, generarCheckboxSeguimiento, generarContadorVisualizaciones, MENSAJE_AGREGADO_SEGUIMIENTO, redirigirSiAbogadoNoAprobado } from './utils.js';
 import { inicializarHeader } from './header.js';
 
 const ETIQUETAS_ESTADO_CASO = {
@@ -62,6 +62,8 @@ async function inicializar() {
     window.location.href = '/';
     return;
   }
+
+  if (await redirigirSiAbogadoNoAprobado(perfilActual.rol)) return;
 
   casoId = new URLSearchParams(window.location.search).get('id');
   if (!casoId) {

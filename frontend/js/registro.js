@@ -5,7 +5,7 @@
 
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
-import { toast, validarArchivo, rutaPanelPropio } from './utils.js';
+import { toast, validarArchivo } from './utils.js';
 
 const MENSAJE_EMAILS_NO_COINCIDEN = 'Los correos electrónicos no coinciden. Por favor verifique.';
 
@@ -143,24 +143,12 @@ async function manejarRegistroCliente(evento) {
   btnEl.textContent = 'Creando cuenta...';
 
   try {
-    const { data, error } = await api.auth.registrarCliente({ email, password, nombre_completo });
+    const { error } = await api.auth.registrarCliente({ email, password, nombre_completo });
 
     if (error) {
       const mensaje = traducirErrorAuth(error);
       errorEl.textContent = mensaje;
       toast.error(mensaje);
-      return;
-    }
-
-    // Sesión inmediata: signUp() no requiere confirmación de correo (a
-    // futuro, cuando "Confirm email" esté desactivado en el dashboard de
-    // Supabase — ver CLAUDE.md). El cliente no tiene documentos que subir,
-    // así que solo redirige a su panel.
-    if (data?.session) {
-      toast.exito('Cuenta creada. Ya puede buscar abogados.');
-      setTimeout(() => {
-        window.location.href = rutaPanelPropio('cliente');
-      }, 1200);
       return;
     }
 
@@ -237,7 +225,7 @@ async function manejarRegistroAbogado(evento) {
   btnEl.textContent = 'Creando cuenta...';
 
   try {
-    const { data, error } = await api.auth.registrarAbogado({
+    const { error } = await api.auth.registrarAbogado({
       email, password, nombre_completo, cedula, numero_carnet, especialidades, provincia,
       ref: codigoReferido,
     });
@@ -249,39 +237,15 @@ async function manejarRegistroAbogado(evento) {
       return;
     }
 
-    // Sesión inmediata: signUp() no requiere confirmación de correo (a
-    // futuro, cuando "Confirm email" esté desactivado en el dashboard de
-    // Supabase — ver CLAUDE.md). Se suben los documentos en el mismo acto
-    // y se redirige directo al panel — no hay correo que confirmar.
-    if (data?.session) {
-      const { error: errorDocs } = await api.abogados.enviarDocumentosVerificacion({
-        carnet: docCarnet,
-        cedulaAnverso: docCedulaAnverso,
-        cedulaReverso: docCedulaReverso,
-      });
-
-      if (errorDocs) {
-        // No dejamos al abogado varado: su cuenta ya existe y el banner de
-        // "Subir documentos" en panel-abogado.js (que consulta la misma
-        // fila PENDIENTE) le permite reintentar desde ahí.
-        console.error('[registro] Error al subir documentos con sesión inmediata:', errorDocs.message);
-        toast.error('Su cuenta fue creada, pero no pudimos subir sus documentos. Podrá subirlos desde su panel.');
-      } else {
-        toast.exito('Cuenta creada y documentos enviados. Su perfil será visible tras la verificación.');
-      }
-
-      setTimeout(() => {
-        window.location.href = rutaPanelPropio('abogado');
-      }, 1500);
-      return;
-    }
-
+    // Confirmación de correo obligatoria: no hay sesión en este punto, así
+    // que no se intenta subir documentos acá — se suben después de
+    // confirmar el correo e ingresar, desde subir-documentos.html (ver §40).
     const notaRed = tipoProfesionalActivo === 'red'
       ? ' Podrá vincularse a una red de colaboradores desde su panel una vez verificado.'
       : '';
 
     mostrarConfirmacion('formAbogado', 'confirmacionAbogado',
-      `Le enviamos un enlace de confirmación. Tras confirmar su correo e ingresar, se le pedirá que suba sus documentos de verificación para que el administrador pueda revisar su solicitud. Su perfil será visible tras verificación en 24–48 horas hábiles.${notaRed}`,
+      `Le enviamos un enlace de confirmación. Tras confirmar su correo e ingresar, podrá subir sus documentos de verificación. Su perfil será visible tras verificación en 24–48 horas hábiles.${notaRed}`,
       { redireccionAutomatica: true });
 
   } catch (err) {
@@ -348,7 +312,7 @@ async function manejarRegistroEstudio(evento) {
   btnEl.textContent = 'Creando cuenta...';
 
   try {
-    const { data, error } = await api.auth.registrarEstudio({
+    const { error } = await api.auth.registrarEstudio({
       email, password, nombre_representante, nombre_estudio, ruc, especialidades, provincia,
     });
 
@@ -359,28 +323,11 @@ async function manejarRegistroEstudio(evento) {
       return;
     }
 
-    // Sesión inmediata: signUp() no requiere confirmación de correo (a
-    // futuro, cuando "Confirm email" esté desactivado en el dashboard de
-    // Supabase — ver CLAUDE.md). Se suben los documentos en el mismo acto
-    // y se redirige directo al panel — no hay correo que confirmar.
-    if (data?.session) {
-      const { error: errorDocs } = await api.estudios.enviarDocumentosVerificacion({ ruc: docRuc, nombramiento: docNombramiento });
-
-      if (errorDocs) {
-        console.error('[registro] Error al subir documentos con sesión inmediata:', errorDocs.message);
-        toast.error('Su cuenta fue creada, pero no pudimos subir sus documentos. Podrá subirlos desde su panel.');
-      } else {
-        toast.exito('Cuenta creada y documentos enviados. Su perfil será visible tras la verificación.');
-      }
-
-      setTimeout(() => {
-        window.location.href = rutaPanelPropio('estudio');
-      }, 1500);
-      return;
-    }
-
+    // Confirmación de correo obligatoria: no hay sesión en este punto, así
+    // que no se intenta subir documentos acá — se suben después de
+    // confirmar el correo e ingresar, desde subir-documentos.html (ver §40).
     mostrarConfirmacion('formEstudio', 'confirmacionEstudio',
-      'Le enviamos un enlace de confirmación. Tras confirmar su correo e ingresar, se le pedirá que suba sus documentos de verificación para que el administrador pueda revisar su solicitud. Su perfil será visible tras verificación en 24–48 horas hábiles.');
+      'Le enviamos un enlace de confirmación. Tras confirmar su correo e ingresar, podrá subir sus documentos de verificación. Su perfil será visible tras verificación en 24–48 horas hábiles.');
 
   } catch (err) {
     console.error('[registro] ERROR COMPLETO (debug temporal, estudio):', err);

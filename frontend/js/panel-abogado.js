@@ -108,6 +108,7 @@ async function inicializar() {
     urlPerfilPublico,
   });
 
+  aplicarAccesoLimitado();
   renderizarCabecera();
   renderizarSaludoInicio();
   document.getElementById('inicioVerPerfilPublico').href = urlPerfilPublico;
@@ -159,7 +160,11 @@ function configurarEventos() {
 }
 
 // ─── Navegación por secciones ─────────────────────────────────────────────────
+// Nunca activa una pestaña oculta (acceso limitado, ver aplicarAccesoLimitado)
+// aunque se le pida por click, por acceso rápido o por ?tab= en la URL.
 function cambiarTab(seccion) {
+  if (document.getElementById(`tab${seccion}`)?.hidden) return;
+
   SECCIONES.forEach(nombre => {
     const esActiva = nombre === seccion;
     document.getElementById(`tab${nombre}`).classList.toggle('panel-tab--activo', esActiva);
@@ -227,6 +232,19 @@ function renderizarResumenInicio(resenasTotales, casosTablon) {
   document.getElementById('inicioResenasTotales').textContent = String(resenasTotales);
 }
 
+// ─── Acceso limitado: verificación PENDIENTE o RECHAZADA ────────────────────
+// Un abogado sin verificacion='VERIFICADO' no tiene solicitudes ni reseñas
+// posibles todavía (su perfil no es visible en búsquedas ni en El Tablón —
+// esas páginas lo redirigen acá, ver utils.js/redirigirSiAbogadoNoAprobado),
+// así que esas dos pestañas se ocultan en vez de mostrar contenido vacío.
+function aplicarAccesoLimitado() {
+  const aprobado = abogadoActual.verificacion === 'VERIFICADO';
+  document.getElementById('tabSolicitudes').hidden = !aprobado;
+  document.getElementById('tabResenas').hidden = !aprobado;
+  document.getElementById('accesoRapidoSolicitudes').hidden = !aprobado;
+  document.getElementById('accesoRapidoTablon').hidden = !aprobado;
+}
+
 // ─── Banners: vencimiento de suscripción, documentos y onboarding ────────────
 function actualizarBanners() {
   actualizarBannerSuscripcion();
@@ -256,14 +274,25 @@ function actualizarBannerSuscripcion() {
   banner.hidden = false;
 }
 
-// Documentos de identidad no subidos: la fila PENDIENTE se crea vacía al
-// registrarse (migración 20260725_061), así que esta condición detecta tanto
-// al abogado que nunca los subió como al que aún no confirmó/ingresó.
+// Cuenta con acceso limitado: PENDIENTE (nunca subió documentos, o los subió
+// y sigue esperando revisión — la fila PENDIENTE se crea vacía al registrarse,
+// migración 20260725_061) o RECHAZADO (debe volver a subirlos). En ambos casos
+// el botón "Subir documentos" queda visible: reintentar un envío ya hecho
+// (mientras sigue PENDIENTE) es una operación válida, no solo el primer envío.
 function actualizarBannerVerificacionDocumentos() {
   const banner = document.getElementById('bannerVerificacionDocumentos');
-  const faltanDocumentos = abogadoActual.verificacion === 'PENDIENTE'
-    && !estadoVerificacionActual?.doc_carnet_url;
-  banner.hidden = !faltanDocumentos;
+
+  if (abogadoActual.verificacion === 'VERIFICADO') {
+    banner.hidden = true;
+    return;
+  }
+
+  const textoEl = document.getElementById('bannerVerificacionDocumentosTexto');
+  textoEl.textContent = abogadoActual.verificacion === 'RECHAZADO'
+    ? `Su verificación fue rechazada${estadoVerificacionActual?.motivo_rechazo ? `: ${estadoVerificacionActual.motivo_rechazo}` : ''}. Vuelva a subir sus documentos para que el administrador revise su solicitud nuevamente.`
+    : 'Su cuenta está pendiente de verificación. Suba sus documentos para que el administrador pueda revisar su solicitud.';
+
+  banner.hidden = false;
 }
 
 function actualizarBannerOnboarding() {

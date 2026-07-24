@@ -3,12 +3,12 @@
 // Importa todo desde api.js — nunca consulta Supabase directamente.
 //
 // Punto de entrada para que un abogado o estudio que ya confirmó su correo
-// suba sus documentos de identidad profesional — el registro solo los sube
-// de inmediato si signUp() devuelve sesión activa, algo que nunca ocurre con
-// confirmación de correo obligatoria (ver CLAUDE.md, fix de registro.js).
+// suba sus documentos de identidad profesional — con confirmación de correo
+// obligatoria no hay sesión activa durante el registro (ver registro.js), así
+// que la subida se hace acá, en el primer ingreso posterior.
 // api.abogados.enviarDocumentosVerificacion()/api.estudios.enviarDocumentosVerificacion()
 // ya existían para este propósito — esta página es el único punto del
-// frontend que los invoca fuera del registro.
+// frontend que los invoca.
 
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
@@ -16,6 +16,22 @@ import { toast, mensajeAmigable, validarArchivo, rutaPanelPropio } from './utils
 import { inicializarHeader } from './header.js';
 
 let rolUsuario = null;
+
+// Campos por rol, en el mismo orden en que api.js los sube (secuencial, no en
+// paralelo) — así el callback onProgreso siempre coincide con el campo que
+// realmente está subiéndose en ese momento.
+const CAMPOS_POR_ROL = {
+  abogado: ['carnet', 'cedulaAnverso', 'cedulaReverso'],
+  estudio: ['ruc', 'nombramiento'],
+};
+
+const ETIQUETAS_CAMPO = {
+  carnet:        'Carné de abogado',
+  cedulaAnverso: 'Cédula — parte frontal',
+  cedulaReverso: 'Cédula — parte posterior',
+  ruc:           'Documento de RUC',
+  nombramiento:  'Nombramiento del representante legal',
+};
 
 document.addEventListener('DOMContentLoaded', inicializar);
 
@@ -57,30 +73,59 @@ function mostrarFormulario() {
   document.getElementById('contenidoFormulario').hidden = false;
 }
 
+// ─── Barra de progreso por archivo ───────────────────────────────────────────
+// El bucket de Storage no expone progreso real por bytes en la versión de
+// supabase-js vendorizada acá (sin build step, ver CLAUDE.md §2) — "subiendo"
+// anima la barra hacia ~90% con una transición larga (efecto de progreso
+// simulado, mismo patrón que usan otras apps para subidas sin progreso real)
+// y "completado" la lleva a 100% de inmediato.
+function actualizarProgresoArchivo(campo, estado) {
+  const idSufijo = campo[0].toUpperCase() + campo.slice(1);
+  const contenedor = document.getElementById(`progreso${idSufijo}`);
+  const relleno = document.getElementById(`progreso${idSufijo}Relleno`);
+  const texto = document.getElementById(`progreso${idSufijo}Estado`);
+  if (!contenedor) return;
+
+  contenedor.hidden = false;
+  contenedor.classList.remove('subida-progreso--completo', 'subida-progreso--error');
+
+  if (estado === 'subiendo') {
+    relleno.style.width = '90%';
+    texto.textContent = 'Subiendo...';
+  } else if (estado === 'completado') {
+    relleno.style.width = '100%';
+    texto.textContent = 'Subido ✓';
+    contenedor.classList.add('subida-progreso--completo');
+  }
+}
+
+function marcarErrorProgreso(campos) {
+  campos.forEach(campo => {
+    const idSufijo = campo[0].toUpperCase() + campo.slice(1);
+    const contenedor = document.getElementById(`progreso${idSufijo}`);
+    const texto = document.getElementById(`progreso${idSufijo}Estado`);
+    if (!contenedor || contenedor.classList.contains('subida-progreso--completo')) return;
+    contenedor.hidden = false;
+    contenedor.classList.add('subida-progreso--error');
+    texto.textContent = 'No se pudo subir';
+  });
+}
+
 async function manejarEnvio() {
   const errorEl = document.getElementById('errorSubirDocumentos');
   const btn = document.getElementById('btnEnviarDocumentos');
   errorEl.textContent = '';
 
-  const archivos = rolUsuario === 'estudio'
-    ? {
-        ruc: document.getElementById('docRuc').files[0],
-        nombramiento: document.getElementById('docNombramiento').files[0],
-      }
-    : {
-        carnet: document.getElementById('docCarnet').files[0],
-        cedulaAnverso: document.getElementById('docCedulaAnverso').files[0],
-        cedulaReverso: document.getElementById('docCedulaReverso').files[0],
-      };
+  const campos = CAMPOS_POR_ROL[rolUsuario];
+  const archivos = {};
+  campos.forEach(campo => {
+    archivos[campo] = document.querySelector(`[data-campo="${campo}"]`).files[0];
+  });
 
-  const etiquetasArchivo = rolUsuario === 'estudio'
-    ? { ruc: 'Documento de RUC', nombramiento: 'Nombramiento del representante legal' }
-    : { carnet: 'Carné de abogado', cedulaAnverso: 'Cédula — parte frontal', cedulaReverso: 'Cédula — parte posterior' };
-
-  for (const campo of Object.keys(archivos)) {
+  for (const campo of campos) {
     const errorArchivo = validarArchivo(archivos[campo]);
     if (errorArchivo) {
-      errorEl.textContent = `${etiquetasArchivo[campo]}: ${errorArchivo}`;
+      errorEl.textContent = `${ETIQUETAS_CAMPO[campo]}: ${errorArchivo}`;
       return;
     }
   }
@@ -88,21 +133,44 @@ async function manejarEnvio() {
   btn.disabled = true;
   btn.textContent = 'Enviando...';
 
+  const onProgreso = (campo, estado) => actualizarProgresoArchivo(campo, estado);
+
   const { error } = rolUsuario === 'estudio'
-    ? await api.estudios.enviarDocumentosVerificacion(archivos)
-    : await api.abogados.enviarDocumentosVerificacion(archivos);
+    ? await api.estudios.enviarDocumentosVerificacion(archivos, { onProgreso })
+    : await api.abogados.enviarDocumentosVerificacion(archivos, { onProgreso });
 
   if (error) {
     const mensaje = mensajeAmigable(error, 'No se pudieron enviar los documentos. Intente de nuevo.');
     errorEl.textContent = mensaje;
     toast.error(mensaje);
+    marcarErrorProgreso(campos);
     btn.disabled = false;
     btn.textContent = 'Enviar documentos';
     return;
   }
 
-  toast.exito('Documentos enviados. Le avisaremos cuando su verificación sea revisada.');
-  setTimeout(() => {
-    window.location.href = rutaPanelPropio(rolUsuario);
-  }, 1200);
+  mostrarConfirmacion();
+}
+
+// ─── Confirmación y redirección automática ──────────────────────────────────
+function mostrarConfirmacion() {
+  document.getElementById('contenidoFormulario').hidden = true;
+  document.getElementById('confirmacionSubirDocumentos').hidden = false;
+  toast.exito('Documentos enviados.');
+  iniciarRedireccionAutomatica();
+}
+
+function iniciarRedireccionAutomatica() {
+  const el = document.getElementById('contadorRedireccionDocumentos');
+  let segundos = 5;
+  el.textContent = `Redirigiendo a su panel en ${segundos}...`;
+  const intervalo = setInterval(() => {
+    segundos--;
+    if (segundos <= 0) {
+      clearInterval(intervalo);
+      window.location.href = rutaPanelPropio(rolUsuario);
+      return;
+    }
+    el.textContent = `Redirigiendo a su panel en ${segundos}...`;
+  }, 1000);
 }

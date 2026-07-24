@@ -6,7 +6,7 @@
 
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
-import { toast, mensajeAmigable, rutaPanelPropio, confirmar, generarCheckboxSeguimiento, generarBotonFavorito, generarMenuTarjeta, inicializarMenuTarjeta, actualizarControlesFavorito, abrirModalBloqueo, MENSAJE_AGREGADO_SEGUIMIENTO } from './utils.js';
+import { toast, mensajeAmigable, rutaPanelPropio, confirmar, generarCheckboxSeguimiento, generarBotonFavorito, generarMenuTarjeta, inicializarMenuTarjeta, actualizarControlesFavorito, abrirModalBloqueo, MENSAJE_AGREGADO_SEGUIMIENTO, redirigirSiAbogadoNoAprobado } from './utils.js';
 import { inicializarHeader } from './header.js';
 
 const ORIGEN = 'directa';
@@ -68,6 +68,8 @@ async function inicializar() {
     return;
   }
   rolActual = perfilActual.rol;
+
+  if (await redirigirSiAbogadoNoAprobado(rolActual)) return;
 
   document.getElementById('btnVolverSolicitudes').href = `${rutaPanelPropio(rolActual)}?tab=solicitudes`;
   document.getElementById('btnVolverPanel').href = rutaPanelPropio(rolActual);

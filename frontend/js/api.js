@@ -584,18 +584,31 @@ export const abogados = {
    * uno con su propio prefijo en el path de Storage.
    * archivos: { carnet: File, cedulaAnverso: File, cedulaReverso: File }
    * El admin revisa manualmente desde el panel y aprueba o rechaza.
+   * onProgreso (opcional): (campo, estado) => void, invocado con
+   * estado='subiendo' justo antes de cada archivo y 'completado' justo
+   * después — subir-documentos.js lo usa para la barra de progreso por
+   * archivo. Los archivos se suben en secuencia (no en paralelo), así que
+   * cada callback refleja el archivo que está subiéndose en ese momento.
    * Retorna { data, error }.
    */
-  async enviarDocumentosVerificacion(archivos) {
+  async enviarDocumentosVerificacion(archivos, { onProgreso } = {}) {
     const { data: { user }, error: errUser } = await _cliente.auth.getUser();
     if (errUser || !user) {
       return { data: null, error: errUser ?? { message: 'No hay sesión activa.' } };
     }
 
     try {
+      onProgreso?.('carnet', 'subiendo');
       const doc_carnet_url = await _subirDocumento(user.id, archivos.carnet, 'carnet');
+      onProgreso?.('carnet', 'completado');
+
+      onProgreso?.('cedulaAnverso', 'subiendo');
       const doc_cedula_url = await _subirDocumento(user.id, archivos.cedulaAnverso, 'cedula-anverso');
+      onProgreso?.('cedulaAnverso', 'completado');
+
+      onProgreso?.('cedulaReverso', 'subiendo');
       const doc_cedula_reverso_url = await _subirDocumento(user.id, archivos.cedulaReverso, 'cedula-reverso');
+      onProgreso?.('cedulaReverso', 'completado');
 
       const { data: pendiente } = await _cliente
         .from('verificaciones')
@@ -809,17 +822,23 @@ export const estudios = {
    * representante legal) a Supabase Storage (bucket: verificacion-docs)
    * e inserta una fila en verificaciones con estado='PENDIENTE'.
    * archivos: { ruc: File, nombramiento: File }
+   * onProgreso (opcional): igual firma que en api.abogados.enviarDocumentosVerificacion.
    * Retorna { data, error }.
    */
-  async enviarDocumentosVerificacion(archivos) {
+  async enviarDocumentosVerificacion(archivos, { onProgreso } = {}) {
     const estudio = await this.getEstudioPropio();
     if (!estudio) {
       return { data: null, error: { message: 'No se encontró el estudio del representante.' } };
     }
 
     try {
+      onProgreso?.('ruc', 'subiendo');
       const doc_ruc_url = await _subirDocumento(estudio.id, archivos.ruc, 'ruc');
+      onProgreso?.('ruc', 'completado');
+
+      onProgreso?.('nombramiento', 'subiendo');
       const doc_nombramiento_url = await _subirDocumento(estudio.id, archivos.nombramiento, 'nombramiento');
+      onProgreso?.('nombramiento', 'completado');
 
       const { data, error } = await _cliente
         .from('verificaciones')

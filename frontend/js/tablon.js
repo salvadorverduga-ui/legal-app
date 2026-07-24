@@ -8,7 +8,7 @@
 
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
-import { toast, mensajeAmigable, generarCheckboxSeguimiento, generarContadorVisualizaciones, MENSAJE_AGREGADO_SEGUIMIENTO } from './utils.js';
+import { toast, mensajeAmigable, generarCheckboxSeguimiento, generarContadorVisualizaciones, MENSAJE_AGREGADO_SEGUIMIENTO, redirigirSiAbogadoNoAprobado } from './utils.js';
 import { inicializarHeader } from './header.js';
 
 // ─── Etiquetas y estilos por estado ───────────────────────────────────────────
@@ -75,8 +75,13 @@ async function inicializar() {
   }
 
   let urlPerfilPublico;
+  let abogadoActual = null;
   if (perfilActual.rol === 'abogado') {
-    const abogadoActual = await api.abogados.getPerfilPropio();
+    abogadoActual = await api.abogados.getPerfilPropio();
+    // El Tablón está bloqueado hasta que el admin apruebe la verificación —
+    // redirigirSiAbogadoNoAprobado() ya envía al panel con el aviso.
+    if (await redirigirSiAbogadoNoAprobado(perfilActual.rol, abogadoActual)) return;
+    esAbogadoVerificado = true;
     urlPerfilPublico = abogadoActual ? `/pages/perfil-abogado?id=${abogadoActual.id}` : undefined;
   }
   inicializarHeader({
@@ -86,23 +91,16 @@ async function inicializar() {
     urlPerfilPublico,
   });
 
+  document.getElementById('subtituloTablon').textContent = perfilActual.rol === 'cliente'
+    ? 'Publique su caso para que abogados verificados apliquen a atenderlo.'
+    : 'Aplique a casos publicados por clientes.';
+
   if (perfilActual.rol === 'cliente') {
-    document.getElementById('subtituloTablon').textContent =
-      'Publique su caso para que abogados verificados apliquen a atenderlo.';
     document.getElementById('vistaCliente').hidden = false;
     await cargarMisCasos();
   } else {
-    const abogadoActual = await api.abogados.getPerfilPropio();
-    esAbogadoVerificado = abogadoActual?.verificacion === 'VERIFICADO';
-
-    if (!esAbogadoVerificado) {
-      document.getElementById('subtituloTablon').textContent = 'Aplique a casos publicados por clientes.';
-      document.getElementById('estadoNoVerificado').hidden = false;
-    } else {
-      document.getElementById('subtituloTablon').textContent = 'Aplique a casos publicados por clientes.';
-      document.getElementById('vistaAbogado').hidden = false;
-      await cargarCasosActivos();
-    }
+    document.getElementById('vistaAbogado').hidden = false;
+    await cargarCasosActivos();
   }
 
   mostrarContenido();

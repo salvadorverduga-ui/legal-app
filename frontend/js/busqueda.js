@@ -4,7 +4,7 @@
 
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
-import { toast, mensajeAmigable, generarBotonFavorito, generarMenuTarjeta, inicializarMenuTarjeta, actualizarControlesFavorito, abrirModalBloqueo } from './utils.js';
+import { toast, mensajeAmigable, generarBotonFavorito, generarMenuTarjeta, inicializarMenuTarjeta, actualizarControlesFavorito, abrirModalBloqueo, redirigirSiAbogadoNoAprobado } from './utils.js';
 import { inicializarHeader } from './header.js';
 
 // ─── Etiquetas visibles para tipo_badge ───────────────────────────────────────
@@ -39,6 +39,8 @@ async function inicializar() {
   // resuelve por su cuenta si hay una sesión activa y renderiza el estado
   // correspondiente (nunca "Salir" e "Iniciar sesión" a la vez).
   const perfilActual = await inicializarHeader();
+  if (await redirigirSiAbogadoNoAprobado(perfilActual?.rol)) return;
+
   esCliente = perfilActual?.rol === 'cliente';
   if (esCliente) {
     favoritosIds = new Set(await api.favoritos.getMisFavoritosIds());
