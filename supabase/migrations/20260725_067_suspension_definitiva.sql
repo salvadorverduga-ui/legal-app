@@ -32,6 +32,8 @@ ALTER TABLE perfiles ADD COLUMN IF NOT EXISTS suspendido boolean NOT NULL DEFAUL
 -- SELECT. Sin restricción de columnas, mismo criterio que
 -- admin_update_verificaciones (que tampoco las restringe): el admin ya es
 -- un rol de confianza total sobre las tablas que administra (CLAUDE.md §12).
+DROP POLICY IF EXISTS "admin_update_perfiles" ON perfiles;
+
 CREATE POLICY "admin_update_perfiles" ON perfiles
   FOR UPDATE
   USING (es_admin());
