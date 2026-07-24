@@ -5,7 +5,7 @@
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
 import { inicializarHeader } from './header.js';
-import { toast, mensajeAmigable } from './utils.js';
+import { toast, mensajeAmigable, abrirModalSuspension } from './utils.js';
 
 // ─── Etiquetas y estilos ───────────────────────────────────────────────────
 const ETIQUETAS_TIPO_SOLICITANTE = {
@@ -46,6 +46,8 @@ let verificacionesActuales = [];      // caché local; las acciones actualizan s
 let verificacionConRechazoAbierto = null; // id de la verificación con el campo de motivo visible
 let busquedaVerificaciones = '';       // texto de búsqueda por nombre (abogado o estudio)
 let tipoFiltroVerificacion = '';       // '' = todos | 'abogado' | 'estudio'
+let rechazadasActuales = [];          // sub-sección "Rechazados" de Verificaciones
+let suspendidasActuales = [];         // sub-sección "Suspendidos" de Verificaciones
 
 // ─── Entry point ────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', inicializar);
@@ -79,6 +81,8 @@ async function inicializar() {
 
   await Promise.all([
     cargarVerificaciones(),
+    cargarVerificacionesRechazadas(),
+    cargarCuentasSuspendidas(),
     cargarSuscripciones(),
     cargarMetricas(),
     cargarLogAcciones(),
@@ -108,6 +112,11 @@ function configurarEventos() {
   });
 
   document.getElementById('verificacionesLista').addEventListener('click', manejarClickVerificaciones);
+
+  SUBTABS_VERIFICACION.forEach(nombre => {
+    document.getElementById(`subtab${nombre}`).addEventListener('click', () => cambiarSubtabVerificacion(nombre));
+  });
+  document.getElementById('rechazadosLista').addEventListener('click', manejarClickRechazados);
 
   document.getElementById('buscarVerificaciones').addEventListener('input', (e) => {
     busquedaVerificaciones = e.target.value.trim().toLowerCase();
@@ -174,6 +183,14 @@ async function renderizarVerificaciones() {
   contenedor.innerHTML = tarjetas.join('');
 }
 
+// Compartido entre las tres tarjetas de verificación (pendientes, rechazados, suspendidos).
+function generarAvatarVerificacion(fotoPath, nombre) {
+  const fotoUrl = fotoPath ? api.storage.getPublicUrl('avatares', fotoPath) : null;
+  return fotoUrl
+    ? `<img src="${escaparAtrib(fotoUrl)}" alt="Foto de ${escaparAtrib(nombre)}">`
+    : `<div class="avatar-placeholder" aria-hidden="true">${escaparHtml(obtenerIniciales(nombre))}</div>`;
+}
+
 async function generarVerificacionCard(v) {
   const idSeguro = escaparAtrib(v.id);
   const etiquetaTipo = ETIQUETAS_TIPO_SOLICITANTE[v.tipo] ?? v.tipo;
@@ -183,10 +200,7 @@ async function generarVerificacionCard(v) {
     : escaparHtml(v.nombre_solicitante);
 
   const nombreParaAvatar = v.tipo === 'estudio' ? v.nombre_estudio : v.nombre_solicitante;
-  const fotoUrl = v.foto_url ? api.storage.getPublicUrl('avatares', v.foto_url) : null;
-  const avatarHtml = fotoUrl
-    ? `<img src="${escaparAtrib(fotoUrl)}" alt="Foto de ${escaparAtrib(nombreParaAvatar)}">`
-    : `<div class="avatar-placeholder" aria-hidden="true">${escaparHtml(obtenerIniciales(nombreParaAvatar))}</div>`;
+  const avatarHtml = generarAvatarVerificacion(v.foto_url, nombreParaAvatar);
 
   const documentosHtml = await generarEnlacesDocumentos(v);
   const rechazoAbierto = verificacionConRechazoAbierto === v.id;
@@ -303,11 +317,139 @@ async function manejarRechazarVerificacion(id, motivo) {
 
   verificacionConRechazoAbierto = null;
   await eliminarVerificacionLocal(id);
+  // El rechazo recién hecho debe aparecer de inmediato si el admin cambia
+  // a la sub-sección "Rechazados" sin recargar la página.
+  await cargarVerificacionesRechazadas();
 }
 
 async function eliminarVerificacionLocal(id) {
   verificacionesActuales = verificacionesActuales.filter(v => v.id !== id);
   await renderizarVerificaciones();
+}
+
+// ─── Verificaciones: sub-secciones (Pendientes / Rechazados / Suspendidos) ──
+const SUBTABS_VERIFICACION = ['Pendientes', 'Rechazados', 'Suspendidos'];
+
+function cambiarSubtabVerificacion(subtab) {
+  SUBTABS_VERIFICACION.forEach(nombre => {
+    const esActiva = nombre === subtab;
+    document.getElementById(`subtab${nombre}`).classList.toggle('filtro-tipo__btn--activo', esActiva);
+    document.getElementById(`subtab${nombre}`).setAttribute('aria-selected', String(esActiva));
+    document.getElementById(`subseccion${nombre}`).hidden = !esActiva;
+  });
+}
+
+// ─── Verificaciones rechazadas ───────────────────────────────────────────────
+async function cargarVerificacionesRechazadas() {
+  rechazadasActuales = await api.admin.getVerificacionesRechazadas();
+  renderizarRechazadas();
+}
+
+function renderizarRechazadas() {
+  const contenedor = document.getElementById('rechazadosLista');
+  const vacio = document.getElementById('estadoSinRechazados');
+
+  if (rechazadasActuales.length === 0) {
+    contenedor.innerHTML = '';
+    vacio.hidden = false;
+    return;
+  }
+
+  vacio.hidden = true;
+  Promise.all(rechazadasActuales.map(generarRechazadaCard)).then(tarjetas => {
+    contenedor.innerHTML = tarjetas.join('');
+  });
+}
+
+async function generarRechazadaCard(v) {
+  const idSeguro = escaparAtrib(v.id);
+  const etiquetaTipo = ETIQUETAS_TIPO_SOLICITANTE[v.tipo] ?? v.tipo;
+
+  const nombreMostrado = v.tipo === 'estudio'
+    ? `${escaparHtml(v.nombre_estudio)} <span class="verificacion-item__detalle-etiqueta">(representante: ${escaparHtml(v.nombre_solicitante)})</span>`
+    : escaparHtml(v.nombre_solicitante);
+
+  const nombreParaAvatar = v.tipo === 'estudio' ? v.nombre_estudio : v.nombre_solicitante;
+  const avatarHtml = generarAvatarVerificacion(v.foto_url, nombreParaAvatar);
+  const documentosHtml = await generarEnlacesDocumentos(v);
+
+  return `
+    <article class="verificacion-item">
+      <div class="verificacion-item__header">
+        <div class="verificacion-item__avatar" aria-hidden="true">${avatarHtml}</div>
+        <div>
+          <span class="badge badge--${v.tipo === 'estudio' ? 'estudio' : 'individual'}">${etiquetaTipo}</span>
+          <p class="verificacion-item__nombre">${nombreMostrado}</p>
+          <p class="verificacion-item__fecha">Rechazado el ${formatearFecha(v.revisado_at ?? v.created_at)}</p>
+        </div>
+      </div>
+      <p class="verificacion-item__detalle">
+        <span class="verificacion-item__detalle-etiqueta">Motivo:</span> ${escaparHtml(v.motivo_rechazo || 'No especificado')}
+      </p>
+      <p class="verificacion-item__detalle">
+        <span class="verificacion-item__detalle-etiqueta">Intentos:</span> ${v.intentos_verificacion ?? 0} de 3
+      </p>
+      ${documentosHtml}
+      <div class="verificacion-item__acciones">
+        <button class="btn btn--secundario btn--sm" type="button" data-accion="suspender"
+          data-id="${idSeguro}" data-nombre="${escaparAtrib(nombreParaAvatar)}">
+          Suspensión definitiva
+        </button>
+      </div>
+    </article>
+  `;
+}
+
+async function manejarClickRechazados(e) {
+  const btn = e.target.closest('[data-accion="suspender"]');
+  if (!btn) return;
+
+  const { id, nombre } = btn.dataset;
+  const suspendido = await abrirModalSuspension(nombre, id);
+  if (!suspendido) return;
+
+  await Promise.all([cargarVerificacionesRechazadas(), cargarCuentasSuspendidas()]);
+}
+
+// ─── Cuentas suspendidas ──────────────────────────────────────────────────────
+async function cargarCuentasSuspendidas() {
+  suspendidasActuales = await api.admin.getCuentasSuspendidas();
+  renderizarSuspendidas();
+}
+
+function renderizarSuspendidas() {
+  const contenedor = document.getElementById('suspendidosLista');
+  const vacio = document.getElementById('estadoSinSuspendidos');
+
+  if (suspendidasActuales.length === 0) {
+    contenedor.innerHTML = '';
+    vacio.hidden = false;
+    return;
+  }
+
+  vacio.hidden = true;
+  contenedor.innerHTML = suspendidasActuales.map(generarSuspendidaCard).join('');
+}
+
+function generarSuspendidaCard(s) {
+  const etiquetaTipo = ETIQUETAS_TIPO_SOLICITANTE[s.rol] ?? s.rol;
+  const avatarHtml = generarAvatarVerificacion(s.foto_url, s.nombre_completo);
+
+  return `
+    <article class="verificacion-item">
+      <div class="verificacion-item__header">
+        <div class="verificacion-item__avatar" aria-hidden="true">${avatarHtml}</div>
+        <div>
+          <span class="badge badge--${s.rol === 'estudio' ? 'estudio' : 'individual'}">${etiquetaTipo}</span>
+          <p class="verificacion-item__nombre">${escaparHtml(s.nombre_completo)}</p>
+          <p class="verificacion-item__fecha">Suspendido el ${s.suspendido_at ? formatearFecha(s.suspendido_at) : 'Fecha no registrada'}</p>
+        </div>
+      </div>
+      <p class="verificacion-item__detalle">
+        <span class="verificacion-item__detalle-etiqueta">Motivo:</span> ${escaparHtml(s.motivo_suspension || 'No especificado')}
+      </p>
+    </article>
+  `;
 }
 
 // ─── Suscripciones ──────────────────────────────────────────────────────────

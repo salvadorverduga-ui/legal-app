@@ -73,32 +73,74 @@
           </button>
         </nav>
 
-        <!-- ═══════════════ SECCIÓN: VERIFICACIONES PENDIENTES ═══════════════ -->
+        <!-- ═══════════════ SECCIÓN: VERIFICACIONES ═══════════════ -->
         <section class="panel-seccion" id="seccionVerificaciones" role="tabpanel" aria-labelledby="tabVerificaciones">
 
-          <div class="verificaciones-filtro">
-            <div class="campo">
-              <label for="buscarVerificaciones" class="campo__etiqueta">Buscar</label>
-              <input type="text" id="buscarVerificaciones" class="campo__input"
-                placeholder="Nombre del abogado o estudio..." autocomplete="off">
+          <div class="filtro-tipo" role="tablist" aria-label="Sub-secciones de verificaciones">
+            <button class="filtro-tipo__btn filtro-tipo__btn--activo" id="subtabPendientes" type="button"
+              role="tab" aria-selected="true" aria-controls="subseccionPendientes">
+              Pendientes
+            </button>
+            <button class="filtro-tipo__btn" id="subtabRechazados" type="button"
+              role="tab" aria-selected="false" aria-controls="subseccionRechazados">
+              Rechazados
+            </button>
+            <button class="filtro-tipo__btn" id="subtabSuspendidos" type="button"
+              role="tab" aria-selected="false" aria-controls="subseccionSuspendidos">
+              Suspendidos
+            </button>
+          </div>
+
+          <!-- ── Sub-sección: Pendientes ── -->
+          <div id="subseccionPendientes" role="tabpanel" aria-labelledby="subtabPendientes">
+            <div class="verificaciones-filtro">
+              <div class="campo">
+                <label for="buscarVerificaciones" class="campo__etiqueta">Buscar</label>
+                <input type="text" id="buscarVerificaciones" class="campo__input"
+                  placeholder="Nombre del abogado o estudio..." autocomplete="off">
+              </div>
+              <div class="campo">
+                <label for="filtroTipoVerificacion" class="campo__etiqueta">Tipo</label>
+                <select id="filtroTipoVerificacion" class="campo__input">
+                  <option value="">Todos</option>
+                  <option value="abogado">Abogado individual</option>
+                  <option value="estudio">Estudio</option>
+                </select>
+              </div>
             </div>
-            <div class="campo">
-              <label for="filtroTipoVerificacion" class="campo__etiqueta">Tipo</label>
-              <select id="filtroTipoVerificacion" class="campo__input">
-                <option value="">Todos</option>
-                <option value="abogado">Abogado individual</option>
-                <option value="estudio">Estudio</option>
-              </select>
+
+            <p class="campo__error" id="errorVerificaciones" role="alert" aria-live="polite"></p>
+
+            <div class="verificaciones-lista" id="verificacionesLista"></div>
+
+            <div class="estado-vacio" id="estadoSinVerificaciones" hidden>
+              <p class="estado-vacio__titulo">Sin verificaciones pendientes</p>
+              <p>No hay solicitudes de verificación esperando revisión.</p>
             </div>
           </div>
 
-          <p class="campo__error" id="errorVerificaciones" role="alert" aria-live="polite"></p>
+          <!-- ── Sub-sección: Rechazados ── -->
+          <div id="subseccionRechazados" role="tabpanel" aria-labelledby="subtabRechazados" hidden>
+            <p class="campo__error" id="errorRechazados" role="alert" aria-live="polite"></p>
 
-          <div class="verificaciones-lista" id="verificacionesLista"></div>
+            <div class="verificaciones-lista" id="rechazadosLista"></div>
 
-          <div class="estado-vacio" id="estadoSinVerificaciones" hidden>
-            <p class="estado-vacio__titulo">Sin verificaciones pendientes</p>
-            <p>No hay solicitudes de verificación esperando revisión.</p>
+            <div class="estado-vacio" id="estadoSinRechazados" hidden>
+              <p class="estado-vacio__titulo">Sin verificaciones rechazadas</p>
+              <p>No hay verificaciones rechazadas actualmente.</p>
+            </div>
+          </div>
+
+          <!-- ── Sub-sección: Suspendidos ── -->
+          <div id="subseccionSuspendidos" role="tabpanel" aria-labelledby="subtabSuspendidos" hidden>
+            <p class="campo__error" id="errorSuspendidos" role="alert" aria-live="polite"></p>
+
+            <div class="verificaciones-lista" id="suspendidosLista"></div>
+
+            <div class="estado-vacio" id="estadoSinSuspendidos" hidden>
+              <p class="estado-vacio__titulo">Sin cuentas suspendidas</p>
+              <p>No hay cuentas con suspensión definitiva actualmente.</p>
+            </div>
           </div>
         </section>
 

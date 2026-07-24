@@ -91,6 +91,21 @@ async function inicializar() {
 
     if (sesion) {
       const perfil = await esperarConTimeout(api.perfiles.getPerfilActual(), TIMEOUT_VERIFICACION_SESION_MS);
+
+      // Suspensión definitiva (CLAUDE.md, flujo de verificación): la cuenta
+      // no puede seguir usando la app aunque la sesión siga siendo válida.
+      // Se cierra acá mismo y se muestra el aviso en la landing, nunca un
+      // toast — el usuario recién llega, no hay nada más en pantalla todavía.
+      if (perfil?.suspendido) {
+        await api.auth.cerrarSesion();
+        mostrarCargando(false);
+        mostrarContenido(true);
+        configurarUI();
+        inicializarHeader({ forzarAnonimo: true });
+        document.getElementById('bannerSuspension').hidden = false;
+        return;
+      }
+
       if (perfil?.rol) {
         redirigirSegunRol(perfil.rol);
         return; // detener ejecución mientras se redirige

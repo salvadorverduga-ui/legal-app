@@ -281,6 +281,7 @@ Nunca commitear `.env` — está en `.gitignore`.
 - [ ] Estructura definitiva de tablas (diseñar antes de primera migración)
 - [ ] Activación automática de suscripcion_vigente_hasta al recibir pago (PayPhone) — por ahora manual desde Supabase
 - [ ] Integración Google Play Billing para suscripciones automáticas (V2) — reemplaza PayPhone
+- [ ] EMAIL_SOPORTE_PENDIENTE — definir y reemplazar en `subir-documentos.js`, `app.js` y los triggers de notificaciones (`fn_notificar_estado_verificacion`) antes del lanzamiento. Hoy esos tres lugares muestran literalmente el texto `[EMAIL_SOPORTE_PENDIENTE]` al usuario (límite de intentos de verificación, cuenta suspendida) — ver §43.
 
 ---
 
@@ -1014,6 +1015,75 @@ Cada campo de archivo gana una línea `.campo-documento__motivo` explicando para
 La barra no es progreso real por bytes — la versión de `supabase-js` vendorizada en `frontend/js/vendors/supabase.min.js` (sin build step, CLAUDE.md §2) no expone `onUploadProgress` en `storage.upload()`. Se simula: al empezar, la barra transiciona a 90% con una transición larga (1.5s ease-out); al completarse, salta a 100% de inmediato. Mismo truco de "progreso simulado" que usan otras apps para operaciones sin progreso real disponible.
 
 Tras enviar todos los documentos: se oculta el formulario, se muestra `#confirmacionSubirDocumentos` ("Sus documentos fueron enviados. El administrador revisará su solicitud en 24-48 horas hábiles.") y arranca un contador de 5 segundos que redirige a `rutaPanelPropio(rolUsuario)` — mismo patrón que `iniciarRedireccionAutomatica()` de `registro.js`, con su propia copia local (contextos distintos: acá siempre redirige al panel propio, no a `/`).
+
+---
+
+## 43. Flujo completo de verificación: PENDIENTE → VERIFICADO/RECHAZADO → reintento → SUSPENDIDO
+
+Rediseño completo del ciclo de vida de `verificaciones.estado`, en reemplazo del intento de sesión inmediata de §41 (revertido) y ampliando el acceso limitado de §42. Migraciones `20260725_067` a `20260725_070`.
+
+### Diagrama de estados
+
+```
+(registro)
+    │  fn_crear_fila_abogado crea la fila PENDIENTE vacía (§39 módulo 2)
+    ▼
+PENDIENTE ──(admin aprueba)──────────────────► VERIFICADO (acceso completo)
+    │
+    └──(admin rechaza, motivo_rechazo)───────► RECHAZADO
+                                                    │
+                                    intentos_verificacion < 3
+                                    (abogado resube documentos)
+                                                    │
+                                                    ▼
+                                               PENDIENTE (vuelve arriba)
+
+RECHAZADO con intentos_verificacion >= 3 → sin salida posible desde la app.
+Único camino: admin usa "Suspensión definitiva" desde la pestaña Rechazados
+              (también disponible aunque intentos < 3, a discreción del admin)
+                                                    │
+                                                    ▼
+                                              SUSPENDIDO (irreversible, ver §41 migración 067)
+```
+
+### PARTE 1 — Sin documentos en el registro
+`registro.html`/`registro.js` (abogado y estudio) ya no piden carné/cédula/RUC/nombramiento en el formulario de registro — se eliminaron esos campos junto con su validación. En su lugar, un aviso fijo antes de "Crear cuenta": "Al registrarse, su cuenta tendrá acceso limitado hasta que sea verificada. Para verificar su cuenta deberá subir sus documentos de identidad profesional una vez que ingrese. Nos reservamos el derecho de rechazar el acceso si la información no puede acreditar su ejercicio profesional como abogado." El doble campo de email (§41) no se tocó. Esto es además de la reversión de §42 (siempre "revise su correo", nunca sesión inmediata) — juntas, ambas rondas dejan `registro.js` sin ninguna lógica de archivos ni de `data.session`.
+
+### PARTE 2 — `SUSPENDIDO` en base de datos (migración `20260725_067`)
+`'SUSPENDIDO'` ya existía en el enum `estado_verificacion` desde su creación original (`20260625_002_estudios.sql`) — nunca se había usado. Columnas nuevas: `verificaciones.intentos_verificacion` (integer, default 0) y `perfiles.suspendido` (boolean, default false, bloquea el login vía app.js — ver PARTE 5). Política nueva `admin_update_perfiles` (`USING (es_admin())`, sin restricción de columnas): no existía ninguna forma de que el admin actualizara la fila de `perfiles` de otro usuario.
+
+**SUSPENDIDO ya era irreversible sin ningún cambio de RLS adicional**: `abogado_actualiza_verificacion_pendiente` (§41, fix recursión en migración 066) exige que el estado *anterior* de la fila sea PENDIENTE — una fila SUSPENDIDO nunca cumple esa condición, así que cualquier intento de UPDATE del propio abogado sobre su fila suspendida es rechazado por RLS. Solo queda documentado con un comentario en la columna, sin tocar la política.
+
+### PARTE 3 — Reintento tras rechazo (migración `20260725_068`)
+Nueva política `abogado_reintenta_verificacion_rechazada`: permite mover la propia fila de RECHAZADO a PENDIENTE (máx. 3 intentos, verificado también a nivel RLS como defensa en profundidad — no solo en `api.js`) y limpia `motivo_rechazo`/`revisado_por`/`revisado_at` como parte del mismo reintento.
+
+**Bug descubierto al probar en vivo**: `fn_propagar_estado_verificacion` (trigger `BEFORE UPDATE OF estado`) pisaba `revisado_por`/`revisado_at` con `auth.uid()`/`now()` en *cualquier* cambio de estado, sin importar quién lo hiciera. Como los triggers `BEFORE ROW` modifican `NEW` antes de que RLS evalúe el `WITH CHECK`, cuando el propio abogado reintentaba, el trigger pisaba `revisado_por` con su propio uid — la política exige que quede `NULL`, y el `UPDATE` fallaba con "new row violates row-level security policy" (reproducido con `SET LOCAL ROLE authenticated` + `request.jwt.claims`, mismo método de §34/§41). Se corrigió acotando el stamp a `IF es_admin() THEN ...` — semánticamente más correcto además (revisado_por = "qué admin lo revisó", no "quién tocó la fila por última vez"). Verificado en vivo: reintento exitoso, límite de 3 intentos rechazado por RLS, y el flujo normal de aprobar/rechazar por un admin sigue estampando `revisado_por`/`revisado_at` como antes.
+
+`api.abogados.enviarDocumentosVerificacion()` reescrito: consulta la fila más reciente (cualquier estado, no solo PENDIENTE) *antes* de subir ningún archivo — si está RECHAZADO con `intentos_verificacion >= 3`, corta con `error.codigo = 'LIMITE_INTENTOS_VERIFICACION'` sin subir nada. Si no, sube los documentos e incrementa `intentos_verificacion`; si la fila venía de RECHAZADO, además la mueve a PENDIENTE y limpia la revisión anterior. `api.estudios.enviarDocumentosVerificacion()` **no** se tocó — sigue con `INSERT` simple, sin intentos ni reintento; el alcance de esta parte era explícitamente `api.abogados`.
+
+`subir-documentos.js` (solo para `rolUsuario === 'abogado'`, el estudio no tiene esta lógica): si la última verificación está RECHAZADO, muestra el motivo y "Intento X de 3" antes del formulario; si ya alcanzó el límite, oculta el formulario por completo y muestra el mensaje de contacto con soporte en su lugar — sin dejar que el abogado llene el formulario para recién enterarse al final.
+
+### PARTE 4 — Panel admin: Rechazados y Suspendidos (migración `20260725_070`)
+Pestaña "Verificaciones" gana sub-tabs (`.filtro-tipo`, mismo componente de pills que ya usaba `solicitudes-tablon.js` para sus filtros, con roles ARIA de tablist real): Pendientes (ya existía) / Rechazados / Suspendidos. Vistas nuevas `admin_verificaciones_rechazadas` (mismo shape que `admin_verificaciones_pendientes`, filtrada por RECHAZADO, más `motivo_rechazo`/`intentos_verificacion`/`revisado_at`) y `admin_cuentas_suspendidas` (armada desde `perfiles.suspendido = true`, con un `LEFT JOIN LATERAL` a la fila SUSPENDIDO de `verificaciones` correspondiente para traer motivo y fecha).
+
+**"Revisar nuevos documentos" no se implementó.** El pedido original lo describía condicionado a "si subió nuevos documentos" — pero por diseño (PARTE 3), en cuanto el abogado reenvía documentos la fila deja de estar RECHAZADO y pasa a PENDIENTE de inmediato, apareciendo en la pestaña Pendientes con sus botones Aprobar/Rechazar de siempre. Una fila que sigue en la pestaña Rechazados, por construcción, nunca tiene documentos nuevos sin revisar — así que ese botón no tenía ningún estado alcanzable en el que mostrarse. La pestaña Rechazados solo ofrece "Suspensión definitiva".
+
+`admin_suspender_verificacion(p_verificacion_id, p_motivo)` (RPC, `SECURITY DEFINER`, revalida `es_admin()` internamente): actualiza `verificaciones.estado = 'SUSPENDIDO'` y `perfiles.suspendido = true` en una sola transacción — evita que dos `UPDATE` sueltos desde el frontend (uno por tabla) queden a medio camino ante un corte de red entre ambos. El motivo de la suspensión reutiliza la columna `motivo_rechazo` (no se agregó una columna nueva). La notificación al usuario no la dispara esta función — la dispara el trigger ya existente `trg_notificar_estado_verificacion` (PARTE 6), reaccionando al cambio de estado sin importar por qué mecanismo ocurrió.
+
+`abrirModalSuspension()` (`utils.js`), junto a `abrirModalBloqueo()`: mismo overlay singleton, mismo contador de 9 segundos deshabilitando "Confirmar", mismo cierre por Escape/click afuera — con un `<textarea>` de motivo obligatorio agregado (el bloqueo no lo necesita, la suspensión sí). El botón de confirmar queda deshabilitado durante el countdown *y además* rechaza confirmar sin motivo aunque el countdown ya haya terminado.
+
+### PARTE 5 — Cierre de sesión del abogado suspendido
+`app.js`, único lugar donde se implementó (alcance explícito del pedido): al detectar una sesión activa, si `perfiles.suspendido = true`, cierra la sesión (`api.auth.cerrarSesion()`) y muestra `#bannerSuspension` en `index.html` (banner fijo, texto estático — no un toast, no hace falta pasar el mensaje entre páginas porque la detección y el aviso ocurren en la misma carga de `index.html`).
+
+**Límite conocido, fuera de alcance de esta ronda**: la verificación de `perfiles.suspendido` vive solo en `app.js`, que solo corre en `index.html`. Un abogado suspendido con una sesión ya abierta en otra página (ej. `panel-abogado.html`) no es expulsado hasta la próxima vez que cargue `index.html` — cada página tiene su propio script de inicialización y ninguno de los demás (`panel-abogado.js`, `busqueda.js`, etc.) repite este chequeo. Mitigado parcialmente: `panel-abogado.js` ahora reconoce `verificacion = 'SUSPENDIDO'` en su badge y banner (antes hubiera mostrado "Verificación pendiente", engañoso) sin ofrecer el botón "Subir documentos" — ver PARTE 3.
+
+### PARTE 6 — Notificaciones (migraciones `20260725_069`, dos pasos)
+`tipo_notificacion` gana `'verificacion_suspendida'` — como es un valor *nuevo* del enum (a diferencia de `SUSPENDIDO` en `estado_verificacion`, que ya existía), no puede usarse en la misma transacción en que se agrega (restricción de Postgres para `ALTER TYPE ... ADD VALUE`), así que esta migración se aplicó en dos pasos separados vía MCP.
+
+`fn_notificar_estado_verificacion()` (trigger ya existente desde `20260707_025`) gana la rama SUSPENDIDO y enriquece el mensaje de RECHAZADO con intentos restantes: "Su verificación fue rechazada. Motivo: [motivo]. Puede corregir y volver a subir sus documentos. Le quedan [3 - intentos_verificacion] intentos." Verificado en vivo (transacción con rollback): mensaje de rechazo con "Le quedan 2 intentos" tras el primer rechazo, y notificación de suspensión con el texto exacto pedido.
+
+### Pendiente: `[EMAIL_SOPORTE_PENDIENTE]`
+Placeholder literal (ver §11) en tres lugares: `subir-documentos.js`/`api.js` (límite de 3 intentos), `app.js`/`index.html` (banner de suspensión) y `fn_notificar_estado_verificacion` (notificación de suspensión). Reemplazar por el email de soporte real antes de lanzar — hoy el usuario ve literalmente el texto `[EMAIL_SOPORTE_PENDIENTE]`.
 
 ---
 

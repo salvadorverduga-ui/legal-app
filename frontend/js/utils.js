@@ -312,6 +312,150 @@ export function abrirModalBloqueo(nombre, usuarioId, onConfirmar) {
   });
 }
 
+// ─── Modal de suspensión definitiva (countdown 9s) ──────────────────────────
+// Mismo patrón que abrirModalBloqueo (arriba): overlay singleton reutilizado,
+// contador de 9 segundos deshabilitando el botón de confirmar, cierre por
+// Escape/click afuera. Se diferencia en que exige un motivo (textarea) antes
+// de poder confirmar — el bloqueo no lo necesita, la suspensión sí (panel-admin.js).
+const SEGUNDOS_ESPERA_SUSPENSION = 9;
+
+let elementosModalSuspension = null;
+
+function obtenerModalSuspension() {
+  if (elementosModalSuspension) return elementosModalSuspension;
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-confirmar-overlay';
+  overlay.hidden = true;
+  overlay.innerHTML = `
+    <div class="modal-confirmar" role="alertdialog" aria-modal="true" aria-labelledby="modalSuspensionMensaje">
+      <div class="modal-confirmar__mensaje" id="modalSuspensionMensaje"></div>
+      <div class="campo">
+        <label for="modalSuspensionMotivo" class="campo__etiqueta">Motivo de la suspensión</label>
+        <textarea id="modalSuspensionMotivo" class="campo__input" rows="3" maxlength="300"
+          placeholder="Explique por qué se suspende esta cuenta..."></textarea>
+        <p class="campo__error" id="modalSuspensionError" role="alert" aria-live="polite"></p>
+      </div>
+      <div class="modal-confirmar__acciones">
+        <button type="button" class="btn btn--secundario btn--sm" id="modalSuspensionCancelar">Cancelar</button>
+        <button type="button" class="btn btn--primario btn--sm" id="modalSuspensionConfirmar" disabled></button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  elementosModalSuspension = {
+    overlay,
+    mensaje: overlay.querySelector('#modalSuspensionMensaje'),
+    motivo: overlay.querySelector('#modalSuspensionMotivo'),
+    error: overlay.querySelector('#modalSuspensionError'),
+    btnCancelar: overlay.querySelector('#modalSuspensionCancelar'),
+    btnConfirmar: overlay.querySelector('#modalSuspensionConfirmar'),
+  };
+  return elementosModalSuspension;
+}
+
+/**
+ * Abre el modal de confirmación de suspensión definitiva para `nombre`,
+ * dueño de la verificación `verificacionId`. Mismo contador de 9 segundos
+ * que abrirModalBloqueo, más un motivo obligatorio (no se puede confirmar
+ * sin completarlo, aunque el contador ya haya llegado a cero). Si se
+ * confirma, llama a api.admin.suspenderVerificacion(), muestra un toast con
+ * el resultado y, si tuvo éxito, ejecuta onConfirmar() (opcional) para que
+ * el call site actualice su propia UI (mover la fila a "Suspendidos", etc.).
+ * Retorna Promise<boolean> — true si la suspensión se confirmó y se guardó.
+ */
+export function abrirModalSuspension(nombre, verificacionId, onConfirmar) {
+  const { overlay, mensaje, motivo, error, btnCancelar, btnConfirmar } = obtenerModalSuspension();
+
+  mensaje.innerHTML = `
+    <p>¿Suspender definitivamente a ${escaparHtmlModal(nombre)}?</p>
+    <p>Esta acción es irreversible. El abogado no podrá acceder a la plataforma.</p>
+  `;
+  motivo.value = '';
+  error.textContent = '';
+
+  let segundosRestantes = SEGUNDOS_ESPERA_SUSPENSION;
+  btnConfirmar.disabled = true;
+  btnConfirmar.textContent = `Confirmar (${segundosRestantes})`;
+
+  const intervalo = setInterval(() => {
+    segundosRestantes -= 1;
+    if (segundosRestantes <= 0) {
+      clearInterval(intervalo);
+      btnConfirmar.disabled = false;
+      btnConfirmar.textContent = 'Confirmar suspensión definitiva';
+    } else {
+      btnConfirmar.textContent = `Confirmar (${segundosRestantes})`;
+    }
+  }, 1000);
+
+  const elementoConFocoPrevio = document.activeElement;
+
+  return new Promise((resolve) => {
+    function cerrar() {
+      clearInterval(intervalo);
+      overlay.hidden = true;
+      btnCancelar.removeEventListener('click', manejarCancelar);
+      btnConfirmar.removeEventListener('click', manejarConfirmar);
+      overlay.removeEventListener('click', manejarClickOverlay);
+      document.removeEventListener('keydown', manejarTecla);
+      if (elementoConFocoPrevio instanceof HTMLElement) elementoConFocoPrevio.focus();
+    }
+
+    async function manejarConfirmar() {
+      if (btnConfirmar.disabled) return;
+
+      if (!motivo.value.trim()) {
+        error.textContent = 'Indique el motivo de la suspensión.';
+        motivo.focus();
+        return;
+      }
+
+      btnConfirmar.disabled = true;
+      const { error: errorApi } = await api.admin.suspenderVerificacion(verificacionId, motivo.value.trim());
+      cerrar();
+
+      if (errorApi) {
+        toast.error(mensajeAmigable(errorApi, 'No se pudo suspender la cuenta. Intente de nuevo.'));
+        resolve(false);
+        return;
+      }
+
+      toast.exito(`Se suspendió definitivamente a ${nombre}.`);
+      onConfirmar?.();
+      resolve(true);
+    }
+
+    function manejarCancelar() {
+      cerrar();
+      resolve(false);
+    }
+
+    function manejarClickOverlay(e) {
+      if (e.target === overlay) {
+        cerrar();
+        resolve(false);
+      }
+    }
+
+    function manejarTecla(e) {
+      if (e.key === 'Escape') {
+        cerrar();
+        resolve(false);
+      }
+    }
+
+    btnCancelar.addEventListener('click', manejarCancelar);
+    btnConfirmar.addEventListener('click', manejarConfirmar);
+    overlay.addEventListener('click', manejarClickOverlay);
+    document.addEventListener('keydown', manejarTecla);
+
+    overlay.hidden = false;
+    btnCancelar.focus();
+  });
+}
+
 function escaparHtmlModal(str) {
   if (str == null) return '';
   return String(str)
@@ -389,6 +533,7 @@ const MENSAJES_ERROR_CONOCIDOS = new Set([
   'No se encontró la solicitud.',
   'Ya tiene 3 solicitudes activas con este abogado. Espere una respuesta o cancele alguna antes de enviar una nueva.',
   'Podrá dejar su reseña 24 horas después de completada la consulta.',
+  'Ha alcanzado el límite de intentos. Contáctenos en [EMAIL_SOPORTE_PENDIENTE] si cree que esto es un error.',
 ]);
 
 export function mensajeAmigable(error, mensajePorDefecto) {

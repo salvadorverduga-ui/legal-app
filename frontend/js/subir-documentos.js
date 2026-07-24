@@ -17,6 +17,11 @@ import { inicializarHeader } from './header.js';
 
 let rolUsuario = null;
 
+// Mismo límite que api.abogados.enviarDocumentosVerificacion() — acá solo se
+// usa para decidir qué mostrar antes de intentar el envío (evita que el
+// abogado llene el formulario para recién enterarse del límite al final).
+const LIMITE_INTENTOS = 3;
+
 // Campos por rol, en el mismo orden en que api.js los sube (secuencial, no en
 // paralelo) — así el callback onProgreso siempre coincide con el campo que
 // realmente está subiéndose en ese momento.
@@ -61,6 +66,15 @@ async function inicializar() {
 
   document.getElementById(rolUsuario === 'estudio' ? 'camposEstudio' : 'camposAbogado').hidden = false;
 
+  // El flujo de rechazo/reintento (aviso de motivo, contador de intentos,
+  // límite de 3) es específico de abogado individual — api.abogados es la
+  // única de las dos funciones de envío que lleva intentos_verificacion
+  // (ver PARTE 3, CLAUDE.md). Un estudio siempre ve el formulario normal.
+  if (rolUsuario === 'abogado' && !(await aplicarEstadoRechazo())) {
+    document.getElementById('estadoCargando').hidden = true;
+    return;
+  }
+
   mostrarFormulario();
   document.getElementById('formSubirDocumentos').addEventListener('submit', (e) => {
     e.preventDefault();
@@ -71,6 +85,33 @@ async function inicializar() {
 function mostrarFormulario() {
   document.getElementById('estadoCargando').hidden = true;
   document.getElementById('contenidoFormulario').hidden = false;
+}
+
+// Devuelve false si se alcanzó el límite de intentos (el formulario no debe
+// mostrarse) — true en cualquier otro caso, incluyendo RECHAZADO con
+// intentos disponibles (ahí sí se muestra el formulario, con el aviso).
+async function aplicarEstadoRechazo() {
+  const estadoVerificacion = await api.abogados.getEstadoVerificacion();
+  if (estadoVerificacion?.estado !== 'RECHAZADO') return true;
+
+  const intentos = estadoVerificacion.intentos_verificacion ?? 0;
+
+  if (intentos >= LIMITE_INTENTOS) {
+    document.getElementById('estadoLimiteIntentos').hidden = false;
+    return false;
+  }
+
+  const aviso = document.getElementById('avisoRechazoVerificacion');
+  const motivo = estadoVerificacion.motivo_rechazo
+    ? ` Motivo: ${estadoVerificacion.motivo_rechazo}.`
+    : '';
+  document.getElementById('textoRechazoVerificacion').textContent =
+    `Su verificación anterior fue rechazada.${motivo} Por favor corrija y vuelva a subir sus documentos.`;
+  document.getElementById('textoIntentosVerificacion').textContent =
+    `Intento ${intentos + 1} de ${LIMITE_INTENTOS}`;
+  aviso.hidden = false;
+
+  return true;
 }
 
 // ─── Barra de progreso por archivo ───────────────────────────────────────────

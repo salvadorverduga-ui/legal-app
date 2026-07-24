@@ -2018,6 +2018,21 @@ p {
   border: 1px solid var(--badge-pendiente-borde);
 }
 
+.auth__aviso--alerta {
+  background-color: var(--color-error-bg);
+  color: var(--color-error);
+  border: 1px solid #FECACA;
+}
+
+.auth__aviso--alerta p {
+  margin: 0;
+}
+
+.auth__aviso--alerta p + p {
+  margin-top: var(--esp-1);
+  font-weight: var(--peso-medio);
+}
+
 /* Paso 1: tarjetas de tipo de cuenta profesional */
 .tarjetas-tipo {
   display: flex;
@@ -2907,6 +2922,11 @@ p {
   font-size: var(--texto-sm);
   font-weight: var(--peso-medio);
   color: var(--color-texto-suave);
+}
+
+.verificacion-item__detalle {
+  font-size: var(--texto-sm);
+  color: var(--color-texto);
 }
 
 .verificacion-item__documentos {

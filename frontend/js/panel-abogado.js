@@ -32,6 +32,12 @@ const ETIQUETAS_VERIFICACION = {
   VERIFICADO: { texto: 'Verificado',              clase: 'badge--verificado' },
   PENDIENTE:  { texto: 'Verificación pendiente',  clase: 'badge--pendiente' },
   RECHAZADO:  { texto: 'Verificación rechazada',  clase: 'badge--rechazado' },
+  // No debería alcanzarse en la práctica: app.js cierra la sesión de un
+  // abogado suspendido apenas detecta perfiles.suspendido = true en su
+  // próxima carga de index.html (ver CLAUDE.md). Queda acá solo como
+  // defensa para la ventana entre que el admin suspende y esa detección
+  // corre, para no mostrar "Verificación pendiente" en su lugar.
+  SUSPENDIDO: { texto: 'Cuenta suspendida',       clase: 'badge--rechazado' },
 };
 
 const ETIQUETAS_TIPO_SUSCRIPCION = {
@@ -288,9 +294,20 @@ function actualizarBannerVerificacionDocumentos() {
   }
 
   const textoEl = document.getElementById('bannerVerificacionDocumentosTexto');
-  textoEl.textContent = abogadoActual.verificacion === 'RECHAZADO'
-    ? `Su verificación fue rechazada${estadoVerificacionActual?.motivo_rechazo ? `: ${estadoVerificacionActual.motivo_rechazo}` : ''}. Vuelva a subir sus documentos para que el administrador revise su solicitud nuevamente.`
-    : 'Su cuenta está pendiente de verificación. Suba sus documentos para que el administrador pueda revisar su solicitud.';
+  const botonEl = document.getElementById('bannerVerificacionDocumentosBoton');
+
+  if (abogadoActual.verificacion === 'SUSPENDIDO') {
+    // Ventana angosta antes de que app.js cierre la sesión en la próxima
+    // carga de index.html (ver CLAUDE.md) — no tiene sentido ofrecer
+    // "Subir documentos": la fila ya no puede volver a PENDIENTE por RLS.
+    textoEl.textContent = 'Su cuenta ha recibido una suspensión definitiva y no puede acceder a la plataforma. Si cree que esto es un error, contáctenos en [EMAIL_SOPORTE_PENDIENTE].';
+    botonEl.hidden = true;
+  } else {
+    textoEl.textContent = abogadoActual.verificacion === 'RECHAZADO'
+      ? `Su verificación fue rechazada${estadoVerificacionActual?.motivo_rechazo ? `: ${estadoVerificacionActual.motivo_rechazo}` : ''}. Vuelva a subir sus documentos para que el administrador revise su solicitud nuevamente.`
+      : 'Su cuenta está pendiente de verificación. Suba sus documentos para que el administrador pueda revisar su solicitud.';
+    botonEl.hidden = false;
+  }
 
   banner.hidden = false;
 }

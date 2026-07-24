@@ -39,6 +39,12 @@
               revise su solicitud — la revisión toma entre 24 y 48 horas hábiles.
             </p>
 
+            <!-- Aviso de rechazo con reintento: solo si la última verificación fue RECHAZADO -->
+            <div class="auth__aviso auth__aviso--alerta" id="avisoRechazoVerificacion" hidden>
+              <p id="textoRechazoVerificacion"></p>
+              <p id="textoIntentosVerificacion"></p>
+            </div>
+
             <form id="formSubirDocumentos" class="formulario" novalidate>
 
               <!-- Campos para abogado individual -->
@@ -116,6 +122,12 @@
             <p class="mensaje-confirmacion__titulo">Documentos enviados</p>
             <p>Sus documentos fueron enviados. El administrador revisará su solicitud en 24-48 horas hábiles.</p>
             <p class="mensaje-confirmacion__redireccion" id="contadorRedireccionDocumentos"></p>
+          </div>
+
+          <!-- Límite de 3 intentos alcanzado: no se muestra el formulario -->
+          <div class="estado-vacio" id="estadoLimiteIntentos" hidden>
+            <p class="estado-vacio__titulo">Límite de intentos alcanzado</p>
+            <p>Ha alcanzado el límite de intentos. Contáctenos en [EMAIL_SOPORTE_PENDIENTE] si cree que esto es un error.</p>
           </div>
 
         </div>

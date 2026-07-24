@@ -31,6 +31,17 @@
     <!-- Contenido principal: oculto hasta confirmar que no hay sesión activa -->
     <div id="contenidoPrincipal" hidden>
 
+      <!-- Aviso de suspensión definitiva — solo visible si app.js detectó
+           perfiles.suspendido = true al cargar con una sesión activa -->
+      <div class="contenedor" style="padding-top: var(--esp-5);">
+        <div class="panel-banner panel-banner--alerta" id="bannerSuspension" hidden>
+          <p>
+            Su cuenta ha recibido una suspensión definitiva y no puede acceder a la plataforma.
+            Si cree que esto es un error, contáctenos en [EMAIL_SOPORTE_PENDIENTE].
+          </p>
+        </div>
+      </div>
+
       <section class="hero">
         <div class="contenedor hero__contenedor">
           <h1 class="hero__titulo">

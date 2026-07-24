@@ -577,11 +577,13 @@ export const abogados = {
 
   /**
    * Sube los documentos de verificación a Supabase Storage (bucket: verificacion-docs)
-   * y los adjunta a la fila PENDIENTE que fn_crear_fila_abogado ya creó
-   * automáticamente al registrarse (migración 061). Si por algún motivo esa
-   * fila no existiera todavía, se crea una nueva como respaldo.
-   * La cédula se sube en dos archivos separados (anverso y reverso), cada
-   * uno con su propio prefijo en el path de Storage.
+   * y los adjunta a la fila más reciente de verificaciones — la PENDIENTE que
+   * fn_crear_fila_abogado ya creó automáticamente al registrarse (migración
+   * 061), o una RECHAZADA anterior, que vuelve a PENDIENTE (reintento, ver
+   * migración 20260725_068 — política RLS abogado_reintenta_verificacion_rechazada).
+   * Si por algún motivo no existiera ninguna fila todavía, se crea una nueva
+   * como respaldo. La cédula se sube en dos archivos separados (anverso y
+   * reverso), cada uno con su propio prefijo en el path de Storage.
    * archivos: { carnet: File, cedulaAnverso: File, cedulaReverso: File }
    * El admin revisa manualmente desde el panel y aprueba o rechaza.
    * onProgreso (opcional): (campo, estado) => void, invocado con
@@ -589,12 +591,34 @@ export const abogados = {
    * después — subir-documentos.js lo usa para la barra de progreso por
    * archivo. Los archivos se suben en secuencia (no en paralelo), así que
    * cada callback refleja el archivo que está subiéndose en ese momento.
+   * Límite de 3 intentos: si la fila más reciente está RECHAZADA y ya
+   * alcanzó ese límite, no se sube ningún archivo — se corta antes, con
+   * error.codigo = 'LIMITE_INTENTOS_VERIFICACION'.
    * Retorna { data, error }.
    */
   async enviarDocumentosVerificacion(archivos, { onProgreso } = {}) {
     const { data: { user }, error: errUser } = await _cliente.auth.getUser();
     if (errUser || !user) {
       return { data: null, error: errUser ?? { message: 'No hay sesión activa.' } };
+    }
+
+    const { data: filaActual } = await _cliente
+      .from('verificaciones')
+      .select('id, estado, intentos_verificacion')
+      .eq('abogado_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const LIMITE_INTENTOS = 3;
+    if (filaActual?.estado === 'RECHAZADO' && filaActual.intentos_verificacion >= LIMITE_INTENTOS) {
+      return {
+        data: null,
+        error: {
+          codigo: 'LIMITE_INTENTOS_VERIFICACION',
+          message: 'Ha alcanzado el límite de intentos. Contáctenos en [EMAIL_SOPORTE_PENDIENTE] si cree que esto es un error.',
+        },
+      };
     }
 
     try {
@@ -610,25 +634,29 @@ export const abogados = {
       const doc_cedula_reverso_url = await _subirDocumento(user.id, archivos.cedulaReverso, 'cedula-reverso');
       onProgreso?.('cedulaReverso', 'completado');
 
-      const { data: pendiente } = await _cliente
-        .from('verificaciones')
-        .select('id')
-        .eq('abogado_id', user.id)
-        .eq('estado', 'PENDIENTE')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      const datosActualizacion = {
+        doc_carnet_url, doc_cedula_url, doc_cedula_reverso_url,
+        intentos_verificacion: (filaActual?.intentos_verificacion ?? 0) + 1,
+      };
+      // Reintento tras un rechazo: vuelve a PENDIENTE y limpia la revisión
+      // anterior — ya no aplica a esta nueva subida.
+      if (filaActual?.estado === 'RECHAZADO') {
+        datosActualizacion.estado = 'PENDIENTE';
+        datosActualizacion.motivo_rechazo = null;
+        datosActualizacion.revisado_por = null;
+        datosActualizacion.revisado_at = null;
+      }
 
-      const { data, error } = pendiente
+      const { data, error } = filaActual
         ? await _cliente
             .from('verificaciones')
-            .update({ doc_carnet_url, doc_cedula_url, doc_cedula_reverso_url })
-            .eq('id', pendiente.id)
+            .update(datosActualizacion)
+            .eq('id', filaActual.id)
             .select()
             .single()
         : await _cliente
             .from('verificaciones')
-            .insert({ abogado_id: user.id, doc_carnet_url, doc_cedula_url, doc_cedula_reverso_url })
+            .insert({ abogado_id: user.id, ...datosActualizacion })
             .select()
             .single();
 
@@ -648,9 +676,11 @@ export const abogados = {
    * Retorna el estado actual de la verificación del abogado autenticado.
    * Consulta la tabla verificaciones ordenada por created_at DESC (la más reciente).
    * Incluye doc_carnet_url para que el panel sepa si ya subió documentos
-   * (la fila PENDIENTE se crea vacía al registrarse, ver migración 061).
-   * Retorna { id, estado, motivo_rechazo, doc_carnet_url, created_at } o null
-   * si no hay sesión, no existe ninguna fila, o falla la consulta.
+   * (la fila PENDIENTE se crea vacía al registrarse, ver migración 061) e
+   * intentos_verificacion para el aviso de reintento tras un rechazo
+   * (ver migración 20260725_067, subir-documentos.js).
+   * Retorna { id, estado, motivo_rechazo, doc_carnet_url, intentos_verificacion,
+   * created_at } o null si no hay sesión, no existe ninguna fila, o falla la consulta.
    */
   async getEstadoVerificacion() {
     const { data: { user }, error: errUser } = await _cliente.auth.getUser();
@@ -658,7 +688,7 @@ export const abogados = {
 
     const { data, error } = await _cliente
       .from('verificaciones')
-      .select('id, estado, motivo_rechazo, doc_carnet_url, created_at')
+      .select('id, estado, motivo_rechazo, doc_carnet_url, intentos_verificacion, created_at')
       .eq('abogado_id', user.id)
       .order('created_at', { ascending: false })
       .limit(1)
@@ -1363,6 +1393,66 @@ export const admin = {
       return { data: null, error };
     }
     return { data, error: null };
+  },
+
+  /**
+   * Retorna las verificaciones en estado RECHAZADO desde la vista
+   * admin_verificaciones_rechazadas (pestaña "Rechazados" de Verificaciones),
+   * más recientes primero. Incluye motivo_rechazo e intentos_verificacion.
+   * Retorna array (puede estar vacío).
+   */
+  async getVerificacionesRechazadas() {
+    const { data, error } = await _cliente
+      .from('admin_verificaciones_rechazadas')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('[api.admin.getVerificacionesRechazadas]', error.message);
+      return [];
+    }
+    return data ?? [];
+  },
+
+  /**
+   * Retorna las cuentas con suspensión definitiva desde la vista
+   * admin_cuentas_suspendidas (pestaña "Suspendidos" de Verificaciones),
+   * más recientes primero.
+   * Retorna array (puede estar vacío).
+   */
+  async getCuentasSuspendidas() {
+    const { data, error } = await _cliente
+      .from('admin_cuentas_suspendidas')
+      .select('*')
+      .order('suspendido_at', { ascending: false });
+
+    if (error) {
+      console.error('[api.admin.getCuentasSuspendidas]', error.message);
+      return [];
+    }
+    return data ?? [];
+  },
+
+  /**
+   * Suspensión definitiva: marca la verificación como SUSPENDIDO y
+   * perfiles.suspendido = true en una sola transacción (RPC
+   * admin_suspender_verificacion, migración 20260725_070) — irreversible
+   * desde la app. El abogado/estudio es notificado por el trigger existente
+   * (fn_notificar_estado_verificacion) y app.js lo desconecta en su
+   * próxima carga de página (perfiles.suspendido = true).
+   * Retorna { error } (la función no devuelve datos).
+   */
+  async suspenderVerificacion(verificacionId, motivo) {
+    const { error } = await _cliente.rpc('admin_suspender_verificacion', {
+      p_verificacion_id: verificacionId,
+      p_motivo: motivo,
+    });
+
+    if (error) {
+      console.error('[api.admin.suspenderVerificacion]', error.message);
+      return { error };
+    }
+    return { error: null };
   },
 
   /**
