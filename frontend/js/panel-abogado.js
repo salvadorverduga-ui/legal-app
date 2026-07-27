@@ -282,19 +282,35 @@ function actualizarBannerSuscripcion() {
 
 // Cuenta con acceso limitado: PENDIENTE (nunca subió documentos, o los subió
 // y sigue esperando revisión — la fila PENDIENTE se crea vacía al registrarse,
-// migración 20260725_061) o RECHAZADO (debe volver a subirlos). En ambos casos
-// el botón "Subir documentos" queda visible: reintentar un envío ya hecho
-// (mientras sigue PENDIENTE) es una operación válida, no solo el primer envío.
+// migración 20260725_061) o RECHAZADO (debe volver a subirlos). El caso
+// PENDIENTE se divide en dos textos según si ya subió documentos
+// (estadoVerificacionActual.doc_carnet_url) — antes de subirlos se detalla
+// explícitamente lo que el acceso limitado le impide hacer, para que el
+// abogado entienda por qué su panel se ve reducido; después de subirlos ya
+// no tiene sentido repetir esa lista ni mostrar el botón "Subir documentos"
+// (ver aplicarEstadoRechazo en subir-documentos.js para el flujo de reintento).
+const RESTRICCIONES_ACCESO_LIMITADO = [
+  'Aparecer en búsquedas de clientes',
+  'Recibir solicitudes de consulta',
+  'Ver ni aplicar a casos en El Tablón',
+  'Ver su perfil público',
+];
+
 function actualizarBannerVerificacionDocumentos() {
   const banner = document.getElementById('bannerVerificacionDocumentos');
+  const textoEl = document.getElementById('bannerVerificacionDocumentosTexto');
+  const listaEl = document.getElementById('bannerVerificacionDocumentosLista');
+  const cierreEl = document.getElementById('bannerVerificacionDocumentosCierre');
+  const botonEl = document.getElementById('bannerVerificacionDocumentosBoton');
 
   if (abogadoActual.verificacion === 'VERIFICADO') {
     banner.hidden = true;
     return;
   }
 
-  const textoEl = document.getElementById('bannerVerificacionDocumentosTexto');
-  const botonEl = document.getElementById('bannerVerificacionDocumentosBoton');
+  listaEl.hidden = true;
+  listaEl.innerHTML = '';
+  cierreEl.hidden = true;
 
   if (abogadoActual.verificacion === 'SUSPENDIDO') {
     // Ventana angosta antes de que app.js cierre la sesión en la próxima
@@ -302,10 +318,20 @@ function actualizarBannerVerificacionDocumentos() {
     // "Subir documentos": la fila ya no puede volver a PENDIENTE por RLS.
     textoEl.textContent = 'Su cuenta ha recibido una suspensión definitiva y no puede acceder a la plataforma. Si cree que esto es un error, contáctenos en [EMAIL_SOPORTE_PENDIENTE].';
     botonEl.hidden = true;
+  } else if (abogadoActual.verificacion === 'RECHAZADO') {
+    textoEl.textContent = `Su verificación fue rechazada${estadoVerificacionActual?.motivo_rechazo ? `: ${estadoVerificacionActual.motivo_rechazo}` : ''}. Vuelva a subir sus documentos para que el administrador revise su solicitud nuevamente.`;
+    botonEl.hidden = false;
+  } else if (estadoVerificacionActual?.doc_carnet_url) {
+    // PENDIENTE con documentos ya recibidos: esperando revisión del admin.
+    textoEl.textContent = 'Sus documentos fueron recibidos. El administrador revisará su solicitud en 24-48 horas hábiles. Le notificaremos cuando su cuenta sea aprobada.';
+    botonEl.hidden = true;
   } else {
-    textoEl.textContent = abogadoActual.verificacion === 'RECHAZADO'
-      ? `Su verificación fue rechazada${estadoVerificacionActual?.motivo_rechazo ? `: ${estadoVerificacionActual.motivo_rechazo}` : ''}. Vuelva a subir sus documentos para que el administrador revise su solicitud nuevamente.`
-      : 'Su cuenta está pendiente de verificación. Suba sus documentos para que el administrador pueda revisar su solicitud.';
+    // PENDIENTE sin documentos todavía: detalla las restricciones del acceso limitado.
+    textoEl.textContent = 'Su cuenta está pendiente de verificación. Mientras no suba sus documentos y sean aprobados, no podrá:';
+    listaEl.innerHTML = RESTRICCIONES_ACCESO_LIMITADO.map(r => `<li>${r}</li>`).join('');
+    listaEl.hidden = false;
+    cierreEl.textContent = 'Para activar su cuenta, suba sus documentos de verificación.';
+    cierreEl.hidden = false;
     botonEl.hidden = false;
   }
 

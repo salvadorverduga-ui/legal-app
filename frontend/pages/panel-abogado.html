@@ -43,8 +43,12 @@
         </div>
 
         <!-- Alerta: cuenta con acceso limitado (verificación PENDIENTE o RECHAZADO) -->
-        <div class="panel-banner panel-banner--alerta" id="bannerVerificacionDocumentos" hidden>
-          <p id="bannerVerificacionDocumentosTexto"></p>
+        <div class="panel-banner panel-banner--alerta panel-banner--verificacion" id="bannerVerificacionDocumentos" hidden>
+          <div class="panel-banner__contenido">
+            <p id="bannerVerificacionDocumentosTexto"></p>
+            <ul class="panel-banner__lista" id="bannerVerificacionDocumentosLista" hidden></ul>
+            <p id="bannerVerificacionDocumentosCierre" hidden></p>
+          </div>
           <a class="btn btn--primario btn--sm" href="/pages/subir-documentos" id="bannerVerificacionDocumentosBoton">
             Subir documentos
           </a>
