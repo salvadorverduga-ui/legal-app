@@ -4,7 +4,7 @@
 
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
-import { toast, mensajeAmigable, generarCheckboxSeguimiento, generarMenuTarjeta, inicializarMenuTarjeta, abrirModalBloqueo, MENSAJE_AGREGADO_SEGUIMIENTO } from './utils.js';
+import { toast, mensajeAmigable, generarCheckboxSeguimiento, generarMenuTarjeta, inicializarMenuTarjeta, abrirModalBloqueo, MENSAJE_AGREGADO_SEGUIMIENTO, aplicarEstadoDeshabilitado, inicializarTooltipsDeshabilitados } from './utils.js';
 import { inicializarHeader } from './header.js';
 
 // ─── Etiquetas y estilos por estado ───────────────────────────────────────────
@@ -112,6 +112,7 @@ async function inicializar() {
     nombre: perfilActual.nombre_completo,
     fotoPath: perfilActual.foto_url,
     urlPerfilPublico,
+    abogadoNoVerificado: abogadoActual.verificacion !== 'VERIFICADO',
   });
 
   aplicarAccesoLimitado();
@@ -163,6 +164,7 @@ function configurarEventos() {
 
   document.getElementById('seccionSeguimiento').addEventListener('click', manejarClickSeguimiento);
   inicializarMenuTarjeta();
+  inicializarTooltipsDeshabilitados();
 }
 
 // ─── Navegación por secciones ─────────────────────────────────────────────────
@@ -247,8 +249,13 @@ function aplicarAccesoLimitado() {
   const aprobado = abogadoActual.verificacion === 'VERIFICADO';
   document.getElementById('tabSolicitudes').hidden = !aprobado;
   document.getElementById('tabResenas').hidden = !aprobado;
-  document.getElementById('accesoRapidoSolicitudes').hidden = !aprobado;
-  document.getElementById('accesoRapidoTablon').hidden = !aprobado;
+
+  // A diferencia de las pestañas (ocultas: no hay contenido posible sin
+  // aprobar), los accesos rápidos del dashboard quedan siempre visibles
+  // pero deshabilitados con tooltip mientras no está aprobado — el abogado
+  // ve que la función existe y por qué todavía no puede usarla.
+  aplicarEstadoDeshabilitado(document.getElementById('accesoRapidoSolicitudes'), !aprobado);
+  aplicarEstadoDeshabilitado(document.getElementById('accesoRapidoTablon'), !aprobado);
 }
 
 // ─── Banners: vencimiento de suscripción, documentos y onboarding ────────────

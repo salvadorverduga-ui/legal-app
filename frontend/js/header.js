@@ -22,7 +22,7 @@
 //   inicializarHeader({ forzarAnonimo: true });
 
 import * as api from './api.js';
-import { rutaPanelPropio } from './utils.js';
+import { rutaPanelPropio, aplicarEstadoDeshabilitado, inicializarTooltipsDeshabilitados } from './utils.js';
 import { inicializarNotificaciones } from './notificaciones.js';
 
 /**
@@ -31,7 +31,7 @@ import { inicializarNotificaciones } from './notificaciones.js';
  * urlPerfilPublico }) o null si se renderizó el estado anónimo.
  */
 export async function inicializarHeader(opciones = {}) {
-  const { rol, nombre, fotoPath, urlPerfilPublico, forzarAnonimo = false } = opciones;
+  const { rol, nombre, fotoPath, urlPerfilPublico, forzarAnonimo = false, abogadoNoVerificado = false } = opciones;
 
   const nav = document.querySelector('.nav-usuario');
   if (!nav) return null;
@@ -60,7 +60,7 @@ export async function inicializarHeader(opciones = {}) {
   nav.innerHTML = '';
 
   if (datosUsuario) {
-    renderizarAutenticado(nav, datosUsuario);
+    renderizarAutenticado(nav, { ...datosUsuario, abogadoNoVerificado });
     inicializarNotificaciones();
   } else {
     renderizarAnonimo(nav);
@@ -88,8 +88,18 @@ function renderizarAnonimo(nav) {
 }
 
 // ─── Estado autenticado ──────────────────────────────────────────────────────
-function renderizarAutenticado(nav, { rol, nombre, fotoPath, urlPerfilPublico }) {
+function renderizarAutenticado(nav, { rol, nombre, fotoPath, urlPerfilPublico, abogadoNoVerificado }) {
   nav.insertAdjacentHTML('beforeend', generarEnlacesRapidos(rol));
+
+  // Los enlaces recién insertados por generarEnlacesRapidos() se deshabilitan
+  // acá (no en el HTML) porque aplicarEstadoDeshabilitado() opera sobre
+  // elementos ya en el DOM. Solo aplica a un abogado no verificado — un
+  // cliente nunca recibe este flag en true.
+  if (rol === 'abogado' && abogadoNoVerificado) {
+    aplicarEstadoDeshabilitado(nav.querySelector('#navEnlaceTablon'), true);
+    aplicarEstadoDeshabilitado(nav.querySelector('#navEnlaceSeguimiento'), true);
+    inicializarTooltipsDeshabilitados();
+  }
 
   if (rol === 'admin') {
     nav.insertAdjacentHTML('beforeend', generarMenuVerComo());
@@ -163,8 +173,8 @@ function generarEnlacesRapidos(rol) {
   if (rol !== 'cliente' && rol !== 'abogado') return '';
   const rutaSeguimiento = `${rutaPanelPropio(rol)}?tab=seguimiento`;
   return `
-    <a class="btn btn--secundario btn--sm" href="/pages/tablon" style="${ESTILO_BOTON_HEADER}">El Tablón</a>
-    <a class="btn btn--secundario btn--sm" href="${escaparAtrib(rutaSeguimiento)}" style="${ESTILO_BOTON_HEADER}">En seguimiento</a>
+    <a class="btn btn--secundario btn--sm" id="navEnlaceTablon" href="/pages/tablon" style="${ESTILO_BOTON_HEADER}">El Tablón</a>
+    <a class="btn btn--secundario btn--sm" id="navEnlaceSeguimiento" href="${escaparAtrib(rutaSeguimiento)}" style="${ESTILO_BOTON_HEADER}">En seguimiento</a>
   `;
 }
 

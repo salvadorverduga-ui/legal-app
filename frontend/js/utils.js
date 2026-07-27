@@ -179,6 +179,57 @@ function cerrarMenusTarjeta() {
   });
 }
 
+// ─── Tooltip para elementos deshabilitados (acceso restringido) ────────────
+// Reutilizado por panel-abogado.js (accesos rápidos "Ver solicitudes"/"El
+// Tablón" mientras la cuenta no está verificada) y header.js (links "El
+// Tablón"/"En seguimiento" del header en el mismo caso). El elemento sigue
+// visible pero no navega ni dispara su acción; muestra el tooltip tanto en
+// :hover/:focus (CSS puro) como al hacer click/tap (clase agregada acá,
+// para dispositivos táctiles sin hover).
+export const MENSAJE_TOOLTIP_ACCESO_RESTRINGIDO = 'Disponible tras verificación';
+
+// No usa el atributo disabled nativo (aunque el elemento sea un <button>):
+// un elemento disabled no dispara ningún evento click, ni siquiera en fase de
+// captura, así que el tooltip nunca podría mostrarse al tocar/clickear en
+// dispositivos sin hover. En su lugar, aria-disabled + el interceptor de
+// abajo (fase de captura) bloquean la acción real sin perder el evento.
+export function aplicarEstadoDeshabilitado(el, deshabilitado, mensaje = MENSAJE_TOOLTIP_ACCESO_RESTRINGIDO) {
+  if (!el) return;
+  el.classList.toggle('elemento-deshabilitado', deshabilitado);
+  if (deshabilitado) {
+    el.dataset.tooltip = mensaje;
+    el.setAttribute('aria-disabled', 'true');
+  } else {
+    delete el.dataset.tooltip;
+    el.removeAttribute('aria-disabled');
+  }
+}
+
+// Delegado global en fase de CAPTURA (guardia interna, seguro de llamar
+// varias veces): intercepta el click antes de que llegue al propio elemento
+// (y a cualquier listener que ya tenga enganchado, ej. data-ir-a-tab), para
+// que ni <a href> navegue ni un <button> con acción propia la dispare.
+// Además mantiene el tooltip visible un instante tras el click/tap, para el
+// caso táctil donde no existe :hover.
+let tooltipsDeshabilitadosInicializados = false;
+
+export function inicializarTooltipsDeshabilitados() {
+  if (tooltipsDeshabilitadosInicializados) return;
+  tooltipsDeshabilitadosInicializados = true;
+
+  document.addEventListener('click', (e) => {
+    const el = e.target.closest('.elemento-deshabilitado');
+    if (!el) return;
+    e.preventDefault();
+    e.stopPropagation();
+    el.classList.add('elemento-deshabilitado--tooltip-visible');
+    clearTimeout(el._tooltipTimeoutId);
+    el._tooltipTimeoutId = setTimeout(() => {
+      el.classList.remove('elemento-deshabilitado--tooltip-visible');
+    }, 2000);
+  }, true);
+}
+
 // ─── Modal de confirmación de bloqueo (countdown 9s) ────────────────────────
 // Reemplaza a frontend/js/bloqueos.js (fusionado acá para que conviva con
 // generarMenuTarjeta(), su principal call site desde esta ronda de cambios).

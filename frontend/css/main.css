@@ -1017,6 +1017,51 @@ p {
   margin-top: var(--esp-4);
 }
 
+/* Elementos deshabilitados por acceso restringido (ej. abogado no
+   verificado): no navegan ni disparan su acción, y muestran un tooltip
+   ("Disponible tras verificación") al pasar el mouse o al hacer clic —
+   ver aplicarEstadoDeshabilitado()/inicializarTooltipsDeshabilitados()
+   en utils.js. */
+.elemento-deshabilitado {
+  position: relative;
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Especificidad reforzada con [aria-disabled] a propósito: neutraliza los
+   estilos de :hover propios de cada componente (ej. .acceso-rapido:hover),
+   declarados más abajo en el archivo y que de otro modo ganarían la cascada
+   por orden de aparición al tener la misma especificidad. */
+.elemento-deshabilitado[aria-disabled="true"]:hover,
+.elemento-deshabilitado[aria-disabled="true"]:focus-visible {
+  border-color: inherit;
+  box-shadow: none;
+}
+
+.elemento-deshabilitado[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(-6px);
+  background-color: var(--color-texto);
+  color: #fff;
+  padding: var(--esp-1) var(--esp-2);
+  border-radius: var(--radio-sm);
+  font-size: var(--texto-xs);
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transicion);
+  z-index: 20;
+}
+
+.elemento-deshabilitado[data-tooltip]:hover::after,
+.elemento-deshabilitado[data-tooltip]:focus-visible::after,
+.elemento-deshabilitado--tooltip-visible[data-tooltip]::after {
+  opacity: 1;
+}
+
 
 /* ────────────────────────────────────────────────────────────
    12. MEDIA QUERIES (tablet en adelante)
