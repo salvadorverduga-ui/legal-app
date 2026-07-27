@@ -194,9 +194,11 @@ function generarItem(n) {
   const idSeguro = escaparAtrib(n.id);
   const urlSegura = escaparAtrib(n.url_destino || '');
   const claseLeida = n.leida ? ' notificaciones__item--leida' : '';
+  // Mismo tratamiento visual que el dropdown de la campana (notificaciones.js).
+  const claseBienvenida = n.tipo === 'verificacion_aprobada' ? ' notificacion--bienvenida' : '';
 
   return `
-    <button class="notificaciones__item${claseLeida}" type="button" data-id="${idSeguro}" data-url="${urlSegura}">
+    <button class="notificaciones__item${claseLeida}${claseBienvenida}" type="button" data-id="${idSeguro}" data-url="${urlSegura}">
       <p class="notificaciones__item-titulo">${escaparHtml(n.titulo)}</p>
       <p class="notificaciones__item-mensaje">${escaparHtml(n.mensaje)}</p>
       <p class="notificaciones__item-fecha">${formatearFechaHora(n.created_at)}</p>

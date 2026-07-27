@@ -1273,6 +1273,20 @@ p {
   opacity: 0.55;
 }
 
+/* Notificación de cuenta aprobada (tipo verificacion_aprobada): fondo verde
+   destacado — mismo evento que dispara el modal de bienvenida en
+   panel-abogado.js. Se aplica después de .notificaciones__item--leida en el
+   cascade para que el fondo verde no se pierda si ya fue leída (solo se
+   atenúa la opacidad general, no el color). */
+.notificacion--bienvenida {
+  background-color: var(--badge-verificado-bg);
+  border-left: 3px solid var(--badge-verificado-borde);
+}
+
+.notificacion--bienvenida .notificaciones__item-titulo {
+  color: var(--badge-verificado-color);
+}
+
 .notificaciones__vacio {
   padding: var(--esp-6) var(--esp-4);
   text-align: center;

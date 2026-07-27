@@ -135,6 +135,34 @@ async function inicializar() {
   mostrarContenido();
   configurarEventos();
   aplicarTabDesdeUrl();
+  mostrarModalBienvenidaSiCorresponde();
+}
+
+// ─── Modal de bienvenida al ser verificado (una sola vez) ────────────────────
+// Se dispara cuando el abogado ya está VERIFICADO y todavía tiene sin leer la
+// notificación que generó ese cambio de estado (fn_notificar_estado_verificacion,
+// tipo verificacion_aprobada) — es la señal de "acaba de ser aprobado", sin
+// necesitar una columna aparte para marcarlo. localStorage evita repetirlo en
+// cargas posteriores del panel una vez que el abogado ya lo cerró, incluso si
+// por algún motivo la notificación tardara en marcarse como leída.
+async function mostrarModalBienvenidaSiCorresponde() {
+  if (abogadoActual.verificacion !== 'VERIFICADO') return;
+
+  const claveLocalStorage = `bienvenida_mostrada_${perfilActual.id}`;
+  if (localStorage.getItem(claveLocalStorage)) return;
+
+  const noLeidas = await api.notificaciones.getNoLeidas();
+  const notifBienvenida = noLeidas.find(n => n.tipo === 'verificacion_aprobada');
+  if (!notifBienvenida) return;
+
+  const modal = document.getElementById('modalBienvenidaVerificacion');
+  modal.hidden = false;
+
+  document.getElementById('btnCerrarBienvenidaVerificacion').addEventListener('click', async () => {
+    modal.hidden = true;
+    localStorage.setItem(claveLocalStorage, 'true');
+    await api.notificaciones.marcarLeida(notifBienvenida.id);
+  }, { once: true });
 }
 
 // ─── Control de estados visuales ─────────────────────────────────────────────

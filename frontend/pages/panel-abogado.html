@@ -206,6 +206,27 @@
     </div>
   </footer>
 
+  <!-- Modal de bienvenida al ser verificado — se muestra una sola vez (ver
+       panel-abogado.js, mostrarModalBienvenidaSiCorresponde()). -->
+  <div class="modal-confirmar-overlay" id="modalBienvenidaVerificacion" hidden>
+    <div class="modal-confirmar" role="alertdialog" aria-modal="true" aria-labelledby="modalBienvenidaTitulo">
+      <div class="modal-confirmar__mensaje">
+        <p id="modalBienvenidaTitulo"><strong>¡Su cuenta fue verificada!</strong></p>
+        <p>Ya puede:</p>
+        <ul class="modal-confirmar__lista">
+          <li>Aparecer en búsquedas de clientes</li>
+          <li>Recibir solicitudes de consulta</li>
+          <li>Ver y aplicar a casos en El Tablón</li>
+          <li>Ver su perfil público</li>
+        </ul>
+        <p>¡Bienvenido a LegalEC!</p>
+      </div>
+      <div class="modal-confirmar__acciones">
+        <button type="button" class="btn btn--primario btn--sm" id="btnCerrarBienvenidaVerificacion">Comenzar</button>
+      </div>
+    </div>
+  </div>
+
   <script src="/js/vendors/supabase.min.js"></script>
   <script type="module" src="/js/panel-abogado.js"></script>
 
