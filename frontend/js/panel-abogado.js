@@ -163,8 +163,19 @@ function configurarEventos() {
   });
 
   document.getElementById('seccionSeguimiento').addEventListener('click', manejarClickSeguimiento);
+  document.getElementById('inicioVerPerfilPublico').addEventListener('click', manejarClickVerPerfilPublico);
   inicializarMenuTarjeta();
   inicializarTooltipsDeshabilitados();
+}
+
+// El perfil público de un abogado no verificado no existe todavía para los
+// clientes (busqueda_abogados exige verificacion='VERIFICADO') — en vez de
+// dejar que se abra una pestaña con "No pudimos cargar este perfil", se
+// avisa por toast y no se navega.
+function manejarClickVerPerfilPublico(e) {
+  if (abogadoActual.verificacion === 'VERIFICADO') return;
+  e.preventDefault();
+  toast.info('Su perfil público no está disponible hasta que su cuenta sea verificada por el administrador.');
 }
 
 // ─── Navegación por secciones ─────────────────────────────────────────────────
