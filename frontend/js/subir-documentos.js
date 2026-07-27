@@ -76,10 +76,57 @@ async function inicializar() {
   }
 
   mostrarFormulario();
+  configurarBotonesArchivo();
   document.getElementById('formSubirDocumentos').addEventListener('submit', (e) => {
     e.preventDefault();
     manejarEnvio();
   });
+}
+
+// ─── Botón de selección de archivo personalizado ─────────────────────────────
+// Reemplaza el input[type=file] nativo (visible, con su propio botón de
+// navegador) por un botón de la app + nombre del archivo seleccionado. El
+// input real sigue existiendo, solo queda oculto (hidden) — el botón lo
+// activa con .click() y el propio input dispara el diálogo nativo del SO.
+function idSufijo(campo) {
+  return campo[0].toUpperCase() + campo.slice(1);
+}
+
+function configurarBotonesArchivo() {
+  CAMPOS_POR_ROL[rolUsuario].forEach(campo => {
+    const sufijo = idSufijo(campo);
+    const input = document.getElementById(`doc${sufijo}`);
+    document.getElementById(`btnSeleccionar${sufijo}`).addEventListener('click', () => input.click());
+    input.addEventListener('change', () => manejarSeleccionArchivo(campo));
+  });
+}
+
+// Valida apenas se elige el archivo (no solo al enviar el formulario): si no
+// pasa validarArchivo() (tipo/tamaño), se muestra el error en el campo y se
+// limpia la selección — el usuario nunca llega a "Enviar documentos" con un
+// archivo inválido sin haberlo sabido antes.
+function manejarSeleccionArchivo(campo) {
+  const sufijo = idSufijo(campo);
+  const input = document.getElementById(`doc${sufijo}`);
+  const boton = document.getElementById(`btnSeleccionar${sufijo}`);
+  const nombreEl = document.getElementById(`nombre${sufijo}`);
+  const errorEl = document.getElementById(`error${sufijo}`);
+  const archivo = input.files[0];
+
+  const errorArchivo = validarArchivo(archivo);
+  if (errorArchivo) {
+    input.value = '';
+    nombreEl.textContent = 'Ningún archivo seleccionado';
+    nombreEl.classList.remove('subida-archivo__nombre--seleccionado');
+    boton.textContent = 'Seleccionar archivo';
+    errorEl.textContent = errorArchivo;
+    return;
+  }
+
+  errorEl.textContent = '';
+  nombreEl.textContent = archivo.name;
+  nombreEl.classList.add('subida-archivo__nombre--seleccionado');
+  boton.textContent = 'Cambiar archivo';
 }
 
 function mostrarFormulario() {
@@ -121,10 +168,10 @@ async function aplicarEstadoRechazo() {
 // simulado, mismo patrón que usan otras apps para subidas sin progreso real)
 // y "completado" la lleva a 100% de inmediato.
 function actualizarProgresoArchivo(campo, estado) {
-  const idSufijo = campo[0].toUpperCase() + campo.slice(1);
-  const contenedor = document.getElementById(`progreso${idSufijo}`);
-  const relleno = document.getElementById(`progreso${idSufijo}Relleno`);
-  const texto = document.getElementById(`progreso${idSufijo}Estado`);
+  const sufijo = idSufijo(campo);
+  const contenedor = document.getElementById(`progreso${sufijo}`);
+  const relleno = document.getElementById(`progreso${sufijo}Relleno`);
+  const texto = document.getElementById(`progreso${sufijo}Estado`);
   if (!contenedor) return;
 
   contenedor.hidden = false;
@@ -142,9 +189,9 @@ function actualizarProgresoArchivo(campo, estado) {
 
 function marcarErrorProgreso(campos) {
   campos.forEach(campo => {
-    const idSufijo = campo[0].toUpperCase() + campo.slice(1);
-    const contenedor = document.getElementById(`progreso${idSufijo}`);
-    const texto = document.getElementById(`progreso${idSufijo}Estado`);
+    const sufijo = idSufijo(campo);
+    const contenedor = document.getElementById(`progreso${sufijo}`);
+    const texto = document.getElementById(`progreso${sufijo}Estado`);
     if (!contenedor || contenedor.classList.contains('subida-progreso--completo')) return;
     contenedor.hidden = false;
     contenedor.classList.add('subida-progreso--error');
@@ -160,15 +207,20 @@ async function manejarEnvio() {
   const campos = CAMPOS_POR_ROL[rolUsuario];
   const archivos = {};
   campos.forEach(campo => {
-    archivos[campo] = document.querySelector(`[data-campo="${campo}"]`).files[0];
+    archivos[campo] = document.getElementById(`doc${idSufijo(campo)}`).files[0];
   });
 
-  for (const campo of campos) {
+  let primerCampoInvalido = null;
+  campos.forEach(campo => {
     const errorArchivo = validarArchivo(archivos[campo]);
-    if (errorArchivo) {
-      errorEl.textContent = `${ETIQUETAS_CAMPO[campo]}: ${errorArchivo}`;
-      return;
-    }
+    document.getElementById(`error${idSufijo(campo)}`).textContent = errorArchivo ?? '';
+    if (errorArchivo && !primerCampoInvalido) primerCampoInvalido = campo;
+  });
+
+  if (primerCampoInvalido) {
+    errorEl.textContent = `Revise los documentos marcados: ${ETIQUETAS_CAMPO[primerCampoInvalido]}.`;
+    document.getElementById(`btnSeleccionar${idSufijo(primerCampoInvalido)}`).focus();
+    return;
   }
 
   btn.disabled = true;

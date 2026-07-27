@@ -2141,11 +2141,25 @@ p {
   max-width: 220px;
 }
 
-/* Campo de archivo: el input nativo se deja con la apariencia del navegador
-   (necesaria para el botón "Seleccionar archivo"), solo se ajusta el padding. */
-.campo__input--archivo {
-  padding: var(--esp-2) var(--esp-3);
-  cursor: pointer;
+/* Campo de archivo: el input nativo queda oculto (hidden) — un botón propio
+   de la app lo activa con .click() (subir-documentos.js), reemplazando el
+   selector nativo del navegador por un control con la misma apariencia que
+   el resto de los botones de la app. */
+.subida-archivo {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--esp-3);
+}
+
+.subida-archivo__nombre {
+  font-size: var(--texto-sm);
+  color: var(--color-texto-suave);
+}
+
+.subida-archivo__nombre--seleccionado {
+  color: var(--color-texto);
+  font-weight: var(--peso-semibold);
 }
 
 @media (min-width: 640px) {

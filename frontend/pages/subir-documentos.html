@@ -50,33 +50,54 @@
               <!-- Campos para abogado individual -->
               <div id="camposAbogado" hidden>
                 <div class="campo campo-documento">
-                  <label for="docCarnet" class="campo__etiqueta">Foto del carné de abogado</label>
+                  <span class="campo__etiqueta" id="etiquetaCarnet">Foto del carné de abogado</span>
                   <p class="campo-documento__motivo">Confirma que está habilitado para ejercer la abogacía en Ecuador.</p>
-                  <input type="file" id="docCarnet" name="doc_carnet" class="campo__input campo__input--archivo"
-                    accept="image/jpeg,image/png,application/pdf" data-campo="carnet">
+                  <div class="subida-archivo">
+                    <button type="button" class="btn btn--secundario btn--sm subida-archivo__boton" id="btnSeleccionarCarnet" data-campo="carnet" aria-describedby="etiquetaCarnet">
+                      Seleccionar archivo
+                    </button>
+                    <span class="subida-archivo__nombre" id="nombreCarnet">Ningún archivo seleccionado</span>
+                    <input type="file" id="docCarnet" name="doc_carnet" class="subida-archivo__input" hidden
+                      accept="image/jpeg,image/png,application/pdf" data-campo="carnet">
+                  </div>
                   <span class="campo__ayuda">JPG, PNG o PDF. Máximo 5 MB.</span>
+                  <p class="campo__error" id="errorCarnet" role="alert" aria-live="polite"></p>
                   <div class="subida-progreso" id="progresoCarnet" hidden>
                     <div class="subida-progreso__barra"><div class="subida-progreso__relleno" id="progresoCarnetRelleno"></div></div>
                     <span class="subida-progreso__estado" id="progresoCarnetEstado"></span>
                   </div>
                 </div>
                 <div class="campo campo-documento">
-                  <label for="docCedulaAnverso" class="campo__etiqueta">Cédula — parte frontal</label>
+                  <span class="campo__etiqueta" id="etiquetaCedulaAnverso">Cédula — parte frontal</span>
                   <p class="campo-documento__motivo">Verifica su identidad.</p>
-                  <input type="file" id="docCedulaAnverso" name="doc_cedula_anverso" class="campo__input campo__input--archivo"
-                    accept="image/jpeg,image/png,application/pdf" data-campo="cedulaAnverso">
+                  <div class="subida-archivo">
+                    <button type="button" class="btn btn--secundario btn--sm subida-archivo__boton" id="btnSeleccionarCedulaAnverso" data-campo="cedulaAnverso" aria-describedby="etiquetaCedulaAnverso">
+                      Seleccionar archivo
+                    </button>
+                    <span class="subida-archivo__nombre" id="nombreCedulaAnverso">Ningún archivo seleccionado</span>
+                    <input type="file" id="docCedulaAnverso" name="doc_cedula_anverso" class="subida-archivo__input" hidden
+                      accept="image/jpeg,image/png,application/pdf" data-campo="cedulaAnverso">
+                  </div>
                   <span class="campo__ayuda">JPG, PNG o PDF. Máximo 5 MB.</span>
+                  <p class="campo__error" id="errorCedulaAnverso" role="alert" aria-live="polite"></p>
                   <div class="subida-progreso" id="progresoCedulaAnverso" hidden>
                     <div class="subida-progreso__barra"><div class="subida-progreso__relleno" id="progresoCedulaAnversoRelleno"></div></div>
                     <span class="subida-progreso__estado" id="progresoCedulaAnversoEstado"></span>
                   </div>
                 </div>
                 <div class="campo campo-documento">
-                  <label for="docCedulaReverso" class="campo__etiqueta">Cédula — parte posterior</label>
+                  <span class="campo__etiqueta" id="etiquetaCedulaReverso">Cédula — parte posterior</span>
                   <p class="campo-documento__motivo">Verifica su identidad.</p>
-                  <input type="file" id="docCedulaReverso" name="doc_cedula_reverso" class="campo__input campo__input--archivo"
-                    accept="image/jpeg,image/png,application/pdf" data-campo="cedulaReverso">
+                  <div class="subida-archivo">
+                    <button type="button" class="btn btn--secundario btn--sm subida-archivo__boton" id="btnSeleccionarCedulaReverso" data-campo="cedulaReverso" aria-describedby="etiquetaCedulaReverso">
+                      Seleccionar archivo
+                    </button>
+                    <span class="subida-archivo__nombre" id="nombreCedulaReverso">Ningún archivo seleccionado</span>
+                    <input type="file" id="docCedulaReverso" name="doc_cedula_reverso" class="subida-archivo__input" hidden
+                      accept="image/jpeg,image/png,application/pdf" data-campo="cedulaReverso">
+                  </div>
                   <span class="campo__ayuda">JPG, PNG o PDF. Máximo 5 MB.</span>
+                  <p class="campo__error" id="errorCedulaReverso" role="alert" aria-live="polite"></p>
                   <div class="subida-progreso" id="progresoCedulaReverso" hidden>
                     <div class="subida-progreso__barra"><div class="subida-progreso__relleno" id="progresoCedulaReversoRelleno"></div></div>
                     <span class="subida-progreso__estado" id="progresoCedulaReversoEstado"></span>
@@ -87,22 +108,36 @@
               <!-- Campos para estudio jurídico -->
               <div id="camposEstudio" hidden>
                 <div class="campo campo-documento">
-                  <label for="docRuc" class="campo__etiqueta">Documento de RUC</label>
+                  <span class="campo__etiqueta" id="etiquetaRuc">Documento de RUC</span>
                   <p class="campo-documento__motivo">Confirma que el estudio está registrado legalmente.</p>
-                  <input type="file" id="docRuc" name="doc_ruc" class="campo__input campo__input--archivo"
-                    accept="image/jpeg,image/png,application/pdf" data-campo="ruc">
+                  <div class="subida-archivo">
+                    <button type="button" class="btn btn--secundario btn--sm subida-archivo__boton" id="btnSeleccionarRuc" data-campo="ruc" aria-describedby="etiquetaRuc">
+                      Seleccionar archivo
+                    </button>
+                    <span class="subida-archivo__nombre" id="nombreRuc">Ningún archivo seleccionado</span>
+                    <input type="file" id="docRuc" name="doc_ruc" class="subida-archivo__input" hidden
+                      accept="image/jpeg,image/png,application/pdf" data-campo="ruc">
+                  </div>
                   <span class="campo__ayuda">JPG, PNG o PDF. Máximo 5 MB.</span>
+                  <p class="campo__error" id="errorRuc" role="alert" aria-live="polite"></p>
                   <div class="subida-progreso" id="progresoRuc" hidden>
                     <div class="subida-progreso__barra"><div class="subida-progreso__relleno" id="progresoRucRelleno"></div></div>
                     <span class="subida-progreso__estado" id="progresoRucEstado"></span>
                   </div>
                 </div>
                 <div class="campo campo-documento">
-                  <label for="docNombramiento" class="campo__etiqueta">Nombramiento del representante legal</label>
+                  <span class="campo__etiqueta" id="etiquetaNombramiento">Nombramiento del representante legal</span>
                   <p class="campo-documento__motivo">Confirma que usted es el representante legal autorizado del estudio.</p>
-                  <input type="file" id="docNombramiento" name="doc_nombramiento" class="campo__input campo__input--archivo"
-                    accept="image/jpeg,image/png,application/pdf" data-campo="nombramiento">
+                  <div class="subida-archivo">
+                    <button type="button" class="btn btn--secundario btn--sm subida-archivo__boton" id="btnSeleccionarNombramiento" data-campo="nombramiento" aria-describedby="etiquetaNombramiento">
+                      Seleccionar archivo
+                    </button>
+                    <span class="subida-archivo__nombre" id="nombreNombramiento">Ningún archivo seleccionado</span>
+                    <input type="file" id="docNombramiento" name="doc_nombramiento" class="subida-archivo__input" hidden
+                      accept="image/jpeg,image/png,application/pdf" data-campo="nombramiento">
+                  </div>
                   <span class="campo__ayuda">JPG, PNG o PDF. Máximo 5 MB.</span>
+                  <p class="campo__error" id="errorNombramiento" role="alert" aria-live="polite"></p>
                   <div class="subida-progreso" id="progresoNombramiento" hidden>
                     <div class="subida-progreso__barra"><div class="subida-progreso__relleno" id="progresoNombramientoRelleno"></div></div>
                     <span class="subida-progreso__estado" id="progresoNombramientoEstado"></span>
