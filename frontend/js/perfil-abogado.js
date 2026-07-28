@@ -243,9 +243,10 @@ function configurarEventos(abogadoId) {
 
   // Un visitante sin cuenta puede iniciar sesión desde el enlace del header
   // o desde "Inicie sesión para contactar a este abogado" (#seccionSinSesion)
-  // — ambos apuntan a "/". Guardamos esta URL para volver aquí tras el login
-  // exitoso (ver app.js, manejarIngresar).
-  document.querySelectorAll('a[href="/"]').forEach(enlace => {
+  // — ambos apuntan a "/?mostrar_login=true" (header.js, CLAUDE.md §45).
+  // Guardamos esta URL para volver aquí tras el login exitoso (ver app.js,
+  // manejarIngresar).
+  document.querySelectorAll('a[href^="/?mostrar_login"]').forEach(enlace => {
     enlace.addEventListener('click', () => {
       sessionStorage.setItem('redirect_after_login', window.location.href);
     });

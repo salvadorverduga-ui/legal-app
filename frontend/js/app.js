@@ -147,6 +147,27 @@ function configurarUI() {
   document.getElementById('tabIngresar').addEventListener('click', () => cambiarTab('ingresar'));
   document.getElementById('tabRegistro').addEventListener('click', () => cambiarTab('registro'));
   document.getElementById('formIngresar').addEventListener('submit', manejarIngresar);
+
+  abrirLoginSiCorresponde();
+}
+
+// Abre el formulario de login directamente, sin pasar por la selección de
+// rol, cuando se llega con ?mostrar_login=true — enlace "Iniciar sesión" del
+// header (header.js, en cualquier página) y "Inicie sesión para contactar a
+// este abogado" (perfil-abogado.html) apuntan acá para ahorrar el clic
+// intermedio de elegir una tarjeta que, solo para iniciar sesión, no aporta
+// nada (CLAUDE.md §45). rolActivo queda en null a propósito: sin una
+// tarjeta elegida no hay "flujo declarado" contra el cual comparar el rol
+// real de la cuenta — manejarIngresar() omite ese chequeo en ese caso y
+// confía en el rol que ya está guardado en la base de datos para redirigir.
+function abrirLoginSiCorresponde() {
+  if (new URLSearchParams(window.location.search).get('mostrar_login') !== 'true') return;
+
+  document.getElementById('rolSeleccionado').textContent = 'Inicie sesión';
+  document.getElementById('seccionAuth').hidden = false;
+  cambiarTab('ingresar');
+  document.getElementById('loginEmail').focus();
+  document.getElementById('seccionAuth').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 function seleccionarRol(rol) {
@@ -228,7 +249,12 @@ async function manejarIngresar(evento) {
       return;
     }
 
-    if (!rolCoincideConFlujo(perfil.rol, rolActivo)) {
+    // rolActivo es null cuando el login se abrió directo vía
+    // ?mostrar_login=true (abrirLoginSiCorresponde), sin pasar por ninguna
+    // tarjeta — sin un flujo declarado, no hay nada contra qué comparar el
+    // rol real de la cuenta, así que se omite el chequeo y se confía en el
+    // rol de la base de datos para decidir a dónde redirigir.
+    if (rolActivo && !rolCoincideConFlujo(perfil.rol, rolActivo)) {
       await api.auth.cerrarSesion();
       errorEl.textContent = mensajeRolIncorrecto(perfil.rol);
       return;
