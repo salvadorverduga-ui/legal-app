@@ -88,8 +88,12 @@ export function actualizarAvatarHeader(fotoPath, nombre) {
 
 // ─── Estado anónimo ─────────────────────────────────────────────────────────
 function renderizarAnonimo(nav) {
+  // /?mostrar_login=true (no solo /) para que app.js abra el formulario de
+  // login directamente, sin pasar por la selección de rol — necesario
+  // incluso en index.html mismo, donde un href="/" liso es un autoenlace
+  // que no hace nada visible al hacer clic (ver CLAUDE.md §45).
   nav.insertAdjacentHTML('beforeend', `
-    <a class="btn btn--secundario btn--sm" href="/" style="${ESTILO_BOTON_HEADER}">Iniciar sesión</a>
+    <a class="btn btn--secundario btn--sm" href="/?mostrar_login=true" style="${ESTILO_BOTON_HEADER}">Iniciar sesión</a>
   `);
 }
 
