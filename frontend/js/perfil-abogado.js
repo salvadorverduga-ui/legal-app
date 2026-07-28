@@ -52,9 +52,20 @@ async function inicializar() {
     return;
   }
 
+  // 3b. Si el visitante es el propio abogado del perfil, usar su vista previa
+  // propia (mi_perfil_publico) en vez de busqueda_abogados — así siempre
+  // puede verse a sí mismo, sin depender de las condiciones de visibilidad
+  // pública (suscripción vigente, toggle_disponible, etc.), que solo
+  // importan para terceros. Mismo shape de columnas en ambas vistas.
+  let viendoPropioPerfil = false;
+  if (perfil?.rol === 'abogado') {
+    const sesionActual = await api.auth.getSession();
+    viendoPropioPerfil = sesionActual?.user?.id === abogadoId;
+  }
+
   // 4. Cargar perfil y reseñas en paralelo
   const [abogado, resenas] = await Promise.all([
-    api.abogados.getAbogado(abogadoId),
+    viendoPropioPerfil ? api.abogados.getPerfilPropioPublico() : api.abogados.getAbogado(abogadoId),
     api.resenas.getResenasAbogado(abogadoId),
   ]);
 

@@ -481,6 +481,29 @@ export const abogados = {
   },
 
   /**
+   * Retorna el perfil público del abogado autenticado, con el mismo shape que
+   * getAbogado() (vista mi_perfil_publico, migración 20260727_073) pero sin
+   * las condiciones de visibilidad de busqueda_abogados — el dueño del
+   * perfil siempre puede ver su propia vista previa pública, incluso si hoy
+   * no cumple todas las condiciones para aparecer ante terceros (suscripción
+   * vencida, toggle apagado, etc.). Usado por perfil-abogado.js cuando el
+   * visitante autenticado es el mismo abogado del perfil que está viendo.
+   * Retorna null si no hay sesión activa o falla la consulta.
+   */
+  async getPerfilPropioPublico() {
+    const { data, error } = await _cliente
+      .from('mi_perfil_publico')
+      .select('*')
+      .single();
+
+    if (error) {
+      console.error('[api.abogados.getPerfilPropioPublico]', error.message);
+      return null;
+    }
+    return data;
+  },
+
+  /**
    * Retorna la fila propia del abogado autenticado desde la tabla abogados
    * (no desde la vista busqueda_abogados, que oculta perfiles no visibles).
    * Incluye verificacion, toggle_disponible, suscripcion_vigente_hasta y los
