@@ -649,6 +649,16 @@ p {
   white-space: nowrap;
 }
 
+/* display: inline-flex de arriba gana sobre [hidden] por origen de cascada
+   (regla de autor vs. regla de user-agent), así que hay que repetirlo acá —
+   mismo patrón que .formulario[hidden]/.panel-banner[hidden]/etc. más abajo
+   en este archivo. Sin esto, un <a class="btn" hidden> o <button class="btn"
+   hidden> (ej. #bannerVerificacionDocumentosBoton) queda con hidden=true en
+   el DOM pero sigue renderizándose visualmente. */
+.btn[hidden] {
+  display: none;
+}
+
 .btn:focus-visible {
   outline: 3px solid var(--color-acento);
   outline-offset: 2px;
