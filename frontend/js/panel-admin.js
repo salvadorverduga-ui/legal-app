@@ -224,7 +224,7 @@ function generarDatosRegistro(v) {
         // cédula cuando ya está en uso por otro perfil (ver trigger_errors),
         // así que un NULL acá es una señal de que hay que revisar un posible
         // duplicado antes de aprobar, no un dato ausente sin más.
-        ['Cédula', v.cedula_solicitante ?? 'No registrada (posible cédula duplicada — revisar antes de aprobar)'],
+        ['Cédula', v.cedula_solicitante ?? 'No registrada — la cédula ingresada ya existía en otra cuenta'],
         ['Número de carné', v.numero_registro],
         ['Provincia', v.provincia],
         ['Especialidades', (v.especialidades ?? []).join(', ')],

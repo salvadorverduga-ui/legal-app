@@ -8,6 +8,8 @@ import { obtenerConfig } from './config.js';
 import { toast } from './utils.js';
 
 const MENSAJE_EMAILS_NO_COINCIDEN = 'Los correos electrónicos no coinciden. Por favor verifique.';
+const MENSAJE_CEDULA_DUPLICADA =
+  'Esta cédula ya está registrada en la plataforma. Si ya tiene una cuenta, inicie sesión. Si cree que esto es un error, contáctenos.';
 
 let tipoProfesionalActivo = null; // 'individual' | 'estudio' | 'red'
 let codigoReferido = null; // ?ref= en la URL, capturado en inicializar() y asociado al registro de abogado
@@ -204,6 +206,22 @@ async function manejarRegistroAbogado(evento) {
 
   errorEl.textContent = '';
   btnEl.disabled = true;
+  btnEl.textContent = 'Verificando...';
+
+  // Chequeo proactivo antes de signUp(): perfiles.cedula es UNIQUE y, ante un
+  // duplicado, fn_crear_perfil_en_registro guarda la cuenta igual pero
+  // descarta la cédula en silencio (para no perder el registro completo) —
+  // sin este aviso, el abogado nunca se entera de que su cédula no quedó
+  // guardada (ver CLAUDE.md §44).
+  const cedulaDisponible = await api.perfiles.verificarCedulaDisponible(cedula);
+  if (!cedulaDisponible) {
+    errorEl.textContent = MENSAJE_CEDULA_DUPLICADA;
+    toast.error(MENSAJE_CEDULA_DUPLICADA);
+    btnEl.disabled = false;
+    btnEl.textContent = 'Crear cuenta';
+    return;
+  }
+
   btnEl.textContent = 'Creando cuenta...';
 
   try {

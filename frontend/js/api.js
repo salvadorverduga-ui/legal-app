@@ -252,6 +252,29 @@ export const auth = {
 export const perfiles = {
 
   /**
+   * Verifica si una cédula está disponible para registrarse (RPC pública
+   * existe_cedula_registrada, migración 20260728_075, SECURITY DEFINER —
+   * mismo patrón que api.referidos.validarCodigo(): perfiles no tiene
+   * ningún GRANT hacia anon, así que un SELECT directo contra la tabla
+   * fallaría antes del signUp). Se usa en registro.js para avisar de
+   * inmediato si la cédula ya está en uso, en vez de que el abogado se
+   * entere después de que perfiles.cedula quedó en NULL (ver CLAUDE.md §44).
+   * Retorna true si está disponible (no registrada) o si la consulta falla
+   * por un error de red — no bloquea el registro por un problema de
+   * conectividad ajeno a la cédula en sí; la constraint UNIQUE en la base de
+   * datos sigue siendo la validación real.
+   */
+  async verificarCedulaDisponible(cedula) {
+    const { data, error } = await _cliente.rpc('existe_cedula_registrada', { p_cedula: cedula });
+
+    if (error) {
+      console.error('[api.perfiles.verificarCedulaDisponible]', error.message);
+      return true;
+    }
+    return !data;
+  },
+
+  /**
    * Retorna el perfil completo del usuario autenticado desde la tabla perfiles.
    * Incluye: id, rol, nombre_completo, cedula, telefono, ciudad, provincia, foto_url.
    * Retorna null si no hay sesión activa.
