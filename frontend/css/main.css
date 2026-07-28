@@ -3368,6 +3368,10 @@ p {
   color: var(--color-texto);
 }
 
+.tablon-panel-lateral--publicar {
+  margin-bottom: var(--esp-6);
+}
+
 .tablon-panel-lateral__boton {
   width: 100%;
   justify-content: center;

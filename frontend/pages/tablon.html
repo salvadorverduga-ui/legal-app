@@ -47,30 +47,28 @@
         </section>
 
         <!-- ═══════════════ VISTA CLIENTE ═══════════════ -->
+        <!-- "Publicar un caso" queda siempre lo primero visible, antes del
+             listado, sin importar el ancho de pantalla — a diferencia de la
+             vista abogado (con filtros), acá no hace falta el layout de dos
+             columnas, así que el bloque va suelto en vez de en
+             .tablon-layout__lateral (que en mobile pasaba después del
+             listado, por orden del DOM dentro del grid de una columna). -->
         <div id="vistaCliente" hidden>
-          <div class="tablon-layout">
+          <div class="tablon-panel-lateral tablon-panel-lateral--publicar">
+            <p class="tablon-panel-lateral__titulo">¿Tiene un caso legal?</p>
+            <a href="/pages/tablon-publicar" class="btn btn--primario tablon-panel-lateral__boton" id="btnPublicarCaso">
+              Publicar un caso
+            </a>
+            <!-- Texto completado por tablon.js (actualizarAvisoLimiteCasos), según
+                 config_tablon.limite_publicaciones_diarias_cliente. -->
+            <p class="campo__ayuda" id="avisoLimiteCasos" hidden></p>
+          </div>
 
-            <div class="tablon-layout__principal">
-              <div class="solicitudes-lista" id="misCasosLista"></div>
+          <div class="solicitudes-lista" id="misCasosLista"></div>
 
-              <div class="estado-vacio" id="estadoSinCasosCliente" hidden>
-                <p class="estado-vacio__titulo">Aún no ha publicado casos</p>
-                <p>Publique un caso para que abogados verificados apliquen a atenderlo.</p>
-              </div>
-            </div>
-
-            <div class="tablon-layout__lateral">
-              <div class="tablon-panel-lateral">
-                <p class="tablon-panel-lateral__titulo">¿Tiene un caso legal?</p>
-                <a href="/pages/tablon-publicar" class="btn btn--primario tablon-panel-lateral__boton" id="btnPublicarCaso">
-                  Publicar un caso
-                </a>
-                <!-- Texto completado por tablon.js (actualizarAvisoLimiteCasos), según
-                     config_tablon.limite_publicaciones_diarias_cliente. -->
-                <p class="campo__ayuda" id="avisoLimiteCasos" hidden></p>
-              </div>
-            </div>
-
+          <div class="estado-vacio" id="estadoSinCasosCliente" hidden>
+            <p class="estado-vacio__titulo">Aún no ha publicado casos</p>
+            <p>Publique un caso para que abogados verificados apliquen a atenderlo.</p>
           </div>
         </div>
 
