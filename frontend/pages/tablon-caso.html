@@ -70,6 +70,19 @@
 
         <!-- ═══════════════ VISTA CLIENTE (dueño del caso) ═══════════════ -->
         <div id="vistaClienteCaso" hidden>
+
+          <!-- Confirmación tras elegir un abogado (manejarElegirAbogado en
+               tablon-caso.js). No reemplaza el listado: el cliente puede
+               elegir a más de un aplicante (CLAUDE.md §17), así que el
+               listado sigue visible debajo para seguir eligiendo si quiere. -->
+          <div class="mensaje-confirmacion" id="confirmacionEleccion" hidden>
+            <p class="mensaje-confirmacion__titulo">Abogado elegido</p>
+            <p id="confirmacionEleccionTexto"></p>
+            <div class="mensaje-confirmacion__botones">
+              <a href="/pages/solicitudes-tablon" class="btn btn--primario">Ver mis solicitudes del Tablón</a>
+            </div>
+          </div>
+
           <div class="tablon-seccion__header">
             <h2 class="auth__titulo">Abogados que aplicaron</h2>
             <button class="btn btn--secundario btn--sm" id="btnCerrarCaso" type="button">Cerrar caso</button>

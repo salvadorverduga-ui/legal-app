@@ -286,7 +286,22 @@ async function manejarElegirAbogado(aplicacionId) {
   const entrada = aplicacionesActuales.find(a => a.id === aplicacionId);
   if (entrada) Object.assign(entrada, data);
   renderizarAplicaciones();
-  toast.exito('Abogado elegido. Se creó una solicitud de consulta y sus datos de contacto ya fueron revelados.');
+  mostrarConfirmacionEleccion(entrada?.abogado_nombre);
+  toast.exito('Abogado elegido.');
+}
+
+// Banner persistente con el nombre del abogado y acceso directo a
+// "Solicitudes del Tablón" — un toast no alcanza para esto porque necesita
+// llevar un botón, y el cliente puede seguir eligiendo a otros aplicantes
+// del mismo caso (§17), así que no reemplaza el listado, solo se agrega
+// arriba. Si ya había una elección previa en este caso, el texto se
+// actualiza con el nombre del último elegido.
+function mostrarConfirmacionEleccion(nombreAbogado) {
+  const banner = document.getElementById('confirmacionEleccion');
+  document.getElementById('confirmacionEleccionTexto').textContent =
+    `Sus datos de contacto fueron compartidos con ${nombreAbogado ?? 'el abogado elegido'} de inmediato. Puede hacer seguimiento de este caso desde sus Solicitudes del Tablón.`;
+  banner.hidden = false;
+  banner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 async function manejarCerrarCaso() {
