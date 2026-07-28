@@ -3364,6 +3364,22 @@ p {
   align-items: start;
 }
 
+/* El lateral puede alojar más de un .tablon-panel-lateral apilado (vista
+   cliente: publicar + reglas; vista abogado: solo filtros, sin cambios). */
+.tablon-layout__lateral {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-6);
+}
+
+/* Mobile: el panel lateral (ej. "Publicar un caso") aparece antes que el
+   listado principal aunque en el DOM venga después — así sigue siendo lo
+   primero visible en pantallas angostas. Desktop: vuelve al orden normal
+   (izquierda: listado, derecha: lateral), igual que la vista abogado. */
+.tablon-layout__lateral--prioridad-mobile {
+  order: -1;
+}
+
 @media (min-width: 1024px) {
   .tablon-layout {
     grid-template-columns: 7fr 3fr;
@@ -3372,6 +3388,10 @@ p {
   .tablon-layout__lateral {
     position: sticky;
     top: var(--esp-6);
+  }
+
+  .tablon-layout__lateral--prioridad-mobile {
+    order: 0;
   }
 }
 
@@ -3392,8 +3412,14 @@ p {
   color: var(--color-texto);
 }
 
-.tablon-panel-lateral--publicar {
-  margin-bottom: var(--esp-6);
+.tablon-panel-lateral__lista {
+  margin: 0;
+  padding-left: var(--esp-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-2);
+  font-size: var(--texto-sm);
+  color: var(--color-texto-suave);
 }
 
 .tablon-panel-lateral__boton {

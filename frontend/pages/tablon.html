@@ -47,28 +47,48 @@
         </section>
 
         <!-- ═══════════════ VISTA CLIENTE ═══════════════ -->
-        <!-- "Publicar un caso" queda siempre lo primero visible, antes del
-             listado, sin importar el ancho de pantalla — a diferencia de la
-             vista abogado (con filtros), acá no hace falta el layout de dos
-             columnas, así que el bloque va suelto en vez de en
-             .tablon-layout__lateral (que en mobile pasaba después del
-             listado, por orden del DOM dentro del grid de una columna). -->
+        <!-- Mismo layout de dos columnas que la vista abogado (listado a la
+             izquierda, panel lateral a la derecha en desktop). El panel
+             lateral usa el modificador --prioridad-mobile para seguir
+             apareciendo antes que el listado en pantallas angostas (order:
+             -1 por debajo de 1024px, ver main.css) — así "Publicar un caso"
+             sigue siendo lo primero visible en mobile sin perder el layout
+             de dos columnas en desktop. -->
         <div id="vistaCliente" hidden>
-          <div class="tablon-panel-lateral tablon-panel-lateral--publicar">
-            <p class="tablon-panel-lateral__titulo">¿Tiene un caso legal?</p>
-            <a href="/pages/tablon-publicar" class="btn btn--primario tablon-panel-lateral__boton" id="btnPublicarCaso">
-              Publicar un caso
-            </a>
-            <!-- Texto completado por tablon.js (actualizarAvisoLimiteCasos), según
-                 config_tablon.limite_publicaciones_diarias_cliente. -->
-            <p class="campo__ayuda" id="avisoLimiteCasos" hidden></p>
-          </div>
+          <div class="tablon-layout">
 
-          <div class="solicitudes-lista" id="misCasosLista"></div>
+            <div class="tablon-layout__principal">
+              <div class="solicitudes-lista" id="misCasosLista"></div>
 
-          <div class="estado-vacio" id="estadoSinCasosCliente" hidden>
-            <p class="estado-vacio__titulo">Aún no ha publicado casos</p>
-            <p>Publique un caso para que abogados verificados apliquen a atenderlo.</p>
+              <div class="estado-vacio" id="estadoSinCasosCliente" hidden>
+                <p class="estado-vacio__titulo">Aún no ha publicado casos</p>
+                <p>Publique un caso para que abogados verificados apliquen a atenderlo.</p>
+              </div>
+            </div>
+
+            <div class="tablon-layout__lateral tablon-layout__lateral--prioridad-mobile">
+              <div class="tablon-panel-lateral">
+                <p class="tablon-panel-lateral__titulo">¿Tiene un caso legal?</p>
+                <a href="/pages/tablon-publicar" class="btn btn--primario tablon-panel-lateral__boton" id="btnPublicarCaso">
+                  Publicar un caso
+                </a>
+                <!-- Texto completado por tablon.js (actualizarAvisoLimiteCasos), según
+                     config_tablon.limite_publicaciones_diarias_cliente. -->
+                <p class="campo__ayuda" id="avisoLimiteCasos" hidden></p>
+              </div>
+
+              <div class="tablon-panel-lateral">
+                <p class="tablon-panel-lateral__titulo">Reglas del Tablón</p>
+                <ul class="tablon-panel-lateral__lista">
+                  <li>Su caso queda publicado 15 días; después expira automáticamente.</li>
+                  <li>Solo abogados verificados pueden ver su caso y aplicar a él.</li>
+                  <li>Puede elegir a más de un abogado aplicante si lo prefiere.</li>
+                  <li>Al elegir a un abogado, sus datos de contacto se comparten de inmediato con él.</li>
+                  <li>Puede cerrar su caso manualmente en cualquier momento desde el detalle del caso.</li>
+                </ul>
+              </div>
+            </div>
+
           </div>
         </div>
 
