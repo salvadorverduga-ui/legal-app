@@ -1156,6 +1156,20 @@ p {
   background-color: var(--color-primario-suave);
 }
 
+/* "Ver mi perfil público" para un abogado no verificado (header.js): no
+   navega, muestra un toast en vez de un tooltip — por eso no reutiliza
+   .elemento-deshabilitado (esa clase trae su propio interceptor de click en
+   fase de captura, pensado para el tooltip genérico, ver utils.js). */
+.menu-desplegable__item--deshabilitado {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.menu-desplegable__item--deshabilitado:hover,
+.menu-desplegable__item--deshabilitado:focus-visible {
+  background-color: transparent;
+}
+
 /* ── Notificaciones (campana + dropdown) ──────────────────── */
 .notificaciones__boton {
   position: relative;

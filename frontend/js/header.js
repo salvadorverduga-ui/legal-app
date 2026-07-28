@@ -22,8 +22,14 @@
 //   inicializarHeader({ forzarAnonimo: true });
 
 import * as api from './api.js';
-import { rutaPanelPropio, aplicarEstadoDeshabilitado, inicializarTooltipsDeshabilitados } from './utils.js';
+import { rutaPanelPropio, aplicarEstadoDeshabilitado, inicializarTooltipsDeshabilitados, toast } from './utils.js';
 import { inicializarNotificaciones } from './notificaciones.js';
+
+// Mismo mensaje que panel-abogado.js usa para el acceso rápido "Ver mi
+// perfil público" del dashboard (CLAUDE.md §44 módulo 3) — acá se repite
+// para el ítem homónimo del menú de avatar, para que ambos digan lo mismo.
+const MENSAJE_PERFIL_PUBLICO_NO_DISPONIBLE =
+  'Su perfil público no está disponible hasta que su cuenta sea verificada por el administrador.';
 
 /**
  * Renderiza el <nav class="nav-usuario"> según el estado de sesión y
@@ -115,7 +121,7 @@ function renderizarAutenticado(nav, { rol, nombre, fotoPath, urlPerfilPublico, a
       <span class="menu-perfil__avatar" id="menuPerfilAvatar"></span>
     </button>
     <ul class="menu-desplegable__lista" id="listaMenuPerfil" role="menu" hidden>
-      ${generarItems(rol, urlPerfilPublico)}
+      ${generarItems(rol, urlPerfilPublico, abogadoNoVerificado)}
     </ul>
   `;
 
@@ -123,6 +129,16 @@ function renderizarAutenticado(nav, { rol, nombre, fotoPath, urlPerfilPublico, a
   actualizarAvatarHeader(fotoPath, nombre);
 
   configurarMenuDesplegable(contenedor, document.getElementById('btnMenuPerfil'), document.getElementById('listaMenuPerfil'));
+
+  // "Ver mi perfil público" bloqueado: no navega (preventDefault sobre el
+  // propio target="_blank"), muestra un toast en vez de un tooltip — mismo
+  // criterio que el acceso rápido homónimo del dashboard (panel-abogado.js).
+  if (rol === 'abogado' && abogadoNoVerificado) {
+    document.getElementById('menuItemVerPerfilPublico')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      toast.info(MENSAJE_PERFIL_PUBLICO_NO_DISPONIBLE);
+    });
+  }
 
   if (rol === 'admin') {
     const menuVerComo = document.getElementById('menuVerComo');
@@ -211,9 +227,11 @@ const RUTA_EDITAR_PERFIL_POR_ROL = {
   abogado: '/pages/editar-perfil-abogado',
 };
 
-function generarItems(rol, urlPerfilPublico) {
+function generarItems(rol, urlPerfilPublico, abogadoNoVerificado) {
+  const bloquearPerfilPublico = rol === 'abogado' && abogadoNoVerificado;
+  const claseDeshabilitado = bloquearPerfilPublico ? ' menu-desplegable__item--deshabilitado' : '';
   const itemVerPerfilPublico = (rol === 'abogado' && urlPerfilPublico)
-    ? `<li role="none"><a role="menuitem" class="menu-desplegable__item" href="${escaparAtrib(urlPerfilPublico)}" target="_blank" rel="noopener noreferrer">Ver mi perfil público</a></li>`
+    ? `<li role="none"><a role="menuitem" class="menu-desplegable__item${claseDeshabilitado}" id="menuItemVerPerfilPublico" href="${escaparAtrib(urlPerfilPublico)}" target="_blank" rel="noopener noreferrer" aria-disabled="${bloquearPerfilPublico}">Ver mi perfil público</a></li>`
     : '';
 
   const rutaEditarPerfil = RUTA_EDITAR_PERFIL_POR_ROL[rol];
