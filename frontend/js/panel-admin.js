@@ -217,7 +217,14 @@ function generarDatosRegistro(v) {
       ]
     : [
         ['Nombre completo', v.nombre_solicitante],
-        ['Cédula', v.cedula_solicitante],
+        // A diferencia de las demás filas (que se ocultan si vienen vacías,
+        // ver el filter() de abajo), la cédula siempre se muestra: si es
+        // NULL no es un campo simplemente no completado — perfiles.cedula
+        // es UNIQUE y fn_crear_perfil_en_registro reintenta el INSERT sin
+        // cédula cuando ya está en uso por otro perfil (ver trigger_errors),
+        // así que un NULL acá es una señal de que hay que revisar un posible
+        // duplicado antes de aprobar, no un dato ausente sin más.
+        ['Cédula', v.cedula_solicitante ?? 'No registrada (posible cédula duplicada — revisar antes de aprobar)'],
         ['Número de carné', v.numero_registro],
         ['Provincia', v.provincia],
         ['Especialidades', (v.especialidades ?? []).join(', ')],
