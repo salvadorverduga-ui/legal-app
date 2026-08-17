@@ -1,0 +1,42 @@
+/*
+ * Tabler Icons — subconjunto vendorizado (solo los íconos que usa la app).
+ * Fuente completa (tabler-icons.woff2) descargada de @tabler/icons-webfont
+ * v2.47.0 y commiteada localmente — mismo criterio que
+ * frontend/js/vendors/supabase.min.js (CLAUDE.md §3): sin dependencia de
+ * CDN en tiempo de ejecución, sirve desde 'self' bajo el CSP existente.
+ * Licencia MIT: https://github.com/tabler/tabler-icons/blob/master/LICENSE
+ *
+ * Para agregar un ícono nuevo: buscar su codepoint en
+ * https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.47.0/tabler-icons.min.css
+ * y agregar la regla .ti-<nombre>:before acá — el woff2 ya contiene el glifo.
+ */
+@font-face {
+  font-family: "tabler-icons";
+  font-style: normal;
+  font-weight: 400;
+  src: url("./tabler-icons.woff2?v2.47.0") format("woff2");
+  font-display: swap;
+}
+
+.ti {
+  font-family: "tabler-icons" !important;
+  speak: none;
+  font-style: normal;
+  font-weight: normal;
+  font-variant: normal;
+  text-transform: none;
+  line-height: 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.ti-search:before        { content: "\eb1c"; }
+.ti-speakerphone:before  { content: "\ed61"; }
+.ti-list-check:before    { content: "\eb6a"; }
+.ti-file-plus:before     { content: "\eaa0"; }
+.ti-bell:before          { content: "\ea35"; }
+.ti-check:before         { content: "\ea5e"; }
+.ti-clock:before         { content: "\ea70"; }
+.ti-star:before          { content: "\eb2e"; }
+.ti-mail:before          { content: "\eae5"; }
+.ti-alert-circle:before  { content: "\ea05"; }

@@ -6,6 +6,7 @@
   <meta name="description" content="Panel del cliente — revise sus solicitudes y reseñas en LegalEC.">
   <title>Mi panel — LegalEC</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="stylesheet" href="/css/vendors/tabler-icons.css">
   <link rel="stylesheet" href="/css/main.css">
 </head>
 <body>
@@ -79,34 +80,52 @@
         <!-- ═══════════════ SECCIÓN: INICIO ═══════════════ -->
         <section class="panel-seccion" id="seccionInicio" role="tabpanel" aria-labelledby="tabInicio">
           <h2 class="panel-inicio__saludo" id="inicioSaludo"></h2>
+          <p class="panel-inicio__subtitulo" id="inicioSubtitulo"></p>
 
-          <div class="accesos-rapidos">
-            <a href="/pages/busqueda" class="acceso-rapido">
+          <section class="atencion-panel" id="atencionPanel" aria-label="Requiere su atención" hidden>
+            <h2 class="panel-inicio__seccion-titulo">Requiere su atención</h2>
+            <div class="atencion-resumen" id="atencionLista"></div>
+            <a class="atencion-ver-todos" href="/pages/atencion">Ver todos &rarr;</a>
+          </section>
+
+          <div class="accesos-rapidos accesos-rapidos--grandes">
+            <a href="/pages/busqueda" class="acceso-rapido acceso-rapido--grande">
+              <span class="acceso-rapido__icono" aria-hidden="true"><i class="ti ti-search"></i></span>
               <span class="acceso-rapido__titulo">Buscar abogado</span>
               <span class="acceso-rapido__descripcion">Encuentre abogados verificados por especialidad, caso o zona</span>
             </a>
-            <a href="/pages/tablon" class="acceso-rapido">
+            <a href="/pages/tablon" class="acceso-rapido acceso-rapido--grande">
+              <span class="acceso-rapido__icono" aria-hidden="true"><i class="ti ti-speakerphone"></i></span>
               <span class="acceso-rapido__titulo">El Tablón</span>
               <span class="acceso-rapido__descripcion">Publique su caso y reciba propuestas de abogados interesados</span>
             </a>
-            <button class="acceso-rapido" type="button" data-ir-a-tab="Solicitudes">
+          </div>
+
+          <div class="accesos-rapidos accesos-rapidos--pequenos">
+            <button class="acceso-rapido acceso-rapido--pequeno" type="button" data-ir-a-tab="Solicitudes">
+              <span class="acceso-rapido__icono" aria-hidden="true"><i class="ti ti-list-check"></i></span>
               <span class="acceso-rapido__titulo">Mis solicitudes</span>
-              <span class="acceso-rapido__descripcion">Revise el estado de sus consultas directas y del Tablón</span>
             </button>
-            <a href="/pages/tablon-publicar" class="acceso-rapido">
+            <a href="/pages/tablon-publicar" class="acceso-rapido acceso-rapido--pequeno">
+              <span class="acceso-rapido__icono" aria-hidden="true"><i class="ti ti-file-plus"></i></span>
               <span class="acceso-rapido__titulo">Publicar en El Tablón</span>
-              <span class="acceso-rapido__descripcion">Describa su caso y reciba propuestas de abogados interesados</span>
             </a>
           </div>
 
-          <div class="metricas-grid">
-            <div class="metrica-tarjeta">
-              <p class="metrica-tarjeta__valor" id="inicioSolicitudesActivas">0</p>
-              <p class="metrica-tarjeta__etiqueta">Solicitudes activas</p>
+          <div class="metricas-grid metricas-grid--2">
+            <div class="metrica-tarjeta metrica-tarjeta--icono">
+              <span class="metrica-tarjeta__icono metrica-tarjeta__icono--info" aria-hidden="true"><i class="ti ti-list-check"></i></span>
+              <div>
+                <p class="metrica-tarjeta__valor" id="inicioSolicitudesActivas">0</p>
+                <p class="metrica-tarjeta__etiqueta">Solicitudes activas</p>
+              </div>
             </div>
-            <div class="metrica-tarjeta">
-              <p class="metrica-tarjeta__valor" id="inicioNotificacionesNoLeidas">0</p>
-              <p class="metrica-tarjeta__etiqueta">Notificaciones sin leer</p>
+            <div class="metrica-tarjeta metrica-tarjeta--icono">
+              <span class="metrica-tarjeta__icono metrica-tarjeta__icono--error" aria-hidden="true"><i class="ti ti-bell"></i></span>
+              <div>
+                <p class="metrica-tarjeta__valor" id="inicioNotificacionesNoLeidas">0</p>
+                <p class="metrica-tarjeta__etiqueta">Notificaciones sin leer</p>
+              </div>
             </div>
           </div>
 

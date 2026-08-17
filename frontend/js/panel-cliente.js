@@ -84,13 +84,14 @@ async function inicializar() {
   renderizarSaludoInicio();
   inicializarHeader({ rol: 'cliente', nombre: perfilActual.nombre_completo, fotoPath: perfilActual.foto_url });
 
-  const [resenas, abogadosContactados, ultimosAbogados, notificacionesNoLeidas, misSeguimientos, misFavoritos] = await Promise.all([
+  const [resenas, abogadosContactados, ultimosAbogados, notificacionesNoLeidas, misSeguimientos, misFavoritos, misCasosTablon] = await Promise.all([
     api.resenas.getMisResenas(),
     api.solicitudes.getAbogadosContactados(),
     api.clientes.getUltimosAbogados(),
     api.notificaciones.getNoLeidas(),
     api.seguimiento.getMisSeguimientos(),
     api.favoritos.getMisFavoritos(),
+    api.tablon.getMisCasos(),
     cargarSolicitudes(),
   ]);
   favoritosIds = new Set(misFavoritos.map(f => f.abogado_id));
@@ -101,6 +102,10 @@ async function inicializar() {
   renderizarResumenInicio(notificacionesNoLeidas.length);
   renderizarSeguimiento(misSeguimientos);
   renderizarFavoritos(misFavoritos);
+
+  const itemsAtencion = getItemsAtencion(solicitudesActuales, misCasosTablon, notificacionesNoLeidas);
+  renderizarAtencion(itemsAtencion);
+  renderizarSubtituloInicio(itemsAtencion.length > 0);
 
   mostrarContenido();
   configurarEventos();
@@ -164,11 +169,175 @@ function renderizarSaludoInicio() {
   document.getElementById('inicioSaludo').textContent = `${obtenerSaludo()}, ${perfilActual.nombre_completo}`;
 }
 
+// Se llama por separado (después de calcular getItemsAtencion()) porque el
+// texto depende de si hay algo urgente, a diferencia del saludo en sí, que
+// solo depende del nombre y la hora y puede pintarse de inmediato.
+function renderizarSubtituloInicio(hayItemsAtencion) {
+  document.getElementById('inicioSubtitulo').textContent = hayItemsAtencion
+    ? 'Esto es lo que necesita atención hoy'
+    : 'Todo al día. ¿En qué podemos ayudarle?';
+}
+
 function obtenerSaludo() {
   const hora = new Date().getHours();
   if (hora >= 5 && hora < 12) return 'Buenos días';
   if (hora >= 12 && hora < 19) return 'Buenas tardes';
   return 'Buenas noches';
+}
+
+// ─── "Requiere su atención" ───────────────────────────────────────────────────
+const MAX_ITEMS_ATENCION_VISIBLES = 3;
+
+// Texto del link de acción de cada item — el mismo texto en las dos
+// superficies que lo muestran (este resumen y /pages/atencion.html).
+const TEXTO_LINK_TIPO = {
+  aceptada:          'Ver solicitud',
+  aplicacion_tablon: 'Ver aplicaciones',
+  expira:            'Ver solicitud',
+  resena:            'Dejar reseña',
+};
+
+// Arma la lista de items urgentes a partir de datos ya cargados por
+// inicializar() — sin ninguna consulta adicional a la base de datos.
+// No existe (todavía) una columna "revisado"/"visto" en aplicaciones_tablon
+// para saber qué casos tienen aplicaciones nuevas sin revisar, así que esa
+// señal se aproxima con las notificaciones no leídas de tipo
+// 'tablon_nueva_aplicacion' (CLAUDE.md §21) cruzadas contra misCasosTablon.
+// frontend/js/atencion.js tiene su propia copia de esta función (sin el
+// límite de 3) — mismo criterio de duplicación deliberada que ya usan
+// formatearFecha()/escaparHtml() entre panel-cliente.js y panel-abogado.js:
+// cada página queda autocontenida en vez de depender de un módulo
+// compartido que además arrastraría el document.addEventListener('DOMContentLoaded', inicializar)
+// de este archivo si se importara directamente.
+function getItemsAtencion(solicitudes, casosTablon, notificacionesNoLeidas) {
+  const items = [];
+
+  // TIPO 1 — Solicitud aceptada (verde, ti-check). Deduplicado por
+  // abogado_id: si hay varias ACEPTADA con el mismo abogado, solo cuenta la
+  // más reciente — las listas de getSolicitudesCliente() ya vienen
+  // ordenadas created_at DESC, así que basta con quedarse con la primera
+  // ocurrencia de cada abogado_id.
+  const abogadosConAceptadaVista = new Set();
+  solicitudes
+    .filter(s => s.estado === 'ACEPTADA')
+    .forEach(s => {
+      if (abogadosConAceptadaVista.has(s.abogado_id)) return;
+      abogadosConAceptadaVista.add(s.abogado_id);
+      items.push({
+        prioridad: 1,
+        tipo: 'aceptada',
+        clase: 'atencion-item--exito',
+        icono: 'ti-check',
+        texto: `${escaparHtml(s.abogado_nombre)} aceptó su solicitud. Ya puede contactarlo.`,
+        url: urlSolicitud(s),
+      });
+    });
+
+  // TIPO 2 — Caso del Tablón con aplicaciones sin revisar (azul, ti-speakerphone).
+  const aplicacionesSinRevisarPorCaso = new Map();
+  notificacionesNoLeidas
+    .filter(n => n.tipo === 'tablon_nueva_aplicacion' && n.url_destino)
+    .forEach(n => {
+      const casoId = new URL(n.url_destino, window.location.origin).searchParams.get('id');
+      if (!casoId) return;
+      aplicacionesSinRevisarPorCaso.set(casoId, (aplicacionesSinRevisarPorCaso.get(casoId) ?? 0) + 1);
+    });
+  casosTablon
+    .filter(c => aplicacionesSinRevisarPorCaso.has(c.id))
+    .forEach(c => {
+      const n = aplicacionesSinRevisarPorCaso.get(c.id);
+      items.push({
+        prioridad: 2,
+        tipo: 'aplicacion_tablon',
+        clase: 'atencion-item--info',
+        icono: 'ti-speakerphone',
+        texto: `Su caso "${escaparHtml(c.titulo)}" recibió ${n} ${n === 1 ? 'nueva aplicación' : 'nuevas aplicaciones'}.`,
+        url: `/pages/tablon-caso?id=${c.id}`,
+      });
+    });
+
+  // TIPO 3 — Solicitud PENDIENTE que expira en menos de 12h (naranja, ti-clock).
+  // expires_at = created_at + 48h (migración 20260625_006_solicitudes.sql),
+  // así que "expira en menos de 12h" equivale a "quedan menos de 12h de expires_at".
+  solicitudes
+    .filter(s => s.estado === 'PENDIENTE' && horasHastaExpirar(s.expires_at) < 12)
+    .forEach(s => {
+      items.push({
+        prioridad: 3,
+        tipo: 'expira',
+        clase: 'atencion-item--advertencia',
+        icono: 'ti-clock',
+        texto: `Su solicitud a ${escaparHtml(s.abogado_nombre)} expira en menos de 12 horas.`,
+        url: urlSolicitud(s),
+      });
+    });
+
+  // TIPO 4 — Solicitud COMPLETADA sin reseña, 24h después de completada
+  // (amarillo, ti-star) — mismo umbral que exige la política RLS
+  // "cliente_inserta_resena" (CLAUDE.md módulo 5), ya resuelto por
+  // haPasadoTiempoMinimoResena().
+  solicitudes
+    .filter(s => s.estado === 'COMPLETADA' && !s.tiene_resena && haPasadoTiempoMinimoResena(s.completada_at))
+    .forEach(s => {
+      items.push({
+        prioridad: 4,
+        tipo: 'resena',
+        clase: 'atencion-item--amarillo',
+        icono: 'ti-star',
+        texto: `Puede dejar una reseña a ${escaparHtml(s.abogado_nombre)} por su consulta.`,
+        url: urlSolicitud(s),
+      });
+    });
+
+  return items.sort((a, b) => a.prioridad - b.prioridad);
+}
+
+function horasHastaExpirar(expiresAtIso) {
+  if (!expiresAtIso) return Infinity;
+  return (new Date(expiresAtIso).getTime() - Date.now()) / 3600000;
+}
+
+// Solicitudes directas resaltan la tarjeta propia (CLAUDE.md módulo 5, §39);
+// las del Tablón no tienen ese mecanismo — se manda al listado general.
+function urlSolicitud(s) {
+  return s.caso_tablon_id
+    ? '/pages/solicitudes-tablon'
+    : `/pages/solicitudes-directas?solicitud=${s.id}`;
+}
+
+// El botón "Ver todos" es un link estático en el HTML (siempre visible
+// mientras la sección lo esté) — acá solo se decide si la sección entera se
+// muestra u oculta, sin ninguna lógica de conteo.
+function renderizarAtencion(items) {
+  const seccion = document.getElementById('atencionPanel');
+  const lista = document.getElementById('atencionLista');
+
+  if (items.length === 0) {
+    seccion.hidden = true;
+    lista.innerHTML = '';
+    return;
+  }
+
+  seccion.hidden = false;
+  lista.innerHTML = items.slice(0, MAX_ITEMS_ATENCION_VISIBLES).map(generarItemAtencion).join('');
+}
+
+// Fila dentro de la tarjeta celeste única (.atencion-resumen, main.css) —
+// el link de acción es lo único clickeable del item, no la fila entera.
+// Los items nunca se quitan del DOM al hacer click (es un <a> de
+// navegación normal): solo dejan de aparecer en la próxima carga de la
+// página, cuando la condición que los generó ya no se cumple en la base de
+// datos (ver getItemsAtencion()) — acá no hay ningún "marcar como visto".
+function generarItemAtencion(item) {
+  return `
+    <div class="atencion-resumen__item ${item.clase}">
+      <span class="atencion-resumen__icono" aria-hidden="true"><i class="ti ${item.icono}"></i></span>
+      <div class="atencion-resumen__contenido">
+        <p class="atencion-resumen__texto">${item.texto}</p>
+        <a href="${escaparAtrib(item.url)}" class="atencion-resumen__link">${TEXTO_LINK_TIPO[item.tipo]} &rarr;</a>
+      </div>
+    </div>
+  `;
 }
 
 // Solicitudes "activas": esperando respuesta del abogado o ya aceptadas

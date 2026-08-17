@@ -131,6 +131,7 @@ async function inicializar() {
   renderizarResenas(resenas);
   renderizarResumenInicio(resenas.length, casosTablon);
   renderizarSeguimiento(misSeguimientos);
+  renderizarAtencion(getItemsAtencionAbogado(solicitudesActuales, estadoVerificacionActual));
 
   mostrarContenido();
   configurarEventos();
@@ -277,6 +278,91 @@ function renderizarResumenInicio(resenasTotales, casosTablon) {
   document.getElementById('inicioSolicitudesPendientes').textContent = String(pendientes);
   document.getElementById('inicioCasosTablon').textContent = String(casosDeSuEspecialidad);
   document.getElementById('inicioResenasTotales').textContent = String(resenasTotales);
+}
+
+// ─── "Requiere su atención" ───────────────────────────────────────────────────
+// Misma idea y mismo diseño visual que getItemsAtencion() en panel-cliente.js
+// (clases .atencion-item*, ver main.css) — pero con los 3 tipos propios del
+// abogado. Sin consultas adicionales: usa solicitudesActuales (ya cargada
+// por cargarSolicitudes()) y estadoVerificacionActual (ya cargada en
+// inicializar() para el banner de documentos).
+function getItemsAtencionAbogado(solicitudes, estadoVerificacion) {
+  const items = [];
+  const pendientes = solicitudes.filter(s => s.estado === 'PENDIENTE');
+
+  // TIPO 2 se evalúa primero para poder excluir de TIPO 1 las solicitudes
+  // que ya caen acá — evita mostrar la misma solicitud dos veces ("nueva" y
+  // "por expirar" a la vez). expires_at = created_at + 48h (migración
+  // 20260625_006_solicitudes.sql).
+  const idsUrgentes = new Set();
+  pendientes
+    .filter(s => horasHastaExpirar(s.expires_at) < 12)
+    .forEach(s => {
+      idsUrgentes.add(s.id);
+      items.push({
+        prioridad: 2,
+        clase: 'atencion-item--advertencia',
+        icono: 'ti-clock',
+        texto: `Tiene una solicitud de ${escaparHtml(s.cliente_nombre)} que expira en menos de 12 horas.`,
+        url: '/pages/solicitudes-directas',
+      });
+    });
+
+  // TIPO 1 — Nueva solicitud pendiente (azul, ti-mail).
+  pendientes
+    .filter(s => !idsUrgentes.has(s.id))
+    .forEach(s => {
+      items.push({
+        prioridad: 1,
+        clase: 'atencion-item--info',
+        icono: 'ti-mail',
+        texto: `${escaparHtml(s.cliente_nombre)} le envió una solicitud de consulta.`,
+        url: '/pages/solicitudes-directas',
+      });
+    });
+
+  // TIPO 3 — Verificación rechazada (rojo, ti-alert-circle).
+  if (abogadoActual.verificacion === 'RECHAZADO') {
+    const motivo = estadoVerificacion?.motivo_rechazo;
+    items.push({
+      prioridad: 3,
+      clase: 'atencion-item--error',
+      icono: 'ti-alert-circle',
+      texto: `Su verificación fue rechazada.${motivo ? ` Motivo: ${escaparHtml(motivo)}.` : ''} Suba nuevos documentos para continuar.`,
+      url: '/pages/subir-documentos',
+    });
+  }
+
+  return items.sort((a, b) => a.prioridad - b.prioridad);
+}
+
+function horasHastaExpirar(expiresAtIso) {
+  if (!expiresAtIso) return Infinity;
+  return (new Date(expiresAtIso).getTime() - Date.now()) / 3600000;
+}
+
+function renderizarAtencion(items) {
+  const seccion = document.getElementById('atencionPanel');
+  const lista = document.getElementById('atencionLista');
+
+  if (items.length === 0) {
+    seccion.hidden = true;
+    lista.innerHTML = '';
+    return;
+  }
+
+  seccion.hidden = false;
+  lista.innerHTML = items.map(generarItemAtencion).join('');
+}
+
+function generarItemAtencion(item) {
+  return `
+    <a href="${escaparAtrib(item.url)}" class="atencion-item ${item.clase}">
+      <span class="atencion-item__icono" aria-hidden="true"><i class="ti ${item.icono}"></i></span>
+      <span class="atencion-item__texto">${item.texto}</span>
+      <span class="atencion-item__ver">Ver &rarr;</span>
+    </a>
+  `;
 }
 
 // ─── Acceso limitado: verificación PENDIENTE o RECHAZADA ────────────────────

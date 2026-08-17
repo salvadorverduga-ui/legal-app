@@ -6,6 +6,7 @@
   <meta name="description" content="Panel del abogado — gestione su perfil, solicitudes, reseñas y suscripción en LegalEC.">
   <title>Panel del abogado — LegalEC</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="stylesheet" href="/css/vendors/tabler-icons.css">
   <link rel="stylesheet" href="/css/main.css">
 </head>
 <body>
@@ -109,6 +110,11 @@
         <!-- ═══════════════ SECCIÓN: INICIO ═══════════════ -->
         <section class="panel-seccion" id="seccionInicio" role="tabpanel" aria-labelledby="tabInicio">
           <h2 class="panel-inicio__saludo" id="inicioSaludo"></h2>
+
+          <section class="atencion-panel" id="atencionPanel" aria-label="Requiere su atención" hidden>
+            <h2 class="panel-inicio__seccion-titulo">Requiere su atención</h2>
+            <div class="atencion-lista" id="atencionLista"></div>
+          </section>
 
           <div class="panel-inicio__disponibilidad">
             <label class="toggle-switch">
