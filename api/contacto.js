@@ -32,9 +32,53 @@ const ASUNTOS_PERMITIDOS = new Set([
   'Otro',
 ]);
 
+// Rate limiting simple en memoria: máximo LIMITE_POR_IP envíos por IP en
+// VENTANA_MS. Suficiente para una función serverless de baja escala — no
+// sobrevive a un cold start ni se comparte entre instancias, pero corta el
+// abuso más básico (envíos repetidos desde el mismo cliente) sin agregar
+// una dependencia externa (Redis, etc.) para este endpoint.
+const VENTANA_MS = 60 * 60 * 1000; // 1 hora
+const LIMITE_POR_IP = 3;
+const contadorPorIp = new Map(); // ip -> { count, resetAt }
+
+// Limpieza periódica de entradas expiradas para que el Map no crezca sin
+// límite mientras la instancia serverless siga viva entre invocaciones.
+setInterval(() => {
+  const ahora = Date.now();
+  for (const [ip, entrada] of contadorPorIp) {
+    if (ahora >= entrada.resetAt) contadorPorIp.delete(ip);
+  }
+}, VENTANA_MS).unref();
+
+function obtenerIp(req) {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (typeof forwarded === 'string' && forwarded.trim()) {
+    return forwarded.split(',')[0].trim();
+  }
+  return req.socket?.remoteAddress || 'desconocida';
+}
+
+function superaLimite(ip) {
+  const ahora = Date.now();
+  const entrada = contadorPorIp.get(ip);
+
+  if (!entrada || ahora >= entrada.resetAt) {
+    contadorPorIp.set(ip, { count: 1, resetAt: ahora + VENTANA_MS });
+    return false;
+  }
+
+  entrada.count += 1;
+  return entrada.count > LIMITE_POR_IP;
+}
+
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Método no permitido.' });
+    return;
+  }
+
+  if (superaLimite(obtenerIp(req))) {
+    res.status(429).json({ error: 'Demasiadas solicitudes. Intente nuevamente más tarde.' });
     return;
   }
 

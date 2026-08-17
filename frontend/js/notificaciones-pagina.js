@@ -229,7 +229,7 @@ async function manejarClickNotificacion(e) {
     renderizar();
   }
 
-  if (url) window.location.href = url;
+  if (url) window.location.href = urlSegura(url);
 }
 
 async function manejarMarcarTodasLeidas() {
@@ -249,6 +249,19 @@ function formatearFechaHora(fechaIso) {
     hour: '2-digit',
     minute: '2-digit',
   });
+}
+
+// ─── Seguridad: url_destino la escribe un trigger de la base de datos, pero
+// se revalida en el cliente antes de navegar — nunca confiar en un valor
+// que termina en window.location.href sin verificar que sea same-origin y
+// apunte a una página real de la app.
+function urlSegura(url) {
+  try {
+    const parsed = new URL(url, location.origin);
+    return parsed.origin === location.origin && parsed.pathname.startsWith('/pages') ? parsed.href : '/';
+  } catch {
+    return '/';
+  }
 }
 
 // ─── Seguridad: escapado de HTML ──────────────────────────────────────────

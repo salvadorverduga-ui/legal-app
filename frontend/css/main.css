@@ -50,6 +50,8 @@
   --color-advertencia-bg:    #FFFBEB;
   --color-info:              #1D4ED8;
   --color-info-bg:           #EFF6FF;
+  --color-amarillo:          #854D0E;
+  --color-amarillo-bg:       #FEF9C3;
 
   /* Badges de tipo de perfil */
   --badge-individual-bg:     #EFF6FF;
@@ -1215,7 +1217,7 @@ p {
 }
 
 .notificaciones__lista {
-  min-width: 320px;
+  min-width: min(360px, calc(100vw - 32px));
   max-width: 360px;
   max-height: 420px;
   padding: 0;
@@ -2343,8 +2345,209 @@ p {
   margin-bottom: var(--esp-5);
 }
 
+/* Sin margin-top: tira del bloque hacia el saludo, restando parte del
+   margin-bottom de arriba, sin tocar la regla compartida con
+   panel-abogado.html (que no tiene este párrafo). */
+.panel-inicio__subtitulo {
+  color: var(--color-texto-suave);
+  margin-top: calc(-1 * var(--esp-4));
+  margin-bottom: var(--esp-5);
+}
+
 .panel-inicio__disponibilidad {
   margin-bottom: var(--esp-6);
+}
+
+/* ── "Requiere su atención": lista de items dinámica, oculta si no hay
+   nada urgente (panel-cliente.js: getItemsAtencion()/renderizarAtencion()) ── */
+.atencion-panel {
+  margin-bottom: var(--esp-6);
+}
+
+.atencion-lista {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-2);
+}
+
+.atencion-item {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-3);
+  background-color: var(--color-fondo-card);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-lg);
+  padding: var(--esp-3) var(--esp-4);
+  box-shadow: var(--sombra-sm);
+  transition: border-color var(--transicion), box-shadow var(--transicion);
+}
+
+.atencion-item:hover,
+.atencion-item:focus-visible {
+  border-color: var(--color-primario);
+  box-shadow: var(--sombra-md);
+}
+
+.atencion-item__icono {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radio-lg);
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.atencion-item--exito .atencion-item__icono {
+  background-color: var(--color-exito-bg);
+  color: var(--color-exito);
+}
+
+.atencion-item--info .atencion-item__icono {
+  background-color: var(--color-info-bg);
+  color: var(--color-info);
+}
+
+.atencion-item--advertencia .atencion-item__icono {
+  background-color: var(--color-advertencia-bg);
+  color: var(--color-advertencia);
+}
+
+.atencion-item--amarillo .atencion-item__icono {
+  background-color: var(--color-amarillo-bg);
+  color: var(--color-amarillo);
+}
+
+.atencion-item--error .atencion-item__icono {
+  background-color: var(--color-error-bg);
+  color: var(--color-error);
+}
+
+.atencion-item__texto {
+  flex: 1;
+  font-size: var(--texto-sm);
+  color: var(--color-texto);
+}
+
+.atencion-item__ver {
+  flex-shrink: 0;
+  font-size: var(--texto-sm);
+  font-weight: var(--peso-semibold);
+  color: var(--color-primario);
+  white-space: nowrap;
+}
+
+.atencion-ver-todos {
+  display: block;
+  margin-top: var(--esp-2);
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: var(--texto-sm);
+  font-weight: var(--peso-semibold);
+  color: var(--color-primario);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.atencion-ver-todos[hidden] {
+  display: none;
+}
+
+/* ── Resumen de "Requiere su atención" en panel-cliente.html (Inicio):
+   una sola tarjeta celeste, ítems en fila separados por línea — a
+   diferencia de .atencion-item/.atencion-lista de arriba (que sigue usando
+   panel-abogado.js sin cambios, y la versión "completa" de abajo), acá no
+   hay tarjeta individual por item. Solo el link de cada fila es clickeable,
+   la fila en sí no navega — así un click nunca "hace desaparecer" el item;
+   solo deja de listarse en la próxima carga si la condición ya no se
+   cumple (panel-cliente.js: getItemsAtencion()/renderizarAtencion()). ── */
+.atencion-resumen {
+  background-color: #E6F1FB;
+  border: 1px solid #B5D4F4;
+  border-radius: var(--radio-lg);
+  overflow: hidden;
+}
+
+.atencion-resumen__item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--esp-3);
+  padding: var(--esp-3) var(--esp-4);
+  border-bottom: 0.5px solid #B5D4F4;
+}
+
+.atencion-resumen__item:last-child {
+  border-bottom: none;
+}
+
+.atencion-resumen__icono {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.atencion-item--exito .atencion-resumen__icono {
+  background-color: var(--color-exito-bg);
+  color: var(--color-exito);
+}
+
+.atencion-item--info .atencion-resumen__icono {
+  background-color: var(--color-info-bg);
+  color: var(--color-info);
+}
+
+.atencion-item--advertencia .atencion-resumen__icono {
+  background-color: var(--color-advertencia-bg);
+  color: var(--color-advertencia);
+}
+
+.atencion-item--amarillo .atencion-resumen__icono {
+  background-color: var(--color-amarillo-bg);
+  color: var(--color-amarillo);
+}
+
+.atencion-resumen__contenido {
+  min-width: 0;
+}
+
+.atencion-resumen__texto {
+  font-size: 13px;
+  color: var(--color-texto);
+}
+
+.atencion-resumen__link {
+  display: inline-block;
+  margin-top: var(--esp-1);
+  font-size: 11px;
+  color: var(--color-info);
+  text-decoration: underline;
+}
+
+.atencion-resumen__link:hover,
+.atencion-resumen__link:focus-visible {
+  color: var(--color-primario);
+}
+
+/* ── Página independiente /pages/atencion.html: mismos items agrupados por
+   tipo, con descripción completa + botón de acción en vez del link "Ver →"
+   compacto del resumen de arriba. ── */
+.atencion-grupo:not(:first-child) {
+  margin-top: var(--esp-6);
+}
+
+.atencion-item--completo {
+  flex-wrap: wrap;
+}
+
+.atencion-item--completo .atencion-item__texto {
+  flex: 1 1 200px;
 }
 
 .accesos-rapidos {
@@ -2374,6 +2577,12 @@ p {
   box-shadow: var(--sombra-md);
 }
 
+.acceso-rapido__icono {
+  font-size: 28px;
+  color: var(--color-primario);
+  margin-bottom: var(--esp-1);
+}
+
 .acceso-rapido__titulo {
   font-weight: var(--peso-semibold);
   color: var(--color-primario);
@@ -2388,6 +2597,41 @@ p {
   .accesos-rapidos {
     grid-template-columns: repeat(3, 1fr);
   }
+}
+
+/* Variantes de panel-cliente.html (Inicio): dos filas separadas en vez de
+   la grilla de 3 columnas de arriba, que panel-abogado.html sigue usando
+   sin cambios. Mismo nivel de especificidad que .accesos-rapidos — el orden
+   de aparición en la hoja (después de la regla de base) es lo que decide. */
+.accesos-rapidos--grandes {
+  grid-template-columns: 1fr;
+  margin-bottom: var(--esp-3);
+}
+
+@media (min-width: 640px) {
+  .accesos-rapidos--grandes {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Fila de accesos rápidos compactos: ícono + título en una fila horizontal,
+   siempre dos columnas (caben en mobile sin apilarse, a diferencia de las
+   tarjetas grandes de arriba). */
+.accesos-rapidos--pequenos {
+  grid-template-columns: repeat(2, 1fr);
+  margin-bottom: var(--esp-6);
+}
+
+.acceso-rapido--pequeno {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--esp-3);
+  padding: var(--esp-3) var(--esp-4);
+}
+
+.acceso-rapido--pequeno .acceso-rapido__icono {
+  font-size: 22px;
+  margin-bottom: 0;
 }
 
 /* ── Pestaña "Solicitudes": elegir directas vs. El Tablón ──── */
@@ -3201,6 +3445,44 @@ p {
   .metricas-grid {
     grid-template-columns: repeat(4, 1fr);
   }
+
+  .metricas-grid--2 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Variante con recuadro de ícono a la izquierda (panel-cliente.html, Inicio) —
+   texto alineado a la izquierda en vez del centrado por defecto de arriba. */
+.metrica-tarjeta--icono {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-4);
+  text-align: left;
+}
+
+.metrica-tarjeta--icono .metrica-tarjeta__etiqueta {
+  margin-top: var(--esp-1);
+}
+
+.metrica-tarjeta__icono {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radio-lg);
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.metrica-tarjeta__icono--info {
+  background-color: var(--color-info-bg);
+  color: var(--color-info);
+}
+
+.metrica-tarjeta__icono--error {
+  background-color: var(--color-error-bg);
+  color: var(--color-error);
 }
 
 
@@ -3482,4 +3764,12 @@ p {
   font-size: var(--texto-xs);
   color: var(--color-texto-suave);
   max-width: 280px;
+}
+
+/* ── Accesibilidad: respeta la preferencia del sistema de reducir animaciones ── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

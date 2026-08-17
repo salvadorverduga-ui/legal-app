@@ -172,14 +172,22 @@ async function manejarClickNotificacion(e) {
   // no se ocultan — solo se marca la propia y se ajusta el badge.
   const entrada = notificacionesActuales.find(n => n.id === id);
   if (entrada && !entrada.leida) {
-    await api.notificaciones.marcarLeida(id);
     entrada.leida = true;
     conteoNoLeidas = Math.max(0, conteoNoLeidas - 1);
     renderizar();
+
+    const { error } = await api.notificaciones.marcarLeida(id);
+    if (error) {
+      // Revertir el estado visual: la base de datos nunca confirmó el cambio,
+      // así que el dropdown no debe mostrar la notificación como leída.
+      entrada.leida = false;
+      conteoNoLeidas += 1;
+      renderizar();
+    }
   }
   cerrarDropdown();
 
-  if (url) window.location.href = url;
+  if (url) window.location.href = urlSegura(url);
 }
 
 async function manejarMarcarTodasLeidas() {
@@ -198,6 +206,19 @@ function formatearFecha(fechaIso) {
     hour: '2-digit',
     minute: '2-digit',
   });
+}
+
+// ─── Seguridad: url_destino la escribe un trigger de la base de datos, pero
+// se revalida en el cliente antes de navegar — nunca confiar en un valor
+// que termina en window.location.href sin verificar que sea same-origin y
+// apunte a una página real de la app.
+function urlSegura(url) {
+  try {
+    const parsed = new URL(url, location.origin);
+    return parsed.origin === location.origin && parsed.pathname.startsWith('/pages') ? parsed.href : '/';
+  } catch {
+    return '/';
+  }
 }
 
 // ─── Seguridad: escapado de HTML ──────────────────────────────────────────────
