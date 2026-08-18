@@ -14,6 +14,8 @@
 //                          configura, se usa ZOHO_SMTP_USER.
 //   SUPPORT_EMAIL       — bandeja de soporte que recibe el mensaje. Si no
 //                          se configura, se usa ZOHO_SMTP_USER.
+//   SUPABASE_URL        — ya configurada para api/config.js (CLAUDE.md §10).
+//   SUPABASE_ANON_KEY    — idem. Usada acá para el rate limiting (ver abajo).
 //
 // El correo del remitente del formulario se usa como Reply-To, para que el
 // equipo de soporte pueda responder directamente al usuario.
@@ -24,6 +26,8 @@ const ZOHO_SMTP_USER = process.env.ZOHO_SMTP_USER;
 const ZOHO_SMTP_PASSWORD = process.env.ZOHO_SMTP_PASSWORD;
 const EMAIL_FROM = process.env.EMAIL_FROM || ZOHO_SMTP_USER;
 const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || ZOHO_SMTP_USER;
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 
 const ASUNTOS_PERMITIDOS = new Set([
   'Problema técnico',
@@ -32,23 +36,16 @@ const ASUNTOS_PERMITIDOS = new Set([
   'Otro',
 ]);
 
-// Rate limiting simple en memoria: máximo LIMITE_POR_IP envíos por IP en
-// VENTANA_MS. Suficiente para una función serverless de baja escala — no
-// sobrevive a un cold start ni se comparte entre instancias, pero corta el
-// abuso más básico (envíos repetidos desde el mismo cliente) sin agregar
-// una dependencia externa (Redis, etc.) para este endpoint.
-const VENTANA_MS = 60 * 60 * 1000; // 1 hora
+// Rate limiting: 3 envíos por IP por hora. Un Map en memoria de proceso no
+// sirve acá — en Vercel cada invocación puede aterrizar en una instancia
+// serverless distinta y una instancia fría no comparte memoria con ninguna
+// otra, así que el contador nunca se acumulaba de forma confiable. El
+// contador vive en la tabla rate_limits de Supabase (migración
+// 20260817_082_rate_limiting_contacto.sql), incrementado atómicamente por la
+// función RPC fn_verificar_rate_limit — así el límite es real sin importar
+// en qué instancia caiga cada request.
 const LIMITE_POR_IP = 3;
-const contadorPorIp = new Map(); // ip -> { count, resetAt }
-
-// Limpieza periódica de entradas expiradas para que el Map no crezca sin
-// límite mientras la instancia serverless siga viva entre invocaciones.
-setInterval(() => {
-  const ahora = Date.now();
-  for (const [ip, entrada] of contadorPorIp) {
-    if (ahora >= entrada.resetAt) contadorPorIp.delete(ip);
-  }
-}, VENTANA_MS).unref();
+const VENTANA_POSTGRES = '01:00:00'; // 1 hora, formato interval de Postgres
 
 function obtenerIp(req) {
   const forwarded = req.headers['x-forwarded-for'];
@@ -58,17 +55,43 @@ function obtenerIp(req) {
   return req.socket?.remoteAddress || 'desconocida';
 }
 
-function superaLimite(ip) {
-  const ahora = Date.now();
-  const entrada = contadorPorIp.get(ip);
-
-  if (!entrada || ahora >= entrada.resetAt) {
-    contadorPorIp.set(ip, { count: 1, resetAt: ahora + VENTANA_MS });
-    return false;
+// Retorna true si el request está dentro del límite. Ante cualquier falla de
+// red/configuración hacia Supabase, deja pasar el request (fail-open): un
+// rate limiter caído no debe tumbar el formulario de contacto entero, y el
+// resto de las validaciones (asunto de lista blanca, límites de longitud)
+// ya acotan el abuso posible mientras tanto.
+async function dentroDelLimite(ip) {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    console.error('[api/contacto] SUPABASE_URL/SUPABASE_ANON_KEY no configuradas; rate limiting deshabilitado.');
+    return true;
   }
 
-  entrada.count += 1;
-  return entrada.count > LIMITE_POR_IP;
+  try {
+    const resp = await fetch(`${SUPABASE_URL}/rest/v1/rpc/fn_verificar_rate_limit`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify({
+        p_ip: ip,
+        p_endpoint: 'contacto',
+        p_limite: LIMITE_POR_IP,
+        p_ventana: VENTANA_POSTGRES,
+      }),
+    });
+
+    if (!resp.ok) {
+      console.error('[api/contacto] fn_verificar_rate_limit respondió con error:', resp.status, await resp.text());
+      return true;
+    }
+
+    return await resp.json();
+  } catch (err) {
+    console.error('[api/contacto] No se pudo verificar el rate limit:', err);
+    return true;
+  }
 }
 
 module.exports = async (req, res) => {
@@ -77,7 +100,7 @@ module.exports = async (req, res) => {
     return;
   }
 
-  if (superaLimite(obtenerIp(req))) {
+  if (!(await dentroDelLimite(obtenerIp(req)))) {
     res.status(429).json({ error: 'Demasiadas solicitudes. Intente nuevamente más tarde.' });
     return;
   }

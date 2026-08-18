@@ -453,7 +453,14 @@ CLAUDE.md §2 prohíbe introducir dependencias npm en el **frontend** sin discut
 - `asunto` se valida contra una lista blanca fija (4 valores exactos); nunca se usa como texto libre en el email.
 - `email` del remitente se usa como `Reply-To`, nunca como `from`/`to` — el remitente real y el destinatario real (`EMAIL_FROM`/`SUPPORT_EMAIL`) siempre vienen de variables de entorno, no de datos del formulario.
 - `nombre` y `mensaje` se escapan antes de insertarse en el HTML del correo (misma función `escapar()` que ya usa `notificar-solicitud/index.ts`).
-- Sin sesión ni RLS involucrados: este endpoint es público por diseño (cualquiera debe poder pedir soporte), así que la validación de entrada vive enteramente en `api/contacto.js`.
+- Sin sesión ni RLS involucrados en la validación del formulario en sí: este endpoint es público por diseño (cualquiera debe poder pedir soporte), así que esa parte de la validación vive enteramente en `api/contacto.js`. El rate limiting sí pasa por Supabase — ver abajo.
+
+### Rate limiting (tabla `rate_limits`, migración `20260817_082_rate_limiting_contacto.sql`)
+Máximo 3 envíos por IP por hora. La primera versión de este límite (auditoría de seguridad Codex, ronda 1) usaba un `Map` en memoria del proceso Node — no funciona en Vercel: cada invocación puede aterrizar en una instancia serverless distinta, y una instancia fría no comparte memoria con ninguna otra, así que el contador nunca se acumulaba de forma confiable entre requests reales.
+
+El contador ahora vive en la tabla `rate_limits` (`ip`, `endpoint`, `count`, `window_start`, `PRIMARY KEY (ip, endpoint)`) del mismo proyecto Supabase — el único estado compartido entre invocaciones que ya tiene esta app. La tabla tiene RLS activado sin ninguna política (cerrada por completo para `anon`/`authenticated`); el único punto de acceso es la función RPC `fn_verificar_rate_limit(p_ip, p_endpoint, p_limite, p_ventana)` (`SECURITY DEFINER`, mismo patrón que `fn_existe_bloqueo`/`validar_codigo_referido`, §33/§20), que hace el "leer, ¿reseteó la ventana?, incrementar" en una sola sentencia `INSERT ... ON CONFLICT DO UPDATE` — necesario para que dos requests concurrentes desde la misma IP no lean el mismo `count` antes de que ninguno lo actualice (misma condición de carrera que ya se corrigió para `actualizar_zonas_servicio_abogado`, §12/migración 079).
+
+`api/contacto.js` llama a esta función vía `fetch` a `${SUPABASE_URL}/rest/v1/rpc/fn_verificar_rate_limit` usando `SUPABASE_ANON_KEY` — las mismas dos variables que ya usa `api/config.js` para el frontend, no hace falta ninguna variable nueva en Vercel. Si Supabase no responde o las variables no están configuradas, el request se deja pasar (fail-open): un rate limiter caído no debe tumbar el formulario de contacto completo, y las demás validaciones (asunto de lista blanca, límites de longitud) ya acotan el abuso mientras tanto.
 
 ---
 

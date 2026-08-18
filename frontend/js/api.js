@@ -2245,6 +2245,40 @@ export const clientes = {
     return data ?? [];
   },
 
+  /**
+   * Datos crudos para armar "Requiere su atención" (resumen de Inicio en
+   * panel-cliente.html y listado completo en /pages/atencion): solicitudes
+   * propias, casos propios de El Tablón y notificaciones no leídas.
+   *
+   * A diferencia de solicitudes.getSolicitudesCliente()/tablon.getMisCasos()/
+   * notificaciones.getNoLeidas() — que absorben el error internamente y
+   * retornan [] para no romper a sus otros llamadores en el resto de la
+   * app — esta función sí expone si alguna de las tres consultas falló, para
+   * que atencion.js pueda distinguir "genuinamente sin pendientes" de "no se
+   * pudo cargar" (auditoría de seguridad Codex, ronda 2, MEDIUM 2) en vez de
+   * mostrar siempre el estado vacío.
+   * Retorna { solicitudes, casosTablon, notificacionesNoLeidas, error }.
+   */
+  async getDatosAtencion() {
+    const [rSolicitudes, rCasos, rNotificaciones] = await Promise.all([
+      _cliente.from('panel_solicitudes_cliente').select('*').order('created_at', { ascending: false }),
+      _cliente.from('tablon_casos_cliente').select('*').order('created_at', { ascending: false }),
+      _cliente.from('notificaciones').select('*').eq('leida', false).order('created_at', { ascending: false }).limit(30),
+    ]);
+
+    const error = rSolicitudes.error || rCasos.error || rNotificaciones.error || null;
+    if (error) {
+      console.error('[api.clientes.getDatosAtencion]', error.message);
+    }
+
+    return {
+      solicitudes: rSolicitudes.data ?? [],
+      casosTablon: rCasos.data ?? [],
+      notificacionesNoLeidas: rNotificaciones.data ?? [],
+      error,
+    };
+  },
+
 };
 
 

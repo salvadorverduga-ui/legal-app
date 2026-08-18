@@ -49,11 +49,14 @@ async function inicializar() {
   document.getElementById('btnVolverPanel').href = rutaPanelPropio(perfilActual.rol);
   inicializarHeader({ rol: 'cliente', nombre: perfilActual.nombre_completo, fotoPath: perfilActual.foto_url });
 
-  const [solicitudes, casosTablon, notificacionesNoLeidas] = await Promise.all([
-    api.solicitudes.getSolicitudesCliente(),
-    api.tablon.getMisCasos(),
-    api.notificaciones.getNoLeidas(),
-  ]);
+  // api.clientes.getDatosAtencion() (a diferencia de las funciones sueltas
+  // que arma internamente) sí expone si alguna de las tres consultas falló,
+  // para no confundir "no se pudo cargar" con "genuinamente sin pendientes".
+  const { solicitudes, casosTablon, notificacionesNoLeidas, error } = await api.clientes.getDatosAtencion();
+  if (error) {
+    mostrarError();
+    return;
+  }
 
   const items = getItemsAtencion(solicitudes, casosTablon, notificacionesNoLeidas);
   renderizarGrupos(items);
@@ -108,7 +111,7 @@ function getItemsAtencion(solicitudes, casosTablon, notificacionesNoLeidas) {
   notificacionesNoLeidas
     .filter(n => n.tipo === 'tablon_nueva_aplicacion' && n.url_destino)
     .forEach(n => {
-      const casoId = new URL(n.url_destino, window.location.origin).searchParams.get('id');
+      const casoId = idCasoDesdeUrl(n.url_destino);
       if (!casoId) return;
       aplicacionesSinRevisarPorCaso.set(casoId, (aplicacionesSinRevisarPorCaso.get(casoId) ?? 0) + 1);
     });
@@ -157,6 +160,20 @@ function getItemsAtencion(solicitudes, casosTablon, notificacionesNoLeidas) {
     });
 
   return items.sort((a, b) => a.prioridad - b.prioridad);
+}
+
+// url_destino la escribe un trigger de la base de datos, pero acá no se
+// navega con ella (a diferencia de urlSegura() en notificaciones.js) —
+// solo se le extrae el id de caso, así que basta con no dejar que un valor
+// malformado tire una excepción no capturada y rompa toda la carga de la
+// página (misma idea, alcance más chico: no hace falta same-origin porque
+// el resultado nunca llega a un href).
+function idCasoDesdeUrl(url) {
+  try {
+    return new URL(url, window.location.origin).searchParams.get('id');
+  } catch {
+    return null;
+  }
 }
 
 function horasHastaExpirar(expiresAtIso) {

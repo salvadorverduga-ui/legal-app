@@ -224,18 +224,36 @@ async function manejarClickNotificacion(e) {
 
   const entrada = notificacionesActuales.find(n => n.id === id);
   if (entrada && !entrada.leida) {
-    await api.notificaciones.marcarLeida(id);
     entrada.leida = true;
     renderizar();
+
+    const { error } = await api.notificaciones.marcarLeida(id);
+    if (error) {
+      // La base de datos nunca confirmó el cambio: revertir el estado
+      // visual en vez de dejar la notificación marcada como leída sin serlo.
+      entrada.leida = false;
+      renderizar();
+    }
   }
 
   if (url) window.location.href = urlSegura(url);
 }
 
 async function manejarMarcarTodasLeidas() {
-  await api.notificaciones.marcarTodasLeidas();
+  const estadoPrevio = notificacionesActuales.map(n => n.leida);
   notificacionesActuales = notificacionesActuales.map(n => ({ ...n, leida: true }));
   renderizar();
+
+  const { error } = await api.notificaciones.marcarTodasLeidas();
+  if (error) {
+    // Revertir cada notificación a su estado previo — no todas eran
+    // necesariamente no leídas antes del intento.
+    notificacionesActuales = notificacionesActuales.map((n, i) => ({ ...n, leida: estadoPrevio[i] }));
+    renderizar();
+    toast.error('No se pudieron marcar las notificaciones como leídas. Intente de nuevo.');
+    return;
+  }
+
   toast.exito('Todas las notificaciones se marcaron como leídas.');
 }
 
