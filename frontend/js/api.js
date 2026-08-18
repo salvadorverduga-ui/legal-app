@@ -1517,8 +1517,8 @@ export const admin = {
    * con el nombre del admin y del abogado/estudio/conversación afectados ya
    * resueltos. Ordenadas por fecha descendente (más reciente primero).
    * admin_log se completa desde el trigger fn_propagar_estado_verificacion
-   * (migración 024, aprobar/rechazar) y desde el RPC admin_registrar_apertura_chat
-   * (migración 086, accion='VER_CHAT') — nunca con un INSERT directo desde el
+   * (migración 024, aprobar/rechazar) y desde el RPC admin_ver_mensajes_chat
+   * (migración 088, accion='VER_CHAT') — nunca con un INSERT directo desde el
    * frontend en ninguno de los dos casos.
    * Retorna array (puede estar vacío).
    */
@@ -1557,40 +1557,24 @@ export const admin = {
   /**
    * Retorna el historial completo (sin el límite de 25 de api.chat.getMensajes)
    * de una conversación, para la vista de detalle de la pestaña "Mensajes".
-   * Llamar siempre después de registrarAperturaChat() — ver panel-admin.js.
-   * Retorna array (puede estar vacío).
+   * Llama al RPC admin_ver_mensajes_chat (migración 088), que registra el
+   * acceso en admin_log y devuelve los mensajes en una sola operación
+   * atómica — reemplaza al flujo anterior de dos pasos (registrarAperturaChat()
+   * + SELECT directo a mensajes_con_perfil), que dejaba la auditoría como
+   * opcional: mensajes_con_perfil ya no tiene bypass de admin en su RLS, así
+   * que esta función es la única vía real de leer el historial completo.
+   * Retorna { data: array, error }.
    */
   async getMensajesConversacion(solicitudId) {
-    const { data, error } = await _cliente
-      .from('mensajes_con_perfil')
-      .select('*')
-      .eq('solicitud_id', solicitudId)
-      .order('created_at', { ascending: true });
-
-    if (error) {
-      console.error('[api.admin.getMensajesConversacion]', error.message);
-      return [];
-    }
-    return data ?? [];
-  },
-
-  /**
-   * Registra en admin_log (accion='VER_CHAT') que el admin autenticado abrió
-   * una conversación de chat (RPC admin_registrar_apertura_chat, migración
-   * 086). Se llama antes de traer el historial completo con
-   * getMensajesConversacion() — el acceso a conversaciones privadas siempre
-   * queda registrado, sin excepción.
-   * Retorna { error }.
-   */
-  async registrarAperturaChat(solicitudId) {
-    const { error } = await _cliente.rpc('admin_registrar_apertura_chat', {
+    const { data, error } = await _cliente.rpc('admin_ver_mensajes_chat', {
       p_solicitud_id: solicitudId,
     });
 
     if (error) {
-      console.error('[api.admin.registrarAperturaChat]', error.message);
+      console.error('[api.admin.getMensajesConversacion]', error.message);
+      return { data: [], error };
     }
-    return { error };
+    return { data: data ?? [], error: null };
   },
 
 };
@@ -2248,11 +2232,16 @@ export const chat = {
   /**
    * Envía un mensaje en el chat de una solicitud. Rechaza en el cliente
    * cualquier contenido con URLs (http(s):// o www.) antes de intentar el
-   * INSERT — RLS ya exige participante + estado ACEPTADA/COMPLETADA
-   * (migración 083), pero esa validación de contenido no vive en la base
-   * de datos, solo acá.
-   * Retorna { data, error }. Si contiene URL, error.message es el texto
-   * exacto para mostrar al usuario.
+   * INSERT — primera línea de defensa, no la única: el trigger
+   * fn_validar_sin_urls_mensaje (migración 089) repite una validación más
+   * completa en la base de datos (cubre además mailto:, ftp://, dominios
+   * sueltos como "ejemplo.com" y variantes con espacios alrededor del
+   * punto), porque el chequeo del cliente se puede saltear llamando a la
+   * API de Supabase directamente. RLS exige además participante + estado
+   * ACEPTADA/COMPLETADA (migración 083).
+   * Retorna { data, error }. Si contiene URL (detectado en el cliente o
+   * rechazado por el trigger), error.message es siempre el mismo texto
+   * amigable para mostrar al usuario.
    */
   async enviarMensaje(solicitudId, contenido) {
     if (REGEX_URL_CHAT.test(contenido)) {
@@ -2272,6 +2261,9 @@ export const chat = {
 
     if (error) {
       console.error('[api.chat.enviarMensaje]', error.message);
+      if (error.hint === 'URL_NO_PERMITIDA') {
+        return { data: null, error: { message: 'No se permiten enlaces externos en el chat.' } };
+      }
       return { data: null, error };
     }
     return { data, error: null };

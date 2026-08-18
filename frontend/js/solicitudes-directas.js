@@ -206,6 +206,10 @@ function renderizarSolicitudes() {
     if (lista.some(s => s.id === solicitudConChatAbierto)) {
       abrirChat(solicitudConChatAbierto);
     } else {
+      // La tarjeta con el chat abierto quedó fuera del filtro actual -- su
+      // panel ya no existe en el DOM nuevo, pero la suscripción de Realtime
+      // de chat.js sigue viva hasta que se cancele explícitamente.
+      destruirChat(`chatPanel-${solicitudConChatAbierto}`);
       solicitudConChatAbierto = null;
     }
   }
@@ -633,10 +637,14 @@ async function abrirChat(id) {
   const nombreOtro = rolActual === 'abogado' ? solicitud.cliente_nombre : solicitud.abogado_nombre;
   await inicializarChat(`chatPanel-${id}`, id, perfilActual.id, nombreOtro);
 
-  // chat.js ya marcó los mensajes como leídos al inicializarse (getMensajes +
-  // marcarLeidos internos) -- se limpia el badge local sin otro round-trip.
-  conteoNoLeidosChat.set(id, 0);
-  actualizarBadgeChat(id);
+  // chat.js ya marcó los mensajes como leídos al inicializarse, pero esa
+  // llamada es fire-and-forget (no se espera ni se revisa su resultado) --
+  // se repite acá awaiteada para no limpiar el badge si el UPDATE falló.
+  const { error: errorMarcarLeidos } = await api.chat.marcarLeidos(id);
+  if (!errorMarcarLeidos) {
+    conteoNoLeidosChat.set(id, 0);
+    actualizarBadgeChat(id);
+  }
 }
 
 function actualizarBadgeChat(id) {

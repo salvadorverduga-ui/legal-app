@@ -49,6 +49,7 @@ export async function inicializarChat(contenedorId, solicitudId, miId, nombreOtr
     total: 0,
     cargandoAnteriores: false,
     cancelarEscucha: null,
+    idsRenderizados: new Set(), // dedup por id -- ver crearBurbuja()
     elementos: {},
   };
   instancias.set(contenedorId, estado);
@@ -83,6 +84,13 @@ export async function inicializarChat(contenedorId, solicitudId, miId, nombreOtr
 
   mostrarCargando(estado);
   await cargarPrimeraPagina(estado);
+
+  // Si mientras esperábamos la primera página este contenedor fue destruido
+  // o reinicializado (destruirChat(), o un nuevo inicializarChat() sobre el
+  // mismo contenedorId), esta instancia ya dejó de ser la vigente -- suscribirse
+  // ahora dejaría un canal de Realtime huérfano que nadie va a cancelar,
+  // porque destruirChat() ya no tiene forma de encontrar este "estado".
+  if (instancias.get(contenedorId) !== estado) return;
 
   estado.cancelarEscucha = api.chat.escuchar(solicitudId, (nuevoMensaje) => {
     manejarMensajeNuevo(estado, nuevoMensaje);
@@ -126,7 +134,10 @@ async function cargarPrimeraPagina(estado) {
     if (total > data.length) {
       lista.appendChild(crearBotonCargarAnteriores(estado));
     }
-    data.forEach(mensaje => lista.appendChild(crearBurbuja(mensaje, estado)));
+    data.forEach(mensaje => {
+      const burbuja = crearBurbuja(mensaje, estado);
+      if (burbuja) lista.appendChild(burbuja);
+    });
     lista.scrollTop = lista.scrollHeight;
   }
 
@@ -169,8 +180,14 @@ async function cargarAnteriores(estado, boton) {
   const alturaPrevia = lista.scrollHeight;
   const scrollPrevio = lista.scrollTop;
 
+  // Deduplicado por id (ver crearBurbuja()): si la ventana entre página y
+  // página se corrió porque llegaron mensajes nuevos mientras tanto, un
+  // mismo mensaje podría aparecer en dos páginas consecutivas.
   const fragmento = document.createDocumentFragment();
-  data.forEach(mensaje => fragmento.appendChild(crearBurbuja(mensaje, estado)));
+  data.forEach(mensaje => {
+    const burbuja = crearBurbuja(mensaje, estado);
+    if (burbuja) fragmento.appendChild(burbuja);
+  });
   boton.after(fragmento);
 
   lista.scrollTop = scrollPrevio + (lista.scrollHeight - alturaPrevia);
@@ -187,10 +204,13 @@ function manejarMensajeNuevo(estado, nuevoMensaje) {
   const lista = estado.elementos.listaMensajes;
   if (!lista) return;
 
+  const burbuja = crearBurbuja(nuevoMensaje, estado);
+  if (!burbuja) return; // ya renderizado -- ver dedup por id en crearBurbuja()
+
   const vacio = lista.querySelector('.chat__vacio');
   if (vacio) vacio.remove();
 
-  lista.appendChild(crearBurbuja(nuevoMensaje, estado));
+  lista.appendChild(burbuja);
   estado.total += 1;
   lista.scrollTop = lista.scrollHeight;
 
@@ -232,7 +252,15 @@ function actualizarContador(estado) {
   estado.elementos.contador.classList.toggle('chat__contador--limite', longitud > UMBRAL_CONTADOR_ROJO);
 }
 
+// Deduplicado por id: un mismo mensaje puede llegar por dos vías distintas
+// (ej. "cargar anteriores" y Realtime superpuestos, o dos páginas de
+// getMensajes() con ventanas corridas por mensajes nuevos en el medio).
+// Retorna null si ese id ya se renderizó -- el llamador debe chequear el
+// resultado antes de insertarlo en el DOM.
 function crearBurbuja(mensaje, estado) {
+  if (estado.idsRenderizados.has(mensaje.id)) return null;
+  estado.idsRenderizados.add(mensaje.id);
+
   const esPropia = mensaje.emisor_id === estado.miId;
 
   const burbuja = document.createElement('div');

@@ -674,9 +674,10 @@ async function manejarClickBloqueos(e) {
   await cargarBloqueos();
 }
 
-// ─── Mensajes: conversaciones de chat (migración 086) ────────────────────────
-// Acceso restringido y auditado -- cada apertura de conversación llama al RPC
-// admin_registrar_apertura_chat() antes de traer el historial completo, ver
+// ─── Mensajes: conversaciones de chat (migración 086/088) ─────────────────────
+// Acceso restringido y auditado -- abrir una conversación llama al RPC
+// admin_ver_mensajes_chat() (migración 088), que registra el acceso en
+// admin_log y devuelve el historial en una sola llamada atómica, ver
 // abrirConversacion(). No hay envío de mensajes desde acá: el admin solo lee.
 async function cargarConversacionesChat() {
   const contenedor = document.getElementById('conversacionesLista');
@@ -695,15 +696,13 @@ async function cargarConversacionesChat() {
 }
 
 function generarConversacionItem(c) {
-  const previaTexto = c.ultimo_mensaje_contenido ? recortarTexto(c.ultimo_mensaje_contenido, 80) : '';
-
   return `
     <article class="log-item">
       <div class="log-item__header">
         <p class="log-item__nombre">${escaparHtml(c.cliente_nombre)} &harr; ${escaparHtml(c.abogado_nombre)}</p>
         <span class="badge badge--pendiente">${c.total_mensajes} ${c.total_mensajes === 1 ? 'mensaje' : 'mensajes'}</span>
       </div>
-      <p class="log-item__detalle">${escaparHtml(previaTexto)}</p>
+      <p class="log-item__detalle">${escaparHtml(c.ultimo_mensaje_preview ?? '')}</p>
       <p class="log-item__detalle">Último mensaje: ${formatearFechaHora(c.ultimo_mensaje_at)}</p>
       <div class="solicitud-item__acciones">
         <button type="button" class="btn btn--secundario btn--sm" data-accion="ver-conversacion" data-id="${escaparAtrib(c.solicitud_id)}">
@@ -714,33 +713,29 @@ function generarConversacionItem(c) {
   `;
 }
 
-function recortarTexto(texto, maximo) {
-  return texto.length > maximo ? `${texto.slice(0, maximo)}...` : texto;
-}
-
 function manejarClickConversaciones(e) {
   const btn = e.target.closest('[data-accion="ver-conversacion"]');
   if (!btn) return;
   abrirConversacion(btn.dataset.id);
 }
 
-// Registra la apertura ANTES de traer los mensajes -- así queda constancia
-// del intento de acceso incluso si la carga del historial fallara después.
+// El registro en admin_log y la lectura del historial ocurren en una sola
+// llamada atómica al RPC admin_ver_mensajes_chat (migración 088) -- ya no
+// hay un paso "registrar" separado de un paso "traer mensajes" que se pueda
+// saltear ni desincronizar.
 async function abrirConversacion(solicitudId) {
   const conversacion = conversacionesActuales.find(c => c.solicitud_id === solicitudId);
   const errorEl = document.getElementById('errorMensajes');
   errorEl.textContent = '';
   if (!conversacion) return;
 
-  const { error } = await api.admin.registrarAperturaChat(solicitudId);
+  const { data: mensajes, error } = await api.admin.getMensajesConversacion(solicitudId);
   if (error) {
-    const mensaje = mensajeAmigable(error, 'No se pudo registrar el acceso a esta conversación. Intente de nuevo.');
+    const mensaje = mensajeAmigable(error, 'No se pudo abrir esta conversación. Intente de nuevo.');
     errorEl.textContent = mensaje;
     toast.error(mensaje);
     return;
   }
-
-  const mensajes = await api.admin.getMensajesConversacion(solicitudId);
 
   document.getElementById('detalleConversacionTitulo').textContent =
     `${conversacion.cliente_nombre} ↔ ${conversacion.abogado_nombre}`;
