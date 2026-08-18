@@ -59,6 +59,7 @@ legal-app/
 │   │   ├── config.js          ← obtiene SUPABASE_URL/ANON_KEY desde /api/config
 │   │   ├── header.js          ← header centralizado: logo, notificaciones, avatar con menú desplegable, estado anónimo (ver §26, reemplaza a menu-perfil.js del §18)
 │   │   ├── notificaciones.js  ← campana de notificaciones en el header
+│   │   ├── chat.js            ← componente de chat interno, insertable en cualquier página (ver §46)
 │   │   ├── busqueda.js        ← lógica de busqueda.html
 │   │   ├── perfil-abogado.js  ← lógica de perfil-abogado.html
 │   │   ├── panel-abogado.js   ← lógica de panel-abogado.html
@@ -1163,6 +1164,53 @@ Unificados en un solo mecanismo porque el botón "Iniciar sesión" del header (`
 
 ### Fix 7 — Menú de tres puntos: ya mostraba las opciones completas
 Revisados los 7 call sites de `generarMenuTarjeta()` en todo el frontend. Los 4 que renderizan una tarjeta de **abogado** (`busqueda.js`, `panel-cliente.js`, `solicitudes-tablon.js` vista cliente, `solicitudes-directas.js` vista cliente) ya pasan las 3 opciones pedidas: "Ver perfil", favorito (toggle dinámico según estado), "Bloquear abogado". Los 3 que renderizan una tarjeta de **cliente** vista por un abogado (`panel-abogado.js`, `solicitudes-tablon.js`/`solicitudes-directas.js` vista abogado) muestran solo "Bloquear cliente" a propósito (§37): no existe una página de perfil público de cliente para enlazar, ni un sistema de favoritos de clientes (favoritos es una función exclusiva de clientes, §32) — agregar esas dos opciones ahí crearía enlaces rotos y un toggle sin backend. `generarMenuTarjeta()` es intencionalmente genérica (recibe `opciones` como parámetro); no hace falta ni corresponde modificarla. No se aplicó ningún cambio.
+
+---
+
+## 46. Chat interno entre cliente y abogado (2026-08-17)
+
+### Qué es
+Chat 1:1 dentro de una solicitud ya emparejada — disponible únicamente mientras `solicitudes.estado` es `ACEPTADA` o `COMPLETADA` (los mismos dos estados en que los datos de contacto ya están revelados, §6/§13). No reemplaza esos datos de contacto ni el flujo de solicitudes: es un canal adicional dentro de la app para no depender de que ambas partes se escriban por fuera. Migraciones `20260817_083` a `20260817_086`.
+
+### Modelo de datos (migración `083`)
+Tabla `mensajes` (`id`, `solicitud_id` → `solicitudes`, `emisor_id` → `auth.users`, `contenido` con `CHECK (char_length BETWEEN 1 AND 2000)`, `leido_por_receptor`, `created_at`). Índice `(solicitud_id, created_at DESC)`. Mensajes permanentes: no existe ninguna política de `DELETE`, ni siquiera para admin.
+
+**RLS**: `fn_es_participante_solicitud(p_solicitud_id)` (`SECURITY DEFINER`, mismo criterio que `fn_existe_bloqueo`/`fn_cliente_dueno_caso_tablon`) evita subconsultas autoreferenciadas en las políticas. `SELECT` para participantes y admin (`es_admin()`); `INSERT` exige `emisor_id = auth.uid()`, participante, y `solicitudes.estado IN ('ACEPTADA','COMPLETADA')` (subconsulta directa contra `solicitudes` — no autoreferenciada, así que no hace falta el helper ahí); `UPDATE` restringido a que el receptor (el participante que no es `emisor_id`) pase `leido_por_receptor` de `false` a `true`, sin tocar ninguna otra columna (mismo patrón "congelado" que `usuario_marca_leida` de notificaciones, migración 025).
+
+Vista `mensajes_con_perfil` (nombre/foto del emisor vía join a `perfiles`) repite el filtro de participante/admin en su propio `WHERE` — es `SECURITY DEFINER` como toda vista de este proyecto y por lo tanto bypassea el RLS de `mensajes`.
+
+Realtime habilitado (`ALTER PUBLICATION supabase_realtime ADD TABLE mensajes`), respeta el RLS igual que `notificaciones`.
+
+### API (`frontend/js/api.js`, namespace `chat`)
+`getMensajes(solicitudId, pagina)` — 25 por página vía `mensajes_con_perfil`, página 1 = los 25 más recientes (internamente pide `DESC` + `.range()` y los invierte a `ASC` antes de devolverlos). `enviarMensaje(solicitudId, contenido)` — rechaza en el propio cliente (antes de tocar la red) cualquier contenido que matchee `/(https?:\/\/|www\.)[^\s]+/i`, con el mensaje `'No se permiten enlaces externos en el chat.'` agregado a `MENSAJES_ERROR_CONOCIDOS` de `utils.js` para que se muestre tal cual. `marcarLeidos(solicitudId)`, `contarNoLeidos(solicitudId)`. `escuchar(solicitudId, callback)` — Realtime acotado por `filter: solicitud_id=eq.<id>`, retorna directamente una función de cancelación (a diferencia de `notificaciones.escucharNuevas`, que retorna el canal y expone `dejarDeEscuchar()` aparte).
+
+### Componente `frontend/js/chat.js`
+`inicializarChat(contenedorId, solicitudId, miId, nombreOtro)` / `destruirChat(contenedorId)`, mapeado por `contenedorId` en un `Map` interno — reinicializar el mismo contenedor destruye la instancia anterior primero (defensivo; la regla de "un solo chat abierto a la vez" la aplica cada página que lo usa). Carga la página 1, muestra "Cargar mensajes anteriores" solo si `total > 25` (preserva la posición de scroll al insertar mensajes viejos arriba), marca como leídos al abrir y en cada mensaje ajeno que llega por Realtime.
+
+**Sin burbuja optimista al enviar**: al hacer clic en "Enviar" se limpia el input y se espera a que Realtime devuelva el mensaje (el emisor también cumple la política `SELECT` sobre su propia fila) — una sola vía de renderizado para mensajes propios y ajenos, evita duplicar la burbuja cuando llega el eco de Realtime.
+
+Seguridad: todo el texto que viene de la base de datos (contenido del mensaje, nombre del otro participante) se asigna vía `textContent`, nunca `innerHTML` — este archivo no tiene su propia función `escaparHtml()`, a diferencia del resto del proyecto.
+
+UI: burbujas propias a la derecha (`--color-primario`, texto blanco), ajenas a la izquierda (gris claro); nombre + hora ("14:35") debajo de cada burbuja; contador "N / 2000" en rojo sobre 1800; Enter envía, Shift+Enter inserta salto de línea; estados de vacío/error/cargando. Clases `.chat__*` nuevas en `main.css`, mobile-first, usando solo variables CSS existentes.
+
+### Integración en `solicitudes-directas.js` / `solicitudes-tablon.js` (Parte 4)
+Botón "Chat" con badge de no leídos en toda tarjeta con `estado IN ('ACEPTADA','COMPLETADA')` — en la vista cliente de `solicitudes-tablon.js` vive dentro de `generarAccionesSolicitudCliente()` (la solicitud embebida en la tarjeta del caso, §28), no en la tarjeta del caso en sí. Un clic expande el panel con `inicializarChat()`; otro clic lo colapsa y llama a `destruirChat()`. Un solo chat abierto a la vez en toda la página (variable de módulo `solicitudConChatAbierto`).
+
+**Problema real resuelto**: casi toda acción de estas páginas (seguimiento, favoritos, aceptar/rechazar, reseñar) regenera el listado completo vía `innerHTML`, lo que destruiría silenciosamente cualquier chat abierto en otra tarjeta y dejaría un canal de Realtime huérfano. `reabrirChatSiCorresponde()`/lógica equivalente en `renderizarSolicitudes()` reabre el chat sobre el nodo nuevo si la solicitud sigue en el listado filtrado tras el re-render — consistente con el patrón de re-render total que ya usa el resto de estas páginas, en vez de introducir un mecanismo de parcheo de DOM distinto solo para el chat.
+
+### Notificaciones y "Requiere su atención" (Parte 5, migraciones `084`/`085`)
+`tipo_notificacion` gana `'mensaje_nuevo'` (`ALTER TYPE ... ADD VALUE` en su propia migración — no puede usarse en la misma transacción en que se referencia, mismo motivo que `verificacion_suspendida`, §43). Trigger `fn_notificar_mensaje_nuevo` (`AFTER INSERT ON mensajes`) notifica al participante que no envió el mensaje.
+
+**`url_destino` se resuelve según `solicitudes.caso_tablon_id`** — `NULL` → `/pages/solicitudes-directas?solicitud=<id>&chat=true`, no `NULL` → `/pages/solicitudes-tablon?solicitud=<id>&chat=true` — mismo criterio que `fn_notificar_nueva_solicitud` (§39 módulo 5). Esto es una decisión tomada durante la implementación, no el pedido original (que fijaba siempre `solicitudes-directas`): como el chat quedó disponible en ambas páginas (Parte 4), enviar siempre a `solicitudes-directas` habría producido un link roto para cualquier mensaje de una solicitud originada en El Tablón (esa página filtra `caso_tablon_id IS NULL`, §22). Ambas páginas leen `?chat=true` al cargar y abren el chat de la solicitud indicada automáticamente.
+
+`getItemsAtencion()` (`panel-cliente.js`), `getItemsAtencionAbogado()` (`panel-abogado.js`) y su copia deliberada en `atencion.js` (página dedicada de cliente, §45) ganan un tipo más: "Tiene N mensaje(s) sin leer de [nombre]." — mismo patrón que el tipo de aplicaciones de El Tablón sin revisar (se aproxima cruzando `notificacionesNoLeidas` de tipo `mensaje_nuevo` contra la lista de solicitudes ya cargada, sin queries nuevas). `panel-abogado.js` no traía `notificacionesNoLeidas` hasta ahora — se agregó a su `Promise.all` de `inicializar()`.
+
+### Acceso admin auditado (Parte 6, migración `086`)
+`admin_log` (antes acoplada solo a verificaciones: `accion CHECK IN ('APROBAR','RECHAZAR')`, `verificacion_id NOT NULL`) se generalizó: `verificacion_id` pasa a nullable, columna nueva `solicitud_id`, y un `CHECK` exige exactamente una referencia según `accion` (`APROBAR`/`RECHAZAR` → `verificacion_id`; `VER_CHAT` → `solicitud_id`). RPC `admin_registrar_apertura_chat(p_solicitud_id)` (`SECURITY DEFINER`, revalida `es_admin()` internamente, mismo patrón que `admin_suspender_verificacion`) es la única vía de escritura — `admin_log` sigue sin `GRANT INSERT` a `authenticated`.
+
+Vista `admin_conversaciones_chat` (solicitud, nombres e ids de cliente/abogado, total de mensajes, último mensaje) alimenta la pestaña nueva "Mensajes" de `panel-admin.html`. `admin_log_detalle` (migración 024) se extendió sin romper columnas existentes para mostrar también las aperturas de chat en la pestaña "Log de acciones" ya existente.
+
+`panel-admin.js`: al abrir una conversación, **primero** se llama a `registrarAperturaChat()` y solo si eso tuvo éxito se trae el historial completo (`api.admin.getMensajesConversacion()`, sin el límite de 25 del chat normal, vía `mensajes_con_perfil`) — nunca hay lectura sin que quede registrada. El historial es de solo lectura (el admin no envía mensajes) y reutiliza las clases `.chat__burbuja` del componente normal, con una convención fija de lado (cliente = izquierda, abogado = derecha) ya que el admin no es "parte" de la conversación. Banner fijo en la pestaña: "El acceso a conversaciones privadas está restringido a casos con denuncia activa. Este acceso queda registrado en el log de administración."
 
 ---
 

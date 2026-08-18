@@ -36,9 +36,18 @@ const ETIQUETAS_METRICAS = {
 const ETIQUETAS_ACCION_LOG = {
   APROBAR:  { texto: 'Aprobó verificación',  clase: 'badge--verificado' },
   RECHAZAR: { texto: 'Rechazó verificación', clase: 'badge--rechazado' },
+  VER_CHAT: { texto: 'Abrió una conversación de chat', clase: 'badge--pendiente' },
 };
 
-const SECCIONES = ['Verificaciones', 'Suscripciones', 'Metricas', 'LogAcciones', 'Bloqueos', 'Configuracion'];
+// Solo se usa como fallback de texto si algún día se agrega un tercer tipo
+// de solicitante — hoy 'chat' (accion=VER_CHAT) siempre cae acá.
+const ETIQUETAS_TIPO_SOLICITANTE_LOG = {
+  abogado: 'Abogado individual',
+  estudio: 'Estudio jurídico',
+  chat:    'Chat interno',
+};
+
+const SECCIONES = ['Verificaciones', 'Suscripciones', 'Metricas', 'LogAcciones', 'Bloqueos', 'Mensajes', 'Configuracion'];
 
 // ─── Estado de la página ──────────────────────────────────────────────────
 let perfilActual = null;              // fila propia de la tabla perfiles
@@ -48,6 +57,7 @@ let busquedaVerificaciones = '';       // texto de búsqueda por nombre (abogado
 let tipoFiltroVerificacion = '';       // '' = todos | 'abogado' | 'estudio'
 let rechazadasActuales = [];          // sub-sección "Rechazados" de Verificaciones
 let suspendidasActuales = [];         // sub-sección "Suspendidos" de Verificaciones
+let conversacionesActuales = [];      // pestaña "Mensajes": listado de solicitudes con chat
 
 // ─── Entry point ────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', inicializar);
@@ -87,6 +97,7 @@ async function inicializar() {
     cargarMetricas(),
     cargarLogAcciones(),
     cargarBloqueos(),
+    cargarConversacionesChat(),
     cargarConfigTablon(),
   ]);
 
@@ -131,6 +142,9 @@ function configurarEventos() {
   document.getElementById('formConfigTablon').addEventListener('submit', manejarSubmitConfigTablon);
 
   document.getElementById('bloqueosLista').addEventListener('click', manejarClickBloqueos);
+
+  document.getElementById('conversacionesLista').addEventListener('click', manejarClickConversaciones);
+  document.getElementById('btnVolverConversaciones').addEventListener('click', volverAListaConversaciones);
 }
 
 // ─── Navegación por secciones ───────────────────────────────────────────────
@@ -593,7 +607,7 @@ async function cargarLogAcciones() {
 
 function generarLogItem(l) {
   const etiquetaAccion = ETIQUETAS_ACCION_LOG[l.accion] ?? { texto: l.accion, clase: 'badge--pendiente' };
-  const etiquetaTipo = ETIQUETAS_TIPO_SOLICITANTE[l.tipo] ?? l.tipo;
+  const etiquetaTipo = ETIQUETAS_TIPO_SOLICITANTE_LOG[l.tipo] ?? l.tipo;
 
   return `
     <article class="log-item">
@@ -658,6 +672,101 @@ async function manejarClickBloqueos(e) {
 
   toast.exito('Usuarios desbloqueados.');
   await cargarBloqueos();
+}
+
+// ─── Mensajes: conversaciones de chat (migración 086) ────────────────────────
+// Acceso restringido y auditado -- cada apertura de conversación llama al RPC
+// admin_registrar_apertura_chat() antes de traer el historial completo, ver
+// abrirConversacion(). No hay envío de mensajes desde acá: el admin solo lee.
+async function cargarConversacionesChat() {
+  const contenedor = document.getElementById('conversacionesLista');
+  const vacio = document.getElementById('estadoSinConversaciones');
+
+  conversacionesActuales = await api.admin.getConversacionesChat();
+
+  if (conversacionesActuales.length === 0) {
+    contenedor.innerHTML = '';
+    vacio.hidden = false;
+    return;
+  }
+
+  vacio.hidden = true;
+  contenedor.innerHTML = conversacionesActuales.map(generarConversacionItem).join('');
+}
+
+function generarConversacionItem(c) {
+  const previaTexto = c.ultimo_mensaje_contenido ? recortarTexto(c.ultimo_mensaje_contenido, 80) : '';
+
+  return `
+    <article class="log-item">
+      <div class="log-item__header">
+        <p class="log-item__nombre">${escaparHtml(c.cliente_nombre)} &harr; ${escaparHtml(c.abogado_nombre)}</p>
+        <span class="badge badge--pendiente">${c.total_mensajes} ${c.total_mensajes === 1 ? 'mensaje' : 'mensajes'}</span>
+      </div>
+      <p class="log-item__detalle">${escaparHtml(previaTexto)}</p>
+      <p class="log-item__detalle">Último mensaje: ${formatearFechaHora(c.ultimo_mensaje_at)}</p>
+      <div class="solicitud-item__acciones">
+        <button type="button" class="btn btn--secundario btn--sm" data-accion="ver-conversacion" data-id="${escaparAtrib(c.solicitud_id)}">
+          Ver conversación
+        </button>
+      </div>
+    </article>
+  `;
+}
+
+function recortarTexto(texto, maximo) {
+  return texto.length > maximo ? `${texto.slice(0, maximo)}...` : texto;
+}
+
+function manejarClickConversaciones(e) {
+  const btn = e.target.closest('[data-accion="ver-conversacion"]');
+  if (!btn) return;
+  abrirConversacion(btn.dataset.id);
+}
+
+// Registra la apertura ANTES de traer los mensajes -- así queda constancia
+// del intento de acceso incluso si la carga del historial fallara después.
+async function abrirConversacion(solicitudId) {
+  const conversacion = conversacionesActuales.find(c => c.solicitud_id === solicitudId);
+  const errorEl = document.getElementById('errorMensajes');
+  errorEl.textContent = '';
+  if (!conversacion) return;
+
+  const { error } = await api.admin.registrarAperturaChat(solicitudId);
+  if (error) {
+    const mensaje = mensajeAmigable(error, 'No se pudo registrar el acceso a esta conversación. Intente de nuevo.');
+    errorEl.textContent = mensaje;
+    toast.error(mensaje);
+    return;
+  }
+
+  const mensajes = await api.admin.getMensajesConversacion(solicitudId);
+
+  document.getElementById('detalleConversacionTitulo').textContent =
+    `${conversacion.cliente_nombre} ↔ ${conversacion.abogado_nombre}`;
+  document.getElementById('chatAdminHistorial').innerHTML =
+    mensajes.map(m => generarBurbujaAdmin(m, conversacion)).join('');
+
+  document.getElementById('mensajesListaVista').hidden = true;
+  document.getElementById('mensajesDetalleVista').hidden = false;
+}
+
+function volverAListaConversaciones() {
+  document.getElementById('mensajesDetalleVista').hidden = true;
+  document.getElementById('mensajesListaVista').hidden = false;
+}
+
+// Lado de la burbuja según quién la envió -- el admin no es "propio" en
+// ningún sentido, así que se elige una convención fija (cliente = izquierda,
+// abogado = derecha) para que el historial se lea igual que el chat real.
+function generarBurbujaAdmin(m, conversacion) {
+  const esCliente = m.emisor_id === conversacion.cliente_id;
+  return `
+    <div class="chat__burbuja ${esCliente ? 'chat__burbuja--otro' : 'chat__burbuja--propia'}">
+      <p class="chat__burbuja-contenido">${escaparHtml(m.contenido)}</p>
+      <p class="chat__burbuja-meta">${escaparHtml(m.emisor_nombre)} · ${formatearFechaHora(m.created_at)}</p>
+    </div>
+  `;
 }
 
 // ─── Configuración: El Tablón ───────────────────────────────────────────────

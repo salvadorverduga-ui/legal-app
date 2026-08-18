@@ -195,6 +195,7 @@ const TEXTO_LINK_TIPO = {
   aplicacion_tablon: 'Ver aplicaciones',
   expira:            'Ver solicitud',
   resena:            'Dejar reseña',
+  mensaje_nuevo:     'Ver chat',
 };
 
 // Arma la lista de items urgentes a partir de datos ya cargados por
@@ -289,6 +290,32 @@ function getItemsAtencion(solicitudes, casosTablon, notificacionesNoLeidas) {
       });
     });
 
+  // TIPO 5 — Mensaje de chat sin leer (celeste, ti-message). Igual patrón
+  // que TIPO 2: se aproxima con las notificaciones no leídas de tipo
+  // 'mensaje_nuevo' (migración 085), cruzadas contra solicitudes para
+  // resolver el nombre del abogado remitente.
+  const mensajesSinLeerPorSolicitud = new Map();
+  notificacionesNoLeidas
+    .filter(n => n.tipo === 'mensaje_nuevo' && n.url_destino)
+    .forEach(n => {
+      const solicitudId = idSolicitudDesdeUrl(n.url_destino);
+      if (!solicitudId) return;
+      mensajesSinLeerPorSolicitud.set(solicitudId, (mensajesSinLeerPorSolicitud.get(solicitudId) ?? 0) + 1);
+    });
+  solicitudes
+    .filter(s => mensajesSinLeerPorSolicitud.has(s.id))
+    .forEach(s => {
+      const n = mensajesSinLeerPorSolicitud.get(s.id);
+      items.push({
+        prioridad: 5,
+        tipo: 'mensaje_nuevo',
+        clase: 'atencion-item--info',
+        icono: 'ti-message',
+        texto: `Tiene ${n} ${n === 1 ? 'mensaje' : 'mensajes'} sin leer de ${escaparHtml(s.abogado_nombre)}.`,
+        url: urlSolicitudChat(s),
+      });
+    });
+
   return items.sort((a, b) => a.prioridad - b.prioridad);
 }
 
@@ -303,6 +330,28 @@ function urlSolicitud(s) {
   return s.caso_tablon_id
     ? '/pages/solicitudes-tablon'
     : `/pages/solicitudes-directas?solicitud=${s.id}`;
+}
+
+// Variante de urlSolicitud() para el item de "mensaje sin leer": a diferencia
+// de esa función, acá sí hace falta el id en ambos orígenes porque
+// solicitudes-tablon.js también soporta abrir un chat puntual vía
+// ?solicitud=<id>&chat=true (Parte 4/migración 083), aunque esa página no
+// tenga el mecanismo de "resaltar" tarjeta que sí usa el resto de items.
+function urlSolicitudChat(s) {
+  const pagina = s.caso_tablon_id ? 'solicitudes-tablon' : 'solicitudes-directas';
+  return `/pages/${pagina}?solicitud=${s.id}&chat=true`;
+}
+
+// url_destino la escribe un trigger de la base de datos (fn_notificar_mensaje_nuevo,
+// migración 085) -- acá no se navega con ella, solo se le extrae el id de
+// solicitud, así que basta con no dejar que un valor malformado tire una
+// excepción no capturada (mismo criterio que idCasoDesdeUrl en atencion.js).
+function idSolicitudDesdeUrl(url) {
+  try {
+    return new URL(url, window.location.origin).searchParams.get('solicitud');
+  } catch {
+    return null;
+  }
 }
 
 // El botón "Ver todos" es un link estático en el HTML (siempre visible

@@ -17,6 +17,7 @@ import * as api from './api.js';
 import { obtenerConfig } from './config.js';
 import { toast, mensajeAmigable, rutaPanelPropio, generarCheckboxSeguimiento, generarBotonFavorito, generarMenuTarjeta, inicializarMenuTarjeta, actualizarControlesFavorito, abrirModalBloqueo, generarContadorVisualizaciones, MENSAJE_AGREGADO_SEGUIMIENTO } from './utils.js';
 import { inicializarHeader } from './header.js';
+import { inicializarChat, destruirChat } from './chat.js';
 
 const ORIGEN = 'tablon';
 
@@ -81,6 +82,8 @@ let estadoFiltroActivo = '';          // '' = todos/todas
 let solicitudConFormularioAbierto = null; // vista cliente: id de solicitud con el form de reseña visible
 let solicitudPorCasoId = new Map();       // vista cliente: caso_tablon_id -> solicitud (para completar/reseñar embebido en la tarjeta del caso)
 let favoritosIds = new Set();             // vista cliente: abogado_id favoritos, para el corazón del abogado elegido
+let conteoNoLeidosChat = new Map();       // solicitudId -> mensajes sin leer, badge del botón "Chat"
+let solicitudConChatAbierto = null;       // id de la solicitud con el panel de chat expandido (uno solo a la vez)
 
 // ─── Entry point ───────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', inicializar);
@@ -140,6 +143,20 @@ async function inicializar() {
 
   mostrarContenido();
   configurarEventos();
+  abrirChatDesdeUrl();
+}
+
+// Notificación "Nuevo mensaje" (fn_notificar_mensaje_nuevo, migración 085)
+// de una solicitud originada en El Tablón: llega con
+// ?solicitud=<id>&chat=true para abrir el chat de esa solicitud directamente.
+// A diferencia de solicitudes-directas.js, esta página no tiene mecanismo de
+// "resaltar" tarjeta (nunca lo tuvo, ver urlSolicitud() de panel-cliente.js) —
+// solo se abre el chat.
+function abrirChatDesdeUrl() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('chat') !== 'true') return;
+  const id = params.get('solicitud');
+  if (id) abrirChat(id);
 }
 
 // ─── Control de estados visuales ─────────────────────────────────────────────
@@ -190,7 +207,19 @@ function cambiarFiltro(estado) {
 // ─── Solicitudes (vista abogado) ───────────────────────────────────────────────
 async function cargarSolicitudes() {
   solicitudesActuales = await api.solicitudes.getSolicitudesAbogado(ORIGEN);
+  await cargarConteosChat();
   renderizarSolicitudes();
+}
+
+// Badge de mensajes sin leer del botón "Chat" -- disponible solo para
+// solicitudes ACEPTADA/COMPLETADA (únicos estados donde el chat funciona,
+// ver migración 083). Sirve para ambos roles: en la vista abogado son las
+// solicitudes listadas directamente; en la vista cliente son las mismas
+// filas que solicitudPorCasoId indexa por caso (ver cargarMisCasos()).
+async function cargarConteosChat() {
+  const elegibles = solicitudesActuales.filter(s => s.estado === 'ACEPTADA' || s.estado === 'COMPLETADA');
+  const conteos = await Promise.all(elegibles.map(s => api.chat.contarNoLeidos(s.id)));
+  conteoNoLeidosChat = new Map(elegibles.map((s, i) => [s.id, conteos[i]]));
 }
 
 function renderizarSolicitudes() {
@@ -210,6 +239,7 @@ function renderizarSolicitudes() {
 
   vacio.hidden = true;
   contenedor.innerHTML = lista.map(generarSolicitudCardAbogado).join('');
+  reabrirChatSiCorresponde(lista.map(s => s.id));
 }
 
 // ─── Mis casos (vista cliente) — CLAUDE.md módulo 3: todos los casos ─────────
@@ -226,6 +256,7 @@ async function cargarMisCasos() {
   solicitudesActuales = solicitudes;
   solicitudPorCasoId = new Map(solicitudes.filter(s => s.caso_tablon_id).map(s => [s.caso_tablon_id, s]));
   favoritosIds = new Set(misFavoritosIds);
+  await cargarConteosChat();
   renderizarMisCasos();
 }
 
@@ -246,6 +277,26 @@ function renderizarMisCasos() {
 
   vacio.hidden = true;
   contenedor.innerHTML = lista.map(generarCasoClienteCard).join('');
+
+  // El chat cuelga de la solicitud embebida en la tarjeta del caso
+  // (solicitudPorCasoId), no del caso en sí -- se reabre solo si esa
+  // solicitud sigue en el listado filtrado actual.
+  reabrirChatSiCorresponde(lista.map(c => solicitudPorCasoId.get(c.id)?.id).filter(Boolean));
+}
+
+// Casi toda acción de esta página (seguimiento, favoritos, completar,
+// reseñar...) vuelve a regenerar #solicitudesLista por completo -- si eso
+// pasa mientras hay un chat abierto en otra tarjeta, el panel viejo queda
+// reemplazado por uno nuevo oculto. Se reabre acá para que una acción no
+// relacionada no le cierre el chat al usuario.
+function reabrirChatSiCorresponde(idsVisibles) {
+  if (!solicitudConChatAbierto) return;
+
+  if (idsVisibles.includes(solicitudConChatAbierto)) {
+    abrirChat(solicitudConChatAbierto);
+  } else {
+    solicitudConChatAbierto = null;
+  }
 }
 
 // Identidad del abogado elegido (avatar, nombre, corazón de favorito) —
@@ -386,6 +437,8 @@ function generarSolicitudCardAbogado(s) {
     { texto: 'Bloquear cliente', accion: 'bloquear-cliente', id: escaparAtrib(s.cliente_id), dataNombre: escaparAtrib(s.cliente_nombre) },
   ]);
 
+  const chatHtml = generarBloqueChat(s, idSeguro);
+
   return `
     <article class="solicitud-item">
       <div class="solicitud-item__header">
@@ -406,7 +459,35 @@ function generarSolicitudCardAbogado(s) {
       ${contactoHtml}
       ${generarLinkCasoTablon(s.caso_tablon_id)}
       ${seguimientoHtml}
+      ${chatHtml}
     </article>
+  `;
+}
+
+// ─── Chat (migración 083) ───────────────────────────────────────────────────
+// Disponible solo en ACEPTADA/COMPLETADA -- únicos estados donde la política
+// RLS "participantes_envian_mensaje" permite escribir. El botón lleva el
+// badge de no leídos; el panel se llena al abrir (ver abrirChat()).
+function generarBotonChat(idSeguro, conteo) {
+  const badgeHtml = conteo > 0
+    ? `<span class="badge-chat-no-leidos">${conteo > 99 ? '99+' : conteo}</span>`
+    : '';
+  return `
+    <button class="btn btn--secundario btn--sm solicitud-item__btn-chat" type="button"
+      data-accion="toggle-chat" data-id="${idSeguro}" aria-expanded="false">
+      Chat
+      ${badgeHtml}
+    </button>
+  `;
+}
+
+function generarBloqueChat(s, idSeguro) {
+  if (s.estado !== 'ACEPTADA' && s.estado !== 'COMPLETADA') return '';
+  return `
+    <div class="solicitud-item__acciones">
+      ${generarBotonChat(idSeguro, conteoNoLeidosChat.get(s.id) ?? 0)}
+    </div>
+    <div class="chat-panel-solicitud" id="chatPanel-${idSeguro}" hidden></div>
   `;
 }
 
@@ -461,7 +542,9 @@ function generarAccionesSolicitudCliente(s) {
     </form>
   ` : '';
 
-  return `${completarHtml}${esperaResenaHtml}${accionesHtml}`;
+  const chatHtml = generarBloqueChat(s, idSeguro);
+
+  return `${completarHtml}${esperaResenaHtml}${accionesHtml}${chatHtml}`;
 }
 
 // Orden 5→1 en el DOM: junto con flex-direction: row-reverse en CSS, esto
@@ -493,6 +576,7 @@ function manejarClickSolicitudes(e) {
   if (accion === 'toggle-favorito') return manejarClickFavorito(btn);
   if (accion === 'bloquear-cliente') return manejarBloquearCliente(id, btn.dataset.nombre);
   if (accion === 'bloquear-abogado') return manejarBloquearAbogado(id, btn.dataset.nombre);
+  if (accion === 'toggle-chat') return manejarToggleChat(id);
 
   if (rolActual === 'abogado') return;
 
@@ -562,6 +646,76 @@ async function manejarBloquearAbogado(abogadoId, nombreAbogado) {
   if (!bloqueado) return;
 
   await cargarMisCasos();
+}
+
+// ─── Chat (migración 083) ───────────────────────────────────────────────────
+// Solo un chat abierto a la vez en toda la página: abrir uno cierra el
+// anterior. El toggle en sí no toca solicitudesActuales/misCasosActuales (no
+// es un dato de la solicitud ni del caso), así que no dispara un re-render --
+// se manipula el DOM directamente para no perder el estado del chat que se
+// está abriendo. Funciona igual para ambos roles: solicitudesActuales trae
+// la solicitud correspondiente en los dos casos (vista abogado: listado
+// directo; vista cliente: mismas filas que solicitudPorCasoId indexa).
+function manejarToggleChat(id) {
+  if (solicitudConChatAbierto === id) {
+    solicitudConChatAbierto = null;
+    cerrarChat(id);
+    return;
+  }
+
+  if (solicitudConChatAbierto) cerrarChat(solicitudConChatAbierto);
+  abrirChat(id);
+}
+
+function cerrarChat(id) {
+  destruirChat(`chatPanel-${id}`);
+  const panel = document.getElementById(`chatPanel-${id}`);
+  if (panel) panel.hidden = true;
+  const boton = document.querySelector(`.solicitud-item__btn-chat[data-id="${id}"]`);
+  if (boton) boton.setAttribute('aria-expanded', 'false');
+}
+
+async function abrirChat(id) {
+  const solicitud = solicitudesActuales.find(s => s.id === id);
+  const panel = document.getElementById(`chatPanel-${id}`);
+  if (!solicitud || !panel) {
+    solicitudConChatAbierto = null;
+    return;
+  }
+
+  solicitudConChatAbierto = id;
+  panel.hidden = false;
+
+  const boton = document.querySelector(`.solicitud-item__btn-chat[data-id="${id}"]`);
+  if (boton) boton.setAttribute('aria-expanded', 'true');
+
+  const nombreOtro = rolActual === 'abogado' ? solicitud.cliente_nombre : solicitud.abogado_nombre;
+  await inicializarChat(`chatPanel-${id}`, id, perfilActual.id, nombreOtro);
+
+  // chat.js ya marcó los mensajes como leídos al inicializarse (getMensajes +
+  // marcarLeidos internos) -- se limpia el badge local sin otro round-trip.
+  conteoNoLeidosChat.set(id, 0);
+  actualizarBadgeChat(id);
+}
+
+function actualizarBadgeChat(id) {
+  const boton = document.querySelector(`.solicitud-item__btn-chat[data-id="${id}"]`);
+  if (!boton) return;
+
+  const badgeExistente = boton.querySelector('.badge-chat-no-leidos');
+  const conteo = conteoNoLeidosChat.get(id) ?? 0;
+
+  if (conteo === 0) {
+    if (badgeExistente) badgeExistente.remove();
+    return;
+  }
+
+  const texto = conteo > 99 ? '99+' : String(conteo);
+  if (badgeExistente) {
+    badgeExistente.textContent = texto;
+  } else {
+    boton.insertAdjacentHTML('beforeend', `<span class="badge-chat-no-leidos">${texto}</span>`);
+  }
 }
 
 // ─── Favoritos (solo vista cliente) ────────────────────────────────────────────

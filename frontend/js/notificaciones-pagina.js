@@ -30,6 +30,7 @@ const ETIQUETAS_TIPO = {
   tablon_elegido:           'Elegido en El Tablón',
   tablon_caso_cerrado:      'Caso de El Tablón cerrado',
   tablon_caso_expirado:     'Caso de El Tablón expirado',
+  mensaje_nuevo:            'Nuevo mensaje',
 };
 
 let paginaActual = 1;

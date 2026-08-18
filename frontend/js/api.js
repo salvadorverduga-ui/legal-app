@@ -1513,11 +1513,13 @@ export const admin = {
   },
 
   /**
-   * Retorna el historial de acciones del admin (aprobar/rechazar verificaciones)
-   * desde la vista admin_log_detalle, con el nombre del admin y del abogado/estudio
-   * afectado ya resueltos. Ordenadas por fecha descendente (más reciente primero).
-   * La tabla admin_log solo se completa desde el trigger fn_propagar_estado_verificacion
-   * (migración 024) — nunca se inserta desde el frontend.
+   * Retorna el historial de acciones del admin desde la vista admin_log_detalle,
+   * con el nombre del admin y del abogado/estudio/conversación afectados ya
+   * resueltos. Ordenadas por fecha descendente (más reciente primero).
+   * admin_log se completa desde el trigger fn_propagar_estado_verificacion
+   * (migración 024, aprobar/rechazar) y desde el RPC admin_registrar_apertura_chat
+   * (migración 086, accion='VER_CHAT') — nunca con un INSERT directo desde el
+   * frontend en ninguno de los dos casos.
    * Retorna array (puede estar vacío).
    */
   async getLogAcciones() {
@@ -1531,6 +1533,64 @@ export const admin = {
       return [];
     }
     return data ?? [];
+  },
+
+  /**
+   * Retorna las solicitudes con al menos un mensaje de chat, para la
+   * pestaña "Mensajes" del panel de administración (vista
+   * admin_conversaciones_chat, migración 086). Ya viene ordenada por fecha
+   * del último mensaje, más reciente primero.
+   * Retorna array (puede estar vacío).
+   */
+  async getConversacionesChat() {
+    const { data, error } = await _cliente
+      .from('admin_conversaciones_chat')
+      .select('*');
+
+    if (error) {
+      console.error('[api.admin.getConversacionesChat]', error.message);
+      return [];
+    }
+    return data ?? [];
+  },
+
+  /**
+   * Retorna el historial completo (sin el límite de 25 de api.chat.getMensajes)
+   * de una conversación, para la vista de detalle de la pestaña "Mensajes".
+   * Llamar siempre después de registrarAperturaChat() — ver panel-admin.js.
+   * Retorna array (puede estar vacío).
+   */
+  async getMensajesConversacion(solicitudId) {
+    const { data, error } = await _cliente
+      .from('mensajes_con_perfil')
+      .select('*')
+      .eq('solicitud_id', solicitudId)
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.error('[api.admin.getMensajesConversacion]', error.message);
+      return [];
+    }
+    return data ?? [];
+  },
+
+  /**
+   * Registra en admin_log (accion='VER_CHAT') que el admin autenticado abrió
+   * una conversación de chat (RPC admin_registrar_apertura_chat, migración
+   * 086). Se llama antes de traer el historial completo con
+   * getMensajesConversacion() — el acceso a conversaciones privadas siempre
+   * queda registrado, sin excepción.
+   * Retorna { error }.
+   */
+  async registrarAperturaChat(solicitudId) {
+    const { error } = await _cliente.rpc('admin_registrar_apertura_chat', {
+      p_solicitud_id: solicitudId,
+    });
+
+    if (error) {
+      console.error('[api.admin.registrarAperturaChat]', error.message);
+    }
+    return { error };
   },
 
 };
@@ -2139,6 +2199,154 @@ export const seguimiento = {
     }
 
     return { solicitudes: solicitudes ?? [], casosTablon: casosTablon ?? [] };
+  },
+
+};
+
+
+// ════════════════════════════════════════════════════════════
+// CHAT
+// Chat interno entre cliente y abogado de una solicitud ACEPTADA/COMPLETADA
+// (migración 083). RLS ya exige participante + estado válido en el INSERT —
+// este módulo valida además que el mensaje no contenga enlaces externos,
+// antes de intentar el INSERT, para dar feedback inmediato sin round-trip.
+// ════════════════════════════════════════════════════════════
+
+// No se permiten enlaces externos en el chat (ver fn_es_participante_solicitud,
+// migración 083 — la validación de contenido en sí vive solo acá, no en RLS).
+const REGEX_URL_CHAT = /(https?:\/\/|www\.)[^\s]+/i;
+
+export const chat = {
+
+  /**
+   * Retorna una página de mensajes de una solicitud (vista mensajes_con_perfil,
+   * incluye nombre/foto del emisor), 25 por página. pagina es 1-indexed;
+   * página 1 = los 25 más recientes. El resultado se ordena ASC (más viejo
+   * primero) para renderizar directo en el chat, aunque internamente se pide
+   * DESC + .range() para poder tomar "los últimos N" de forma eficiente.
+   * Retorna { data: array, total: number, error }.
+   */
+  async getMensajes(solicitudId, pagina = 1) {
+    const POR_PAGINA = 25;
+    const desde = (pagina - 1) * POR_PAGINA;
+    const hasta = desde + POR_PAGINA - 1;
+
+    const { data, error, count } = await _cliente
+      .from('mensajes_con_perfil')
+      .select('*', { count: 'exact' })
+      .eq('solicitud_id', solicitudId)
+      .order('created_at', { ascending: false })
+      .range(desde, hasta);
+
+    if (error) {
+      console.error('[api.chat.getMensajes]', error.message);
+      return { data: [], total: 0, error };
+    }
+    return { data: (data ?? []).reverse(), total: count ?? 0, error: null };
+  },
+
+  /**
+   * Envía un mensaje en el chat de una solicitud. Rechaza en el cliente
+   * cualquier contenido con URLs (http(s):// o www.) antes de intentar el
+   * INSERT — RLS ya exige participante + estado ACEPTADA/COMPLETADA
+   * (migración 083), pero esa validación de contenido no vive en la base
+   * de datos, solo acá.
+   * Retorna { data, error }. Si contiene URL, error.message es el texto
+   * exacto para mostrar al usuario.
+   */
+  async enviarMensaje(solicitudId, contenido) {
+    if (REGEX_URL_CHAT.test(contenido)) {
+      return { data: null, error: { message: 'No se permiten enlaces externos en el chat.' } };
+    }
+
+    const { data: { user }, error: errUser } = await _cliente.auth.getUser();
+    if (errUser || !user) {
+      return { data: null, error: errUser ?? { message: 'No hay sesión activa.' } };
+    }
+
+    const { data, error } = await _cliente
+      .from('mensajes')
+      .insert({ solicitud_id: solicitudId, emisor_id: user.id, contenido })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[api.chat.enviarMensaje]', error.message);
+      return { data: null, error };
+    }
+    return { data, error: null };
+  },
+
+  /**
+   * Marca como leídos todos los mensajes de la solicitud que no envió el
+   * propio usuario. La política RLS "receptor_marca_leido" (migración 083)
+   * ya restringe esto a los mensajes donde el usuario es el receptor.
+   * Retorna { error }.
+   */
+  async marcarLeidos(solicitudId) {
+    const { data: { user }, error: errUser } = await _cliente.auth.getUser();
+    if (errUser || !user) {
+      return { error: errUser ?? { message: 'No hay sesión activa.' } };
+    }
+
+    const { error } = await _cliente
+      .from('mensajes')
+      .update({ leido_por_receptor: true })
+      .eq('solicitud_id', solicitudId)
+      .eq('leido_por_receptor', false)
+      .neq('emisor_id', user.id);
+
+    if (error) {
+      console.error('[api.chat.marcarLeidos]', error.message);
+    }
+    return { error };
+  },
+
+  /**
+   * Retorna la cantidad de mensajes sin leer de una solicitud que no envió
+   * el propio usuario (badge del botón "Chat").
+   */
+  async contarNoLeidos(solicitudId) {
+    const { data: { user }, error: errUser } = await _cliente.auth.getUser();
+    if (errUser || !user) return 0;
+
+    const { count, error } = await _cliente
+      .from('mensajes')
+      .select('id', { count: 'exact', head: true })
+      .eq('solicitud_id', solicitudId)
+      .eq('leido_por_receptor', false)
+      .neq('emisor_id', user.id);
+
+    if (error) {
+      console.error('[api.chat.contarNoLeidos]', error.message);
+      return 0;
+    }
+    return count ?? 0;
+  },
+
+  /**
+   * Se suscribe vía Supabase Realtime a nuevos mensajes (INSERT) de una
+   * solicitud puntual. El RLS de mensajes ya restringe el stream a
+   * participantes de esa solicitud, pero igual se filtra por solicitud_id
+   * en el canal para no recibir eventos de otras solicitudes propias.
+   * El payload viene de la tabla mensajes (sin emisor_nombre/emisor_foto,
+   * a diferencia de getMensajes()) — el llamador ya conoce esos datos
+   * (miId/nombreOtro, ver frontend/js/chat.js) y no necesita volver a
+   * pedirlos.
+   * Retorna una función para cancelar la suscripción.
+   */
+  escuchar(solicitudId, callback) {
+    const canal = _cliente
+      .channel(`chat-mensajes-${solicitudId}`)
+      .on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'mensajes',
+        filter: `solicitud_id=eq.${solicitudId}`,
+      }, (payload) => {
+        callback(payload.new);
+      })
+      .subscribe();
+
+    return () => _cliente.removeChannel(canal);
   },
 
 };

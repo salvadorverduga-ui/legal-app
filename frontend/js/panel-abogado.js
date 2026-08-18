@@ -121,17 +121,18 @@ async function inicializar() {
   document.getElementById('inicioVerPerfilPublico').href = urlPerfilPublico;
   actualizarBanners();
 
-  const [resenas, casosTablon, misSeguimientos] = await Promise.all([
+  const [resenas, casosTablon, misSeguimientos, notificacionesNoLeidas] = await Promise.all([
     api.resenas.getResenasAbogado(abogadoActual.id),
     api.tablon.getCasosActivos(),
     api.seguimiento.getMisSeguimientos(),
+    api.notificaciones.getNoLeidas(),
     cargarSolicitudes(),
     cargarSuscripcion(),
   ]);
   renderizarResenas(resenas);
   renderizarResumenInicio(resenas.length, casosTablon);
   renderizarSeguimiento(misSeguimientos);
-  renderizarAtencion(getItemsAtencionAbogado(solicitudesActuales, estadoVerificacionActual));
+  renderizarAtencion(getItemsAtencionAbogado(solicitudesActuales, estadoVerificacionActual, notificacionesNoLeidas));
 
   mostrarContenido();
   configurarEventos();
@@ -286,7 +287,7 @@ function renderizarResumenInicio(resenasTotales, casosTablon) {
 // abogado. Sin consultas adicionales: usa solicitudesActuales (ya cargada
 // por cargarSolicitudes()) y estadoVerificacionActual (ya cargada en
 // inicializar() para el banner de documentos).
-function getItemsAtencionAbogado(solicitudes, estadoVerificacion) {
+function getItemsAtencionAbogado(solicitudes, estadoVerificacion, notificacionesNoLeidas) {
   const items = [];
   const pendientes = solicitudes.filter(s => s.estado === 'PENDIENTE');
 
@@ -333,12 +334,58 @@ function getItemsAtencionAbogado(solicitudes, estadoVerificacion) {
     });
   }
 
+  // TIPO 4 — Mensaje de chat sin leer (celeste, ti-message). Igual patrón
+  // que TIPO 1/2: se aproxima con las notificaciones no leídas de tipo
+  // 'mensaje_nuevo' (migración 085), cruzadas contra solicitudesActuales
+  // para resolver el nombre del cliente remitente.
+  const mensajesSinLeerPorSolicitud = new Map();
+  notificacionesNoLeidas
+    .filter(n => n.tipo === 'mensaje_nuevo' && n.url_destino)
+    .forEach(n => {
+      const solicitudId = idSolicitudDesdeUrl(n.url_destino);
+      if (!solicitudId) return;
+      mensajesSinLeerPorSolicitud.set(solicitudId, (mensajesSinLeerPorSolicitud.get(solicitudId) ?? 0) + 1);
+    });
+  solicitudes
+    .filter(s => mensajesSinLeerPorSolicitud.has(s.id))
+    .forEach(s => {
+      const n = mensajesSinLeerPorSolicitud.get(s.id);
+      items.push({
+        prioridad: 4,
+        clase: 'atencion-item--info',
+        icono: 'ti-message',
+        texto: `Tiene ${n} ${n === 1 ? 'mensaje' : 'mensajes'} sin leer de ${escaparHtml(s.cliente_nombre)}.`,
+        url: urlSolicitudChat(s),
+      });
+    });
+
   return items.sort((a, b) => a.prioridad - b.prioridad);
 }
 
 function horasHastaExpirar(expiresAtIso) {
   if (!expiresAtIso) return Infinity;
   return (new Date(expiresAtIso).getTime() - Date.now()) / 3600000;
+}
+
+// A diferencia de las URLs estáticas del resto de items de esta función
+// (siempre "/pages/solicitudes-directas", sin mecanismo de "resaltar" acá),
+// el item de "mensaje sin leer" sí necesita apuntar a la solicitud puntual
+// para poder abrir su chat -- ver ?chat=true en solicitudes-directas.js /
+// solicitudes-tablon.js (migración 083).
+function urlSolicitudChat(s) {
+  const pagina = s.caso_tablon_id ? 'solicitudes-tablon' : 'solicitudes-directas';
+  return `/pages/${pagina}?solicitud=${s.id}&chat=true`;
+}
+
+// url_destino la escribe fn_notificar_mensaje_nuevo (migración 085) -- acá
+// no se navega con ella, solo se le extrae el id de solicitud, así que basta
+// con no dejar que un valor malformado tire una excepción no capturada.
+function idSolicitudDesdeUrl(url) {
+  try {
+    return new URL(url, window.location.origin).searchParams.get('solicitud');
+  } catch {
+    return null;
+  }
 }
 
 function renderizarAtencion(items) {

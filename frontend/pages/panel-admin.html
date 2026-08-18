@@ -67,6 +67,10 @@
             role="tab" aria-selected="false" aria-controls="seccionBloqueos">
             Bloqueos
           </button>
+          <button class="panel-tab" id="tabMensajes" type="button"
+            role="tab" aria-selected="false" aria-controls="seccionMensajes">
+            Mensajes
+          </button>
           <button class="panel-tab" id="tabConfiguracion" type="button"
             role="tab" aria-selected="false" aria-controls="seccionConfiguracion">
             Configuración
@@ -185,6 +189,35 @@
 
           <div class="estado-vacio" id="estadoSinBloqueos" hidden>
             <p>No hay bloqueos activos.</p>
+          </div>
+        </section>
+
+        <!-- ═══════════════ SECCIÓN: MENSAJES ═══════════════ -->
+        <section class="panel-seccion" id="seccionMensajes" role="tabpanel" aria-labelledby="tabMensajes" hidden>
+
+          <div class="alerta-chat-admin" role="alert">
+            El acceso a conversaciones privadas está restringido a casos con denuncia activa.
+            Este acceso queda registrado en el log de administración.
+          </div>
+
+          <p class="campo__error" id="errorMensajes" role="alert" aria-live="polite"></p>
+
+          <!-- ── Vista: lista de conversaciones ── -->
+          <div id="mensajesListaVista">
+            <div class="log-lista" id="conversacionesLista"></div>
+
+            <div class="estado-vacio" id="estadoSinConversaciones" hidden>
+              <p>No hay conversaciones con mensajes todavía.</p>
+            </div>
+          </div>
+
+          <!-- ── Vista: historial completo de una conversación ── -->
+          <div id="mensajesDetalleVista" hidden>
+            <button type="button" class="btn btn--secundario btn--sm" id="btnVolverConversaciones">
+              &larr; Volver a conversaciones
+            </button>
+            <h2 class="panel-inicio__seccion-titulo" id="detalleConversacionTitulo"></h2>
+            <div class="chat__mensajes chat-admin-historial" id="chatAdminHistorial"></div>
           </div>
         </section>
 
