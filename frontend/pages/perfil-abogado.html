@@ -88,6 +88,12 @@
           </button>
         </section>
 
+        <!-- Ver/iniciar conversación (chat v2) -- solo si hay una solicitud
+             ACEPTADA/COMPLETADA con este abogado, ver configurarBotonMensajes() -->
+        <section id="seccionMensajesAbogado" hidden>
+          <button class="btn btn--secundario btn--completo" id="btnMensajesAbogado" type="button"></button>
+        </section>
+
         <!-- Aviso: sin sesión activa -->
         <section id="seccionSinSesion" hidden>
           <a href="/?mostrar_login=true" class="btn btn--primario btn--completo">

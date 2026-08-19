@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Conversación en LegalEC.">
+  <title>Conversación — LegalEC</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="stylesheet" href="/css/main.css">
+</head>
+<body class="conversacion-body">
+
+  <!-- Estado: cargando -->
+  <div class="pantalla-carga" id="estadoCargando">
+    <div class="spinner" aria-hidden="true"></div>
+    <p class="pantalla-carga__texto">Cargando conversación...</p>
+  </div>
+
+  <!-- Estado: error -->
+  <div class="estado-vacio" id="estadoError" hidden>
+    <p class="estado-vacio__titulo">No pudimos abrir esta conversación</p>
+    <p>Puede que ya no tenga acceso a este asunto, o que el enlace sea incorrecto.</p>
+    <a href="/pages/mensajes" class="btn btn--primario btn--sm estado-vacio__cta">Volver a Mensajes</a>
+  </div>
+
+  <!-- Contenido -->
+  <div class="conversacion" id="conversacion" hidden>
+
+    <header class="conversacion-header">
+      <a href="/pages/mensajes" class="conversacion-header__volver" aria-label="Volver a Mensajes">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+          <path d="M15 18l-6-6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>Mensajes</span>
+      </a>
+
+      <div class="conversacion-header__avatar" id="conversacionAvatar"></div>
+
+      <div class="conversacion-header__identidad">
+        <p class="conversacion-header__nombre" id="conversacionNombre"></p>
+
+        <div id="tituloContenedor">
+          <button class="conversacion-header__titulo-boton" type="button" id="tituloBoton"
+            aria-label="Editar título del asunto"></button>
+          <form class="conversacion-header__titulo-form" id="tituloForm" hidden>
+            <label for="tituloInput" class="sr-only">Título del asunto</label>
+            <input type="text" id="tituloInput" class="campo__input" maxlength="120" required>
+            <button type="submit" class="btn btn--primario btn--sm">Guardar</button>
+            <button type="button" class="btn btn--secundario btn--sm" id="btnCancelarTitulo">Cancelar</button>
+          </form>
+        </div>
+      </div>
+
+      <span class="badge" id="badgeEstadoAsunto"></span>
+
+      <div id="menuAsuntoContenedor" class="conversacion-header__menu"></div>
+    </header>
+
+    <div class="conversacion-banner" id="bannerAsunto" hidden>
+      <p id="bannerAsuntoTexto"></p>
+      <div class="conversacion-banner__acciones" id="bannerAsuntoAcciones"></div>
+    </div>
+
+    <div class="conversacion-mensajes" id="conversacionMensajes">
+      <button class="btn btn--secundario btn--sm conversacion-mensajes__anteriores" type="button"
+        id="btnCargarAnteriores" hidden>
+        Cargar mensajes anteriores
+      </button>
+      <div class="conversacion-mensajes__lista" id="listaMensajes"></div>
+    </div>
+
+    <button class="conversacion-nuevos" id="badgeNuevosMensajes" type="button" hidden></button>
+
+    <form class="conversacion-input" id="formEnviar">
+      <p class="conversacion-input__cerrado" id="avisoCerrado" hidden>
+        Este asunto está cerrado. Solo lectura.
+      </p>
+      <div class="conversacion-input__fila">
+        <label for="inputMensaje" class="sr-only">Escriba su mensaje</label>
+        <textarea id="inputMensaje" class="conversacion-input__textarea" rows="1" maxlength="2000"
+          placeholder="Escriba su mensaje..."></textarea>
+        <button type="submit" class="btn btn--primario btn--sm conversacion-input__enviar" id="btnEnviar" disabled>
+          <span id="btnEnviarTexto">Enviar</span>
+          <span class="conversacion-input__spinner" id="btnEnviarSpinner" hidden aria-hidden="true"></span>
+        </button>
+      </div>
+      <div class="conversacion-input__pie">
+        <p class="campo__error" id="errorEnviar" role="alert" aria-live="polite"></p>
+        <span class="conversacion-input__contador" id="contadorMensaje">0 / 2000</span>
+      </div>
+    </form>
+
+  </div>
+
+  <!-- Menú contextual de burbuja propia: clic derecho o long-press -->
+  <ul class="conversacion-menu-contextual" id="menuContextualMensaje" role="menu" hidden>
+    <li role="none">
+      <button role="menuitem" class="menu-desplegable__item" type="button" data-accion="editar-mensaje">Editar</button>
+    </li>
+    <li role="none">
+      <button role="menuitem" class="menu-desplegable__item" type="button" data-accion="eliminar-mensaje">Eliminar</button>
+    </li>
+  </ul>
+
+  <script src="/js/vendors/supabase.min.js"></script>
+  <script type="module" src="/js/conversacion.js"></script>
+
+</body>
+</html>

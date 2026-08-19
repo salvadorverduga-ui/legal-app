@@ -19,7 +19,7 @@ const TIPOS_ATENCION = {
   aplicacion_tablon:  { titulo: 'Casos con aplicaciones nuevas',      boton: 'Ver aplicaciones' },
   expira:             { titulo: 'Solicitudes por expirar',           boton: 'Ver solicitud' },
   resena:             { titulo: 'Reseñas pendientes',                boton: 'Dejar reseña' },
-  mensaje_nuevo:      { titulo: 'Mensajes sin leer',                 boton: 'Ver chat' },
+  mensaje_nuevo:      { titulo: 'Mensajes sin leer',                 boton: 'Ver conversación' },
 };
 
 // ─── Entry point ─────────────────────────────────────────────────────────────
@@ -53,13 +53,13 @@ async function inicializar() {
   // api.clientes.getDatosAtencion() (a diferencia de las funciones sueltas
   // que arma internamente) sí expone si alguna de las tres consultas falló,
   // para no confundir "no se pudo cargar" con "genuinamente sin pendientes".
-  const { solicitudes, casosTablon, notificacionesNoLeidas, error } = await api.clientes.getDatosAtencion();
+  const { solicitudes, casosTablon, notificacionesNoLeidas, inboxMensajes, error } = await api.clientes.getDatosAtencion();
   if (error) {
     mostrarError();
     return;
   }
 
-  const items = getItemsAtencion(solicitudes, casosTablon, notificacionesNoLeidas);
+  const items = getItemsAtencion(solicitudes, casosTablon, notificacionesNoLeidas, inboxMensajes);
   renderizarGrupos(items);
 
   mostrarContenido();
@@ -83,7 +83,7 @@ function mostrarContenido() {
 // autocontenida en vez de depender de un módulo compartido). Cualquier
 // cambio en la lógica de negocio de los 4 tipos debe aplicarse en ambos
 // archivos.
-function getItemsAtencion(solicitudes, casosTablon, notificacionesNoLeidas) {
+function getItemsAtencion(solicitudes, casosTablon, notificacionesNoLeidas, inboxMensajes) {
   const items = [];
 
   // TIPO 1 — Solicitud aceptada. Deduplicado por abogado_id: si hay varias
@@ -160,29 +160,20 @@ function getItemsAtencion(solicitudes, casosTablon, notificacionesNoLeidas) {
       });
     });
 
-  // TIPO 5 — Mensaje de chat sin leer (celeste, ti-message). Igual patrón
-  // que TIPO 2: se aproxima con las notificaciones no leídas de tipo
-  // 'mensaje_nuevo' (migración 085), cruzadas contra solicitudes para
-  // resolver el nombre del abogado remitente.
-  const mensajesSinLeerPorSolicitud = new Map();
-  notificacionesNoLeidas
-    .filter(n => n.tipo === 'mensaje_nuevo' && n.url_destino)
-    .forEach(n => {
-      const solicitudId = idSolicitudDesdeUrl(n.url_destino);
-      if (!solicitudId) return;
-      mensajesSinLeerPorSolicitud.set(solicitudId, (mensajesSinLeerPorSolicitud.get(solicitudId) ?? 0) + 1);
-    });
-  solicitudes
-    .filter(s => mensajesSinLeerPorSolicitud.has(s.id))
-    .forEach(s => {
-      const n = mensajesSinLeerPorSolicitud.get(s.id);
+  // TIPO 5 — Mensaje sin leer en un asunto de chat v2 (celeste, ti-message).
+  // inbox_view (migraciones 092/094) ya trae unread_count y contraparte_nombre
+  // resueltos por asunto -- a diferencia del chat anterior, no hace falta
+  // cruzar notificaciones contra solicitudes para llegar a este dato.
+  inboxMensajes
+    .filter(item => item.unread_count > 0)
+    .forEach(item => {
       items.push({
         prioridad: 5,
         tipo: 'mensaje_nuevo',
         clase: 'atencion-item--info',
         icono: 'ti-message',
-        texto: `Tiene ${n} ${n === 1 ? 'mensaje' : 'mensajes'} sin leer de ${escaparHtml(s.abogado_nombre)}.`,
-        url: urlSolicitudChat(s),
+        texto: `Tiene ${item.unread_count} ${item.unread_count === 1 ? 'mensaje' : 'mensajes'} sin leer de ${escaparHtml(item.contraparte_nombre)}.`,
+        url: `/pages/conversacion?id=${item.conversation_id}`,
       });
     });
 
@@ -198,16 +189,6 @@ function getItemsAtencion(solicitudes, casosTablon, notificacionesNoLeidas) {
 function idCasoDesdeUrl(url) {
   try {
     return new URL(url, window.location.origin).searchParams.get('id');
-  } catch {
-    return null;
-  }
-}
-
-// Mismo criterio que idCasoDesdeUrl(), pero para el parámetro ?solicitud=
-// que usa fn_notificar_mensaje_nuevo (migración 085).
-function idSolicitudDesdeUrl(url) {
-  try {
-    return new URL(url, window.location.origin).searchParams.get('solicitud');
   } catch {
     return null;
   }
@@ -229,16 +210,6 @@ function urlSolicitud(s) {
   return s.caso_tablon_id
     ? '/pages/solicitudes-tablon'
     : `/pages/solicitudes-directas?solicitud=${s.id}`;
-}
-
-// Variante de urlSolicitud() para el item de "mensaje sin leer": a diferencia
-// de esa función, acá sí hace falta el id en ambos orígenes porque
-// solicitudes-tablon.js también soporta abrir un chat puntual vía
-// ?solicitud=<id>&chat=true (Parte 4/migración 083), aunque esa página no
-// tenga el mecanismo de "resaltar" tarjeta que sí usa el resto de items.
-function urlSolicitudChat(s) {
-  const pagina = s.caso_tablon_id ? 'solicitudes-tablon' : 'solicitudes-directas';
-  return `/pages/${pagina}?solicitud=${s.id}&chat=true`;
 }
 
 // ─── Render: agrupado por tipo, con descripción completa y botón de acción ───

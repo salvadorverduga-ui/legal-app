@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Sus conversaciones con clientes y abogados en LegalEC.">
+  <title>Mensajes — LegalEC</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+
+  <header class="encabezado">
+    <div class="contenedor encabezado__contenedor">
+      <a href="/" class="logo" id="logoHeader" aria-label="LegalEC — Mi panel">
+        <span class="logo__nombre">LegalEC</span>
+      </a>
+      <nav class="nav-usuario" aria-label="Menú de usuario"></nav>
+    </div>
+  </header>
+
+  <main>
+    <div class="contenedor panel-cliente__contenido">
+
+      <!-- Estado: cargando -->
+      <div class="pantalla-carga" id="estadoCargando">
+        <div class="spinner" aria-hidden="true"></div>
+        <p class="pantalla-carga__texto">Cargando...</p>
+      </div>
+
+      <!-- Estado: error -->
+      <div class="estado-vacio" id="estadoError" hidden>
+        <p class="estado-vacio__titulo">No pudimos cargar sus mensajes</p>
+        <p>Intente recargar la página. Si el problema continúa, contacte a soporte.</p>
+      </div>
+
+      <!-- Contenido -->
+      <div id="contenidoPanel" hidden>
+        <div class="inbox-contenedor">
+
+          <div class="tablon-toolbar">
+            <a href="#" class="btn btn--secundario btn--sm" id="btnVolverPanel">Volver a mi panel</a>
+          </div>
+
+          <section class="panel-cabecera">
+            <div class="panel-cabecera__identidad">
+              <div>
+                <h1 class="panel-cabecera__nombre">Mensajes</h1>
+              </div>
+            </div>
+          </section>
+
+          <div class="inbox-toolbar">
+            <div class="filtro-tipo" role="tablist" aria-label="Filtrar conversaciones">
+              <button class="filtro-tipo__btn filtro-tipo__btn--activo" id="filtroTodos" type="button"
+                role="tab" aria-selected="true" data-filtro="todos">
+                Todos
+              </button>
+              <button class="filtro-tipo__btn" id="filtroNoLeidos" type="button"
+                role="tab" aria-selected="false" data-filtro="no_leidos">
+                No leídos
+              </button>
+              <button class="filtro-tipo__btn" id="filtroActivos" type="button"
+                role="tab" aria-selected="false" data-filtro="activos">
+                Activos
+              </button>
+            </div>
+
+            <div class="campo inbox-busqueda">
+              <label for="buscarContraparte" class="sr-only">Buscar por nombre</label>
+              <input type="text" id="buscarContraparte" class="campo__input"
+                placeholder="Buscar por nombre..." autocomplete="off">
+            </div>
+          </div>
+
+          <!-- Estado de carga de la lista: skeleton -->
+          <div class="inbox-skeleton" id="inboxSkeleton" aria-hidden="true">
+            <div class="inbox-skeleton__fila"></div>
+            <div class="inbox-skeleton__fila"></div>
+            <div class="inbox-skeleton__fila"></div>
+          </div>
+
+          <div class="inbox-lista" id="inboxLista" hidden></div>
+
+          <div class="estado-vacio" id="estadoSinConversaciones" hidden>
+            <p class="estado-vacio__titulo" id="tituloSinConversaciones">No tiene conversaciones activas</p>
+            <p id="textoSinConversaciones">Sus chats aparecerán aquí cuando un abogado acepte su solicitud.</p>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="pie">
+    <div class="contenedor pie__contenedor">
+      <p class="pie__aviso">
+        LegalEC es un servicio de conexión y no un proveedor de servicios jurídicos.
+      </p>
+      <nav class="pie__nav" aria-label="Páginas legales">
+        <a href="#" class="pie__enlace">Términos y condiciones</a>
+        <span class="pie__separador" aria-hidden="true">·</span>
+        <a href="#" class="pie__enlace">Política de privacidad (LOPDP)</a>
+        <span class="pie__separador" aria-hidden="true">·</span>
+        <a href="/pages/contacto" class="pie__enlace">Soporte</a>
+      </nav>
+    </div>
+  </footer>
+
+  <script src="/js/vendors/supabase.min.js"></script>
+  <script type="module" src="/js/mensajes.js"></script>
+
+</body>
+</html>

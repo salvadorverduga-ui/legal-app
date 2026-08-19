@@ -121,18 +121,18 @@ async function inicializar() {
   document.getElementById('inicioVerPerfilPublico').href = urlPerfilPublico;
   actualizarBanners();
 
-  const [resenas, casosTablon, misSeguimientos, notificacionesNoLeidas] = await Promise.all([
+  const [resenas, casosTablon, misSeguimientos, inboxMensajes] = await Promise.all([
     api.resenas.getResenasAbogado(abogadoActual.id),
     api.tablon.getCasosActivos(),
     api.seguimiento.getMisSeguimientos(),
-    api.notificaciones.getNoLeidas(),
+    api.mensajes.getInbox(),
     cargarSolicitudes(),
     cargarSuscripcion(),
   ]);
   renderizarResenas(resenas);
   renderizarResumenInicio(resenas.length, casosTablon);
   renderizarSeguimiento(misSeguimientos);
-  renderizarAtencion(getItemsAtencionAbogado(solicitudesActuales, estadoVerificacionActual, notificacionesNoLeidas));
+  renderizarAtencion(getItemsAtencionAbogado(solicitudesActuales, estadoVerificacionActual, inboxMensajes));
 
   mostrarContenido();
   configurarEventos();
@@ -287,7 +287,7 @@ function renderizarResumenInicio(resenasTotales, casosTablon) {
 // abogado. Sin consultas adicionales: usa solicitudesActuales (ya cargada
 // por cargarSolicitudes()) y estadoVerificacionActual (ya cargada en
 // inicializar() para el banner de documentos).
-function getItemsAtencionAbogado(solicitudes, estadoVerificacion, notificacionesNoLeidas) {
+function getItemsAtencionAbogado(solicitudes, estadoVerificacion, inboxMensajes) {
   const items = [];
   const pendientes = solicitudes.filter(s => s.estado === 'PENDIENTE');
 
@@ -334,28 +334,19 @@ function getItemsAtencionAbogado(solicitudes, estadoVerificacion, notificaciones
     });
   }
 
-  // TIPO 4 — Mensaje de chat sin leer (celeste, ti-message). Igual patrón
-  // que TIPO 1/2: se aproxima con las notificaciones no leídas de tipo
-  // 'mensaje_nuevo' (migración 085), cruzadas contra solicitudesActuales
-  // para resolver el nombre del cliente remitente.
-  const mensajesSinLeerPorSolicitud = new Map();
-  notificacionesNoLeidas
-    .filter(n => n.tipo === 'mensaje_nuevo' && n.url_destino)
-    .forEach(n => {
-      const solicitudId = idSolicitudDesdeUrl(n.url_destino);
-      if (!solicitudId) return;
-      mensajesSinLeerPorSolicitud.set(solicitudId, (mensajesSinLeerPorSolicitud.get(solicitudId) ?? 0) + 1);
-    });
-  solicitudes
-    .filter(s => mensajesSinLeerPorSolicitud.has(s.id))
-    .forEach(s => {
-      const n = mensajesSinLeerPorSolicitud.get(s.id);
+  // TIPO 4 — Mensaje sin leer en un asunto de chat v2 (celeste, ti-message).
+  // inbox_view (migraciones 092/094) ya trae unread_count y contraparte_nombre
+  // resueltos por asunto -- a diferencia del chat anterior, no hace falta
+  // cruzar notificaciones contra solicitudesActuales para llegar a este dato.
+  inboxMensajes
+    .filter(item => item.unread_count > 0)
+    .forEach(item => {
       items.push({
         prioridad: 4,
         clase: 'atencion-item--info',
         icono: 'ti-message',
-        texto: `Tiene ${n} ${n === 1 ? 'mensaje' : 'mensajes'} sin leer de ${escaparHtml(s.cliente_nombre)}.`,
-        url: urlSolicitudChat(s),
+        texto: `Tiene ${item.unread_count} ${item.unread_count === 1 ? 'mensaje' : 'mensajes'} sin leer de ${escaparHtml(item.contraparte_nombre)}.`,
+        url: `/pages/conversacion?id=${item.conversation_id}`,
       });
     });
 
@@ -367,26 +358,6 @@ function horasHastaExpirar(expiresAtIso) {
   return (new Date(expiresAtIso).getTime() - Date.now()) / 3600000;
 }
 
-// A diferencia de las URLs estáticas del resto de items de esta función
-// (siempre "/pages/solicitudes-directas", sin mecanismo de "resaltar" acá),
-// el item de "mensaje sin leer" sí necesita apuntar a la solicitud puntual
-// para poder abrir su chat -- ver ?chat=true en solicitudes-directas.js /
-// solicitudes-tablon.js (migración 083).
-function urlSolicitudChat(s) {
-  const pagina = s.caso_tablon_id ? 'solicitudes-tablon' : 'solicitudes-directas';
-  return `/pages/${pagina}?solicitud=${s.id}&chat=true`;
-}
-
-// url_destino la escribe fn_notificar_mensaje_nuevo (migración 085) -- acá
-// no se navega con ella, solo se le extrae el id de solicitud, así que basta
-// con no dejar que un valor malformado tire una excepción no capturada.
-function idSolicitudDesdeUrl(url) {
-  try {
-    return new URL(url, window.location.origin).searchParams.get('solicitud');
-  } catch {
-    return null;
-  }
-}
 
 function renderizarAtencion(items) {
   const seccion = document.getElementById('atencionPanel');

@@ -585,7 +585,8 @@ const MENSAJES_ERROR_CONOCIDOS = new Set([
   'Ya tiene 3 solicitudes activas con este abogado. Espere una respuesta o cancele alguna antes de enviar una nueva.',
   'Podrá dejar su reseña 24 horas después de completada la consulta.',
   'Ha alcanzado el límite de intentos. Contáctenos en [EMAIL_SOPORTE_PENDIENTE] si cree que esto es un error.',
-  'No se permiten enlaces externos en el chat.',
+  'No se permiten enlaces externos en los mensajes.',
+  'Ya pasaron más de 5 minutos desde que se envió este mensaje; no se puede editar.',
 ]);
 
 export function mensajeAmigable(error, mensajePorDefecto) {

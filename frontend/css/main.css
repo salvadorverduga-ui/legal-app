@@ -3766,150 +3766,9 @@ p {
   max-width: 280px;
 }
 
-/* ────────────────────────────────────────────────────────────
-   CHAT
-   Componente de chat interno (frontend/js/chat.js, migración 083).
-   Mobile-first: la altura de .chat__mensajes es fija en todos los
-   tamaños (el componente vive embebido dentro de una tarjeta, no en
-   pantalla completa) para que el scroll quede acotado al chat, no a la
-   página.
-   ──────────────────────────────────────────────────────────── */
-.chat {
-  display: flex;
-  flex-direction: column;
-  border: 2px solid var(--color-borde);
-  border-radius: var(--radio-lg);
-  overflow: hidden;
-  background-color: var(--color-fondo-card);
-}
-
-.chat__mensajes {
-  display: flex;
-  flex-direction: column;
-  gap: var(--esp-3);
-  height: 320px;
-  overflow-y: auto;
-  padding: var(--esp-4);
-  background-color: var(--color-fondo);
-}
-
-.chat__spinner {
-  margin: auto;
-}
-
-.chat__vacio {
-  margin: auto;
-  text-align: center;
-  color: var(--color-texto-suave);
-  font-size: var(--texto-sm);
-}
-
-.chat__error {
-  margin: auto;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--esp-3);
-  color: var(--color-texto-suave);
-  font-size: var(--texto-sm);
-}
-
-.chat__btn-anteriores {
-  align-self: center;
-  margin-bottom: var(--esp-2);
-}
-
-.chat__burbuja {
-  max-width: 80%;
-  display: flex;
-  flex-direction: column;
-  gap: var(--esp-1);
-}
-
-.chat__burbuja--propia {
-  align-self: flex-end;
-  align-items: flex-end;
-}
-
-.chat__burbuja--otro {
-  align-self: flex-start;
-  align-items: flex-start;
-}
-
-.chat__burbuja-contenido {
-  padding: var(--esp-2) var(--esp-3);
-  border-radius: var(--radio-lg);
-  font-size: var(--texto-sm);
-  line-height: var(--altura-linea-normal);
-  white-space: pre-wrap;
-  overflow-wrap: break-word;
-}
-
-.chat__burbuja--propia .chat__burbuja-contenido {
-  background-color: var(--color-primario);
-  color: var(--color-texto-inverso);
-  border-bottom-right-radius: var(--radio-sm);
-}
-
-.chat__burbuja--otro .chat__burbuja-contenido {
-  background-color: var(--color-borde-suave);
-  color: var(--color-texto);
-  border-bottom-left-radius: var(--radio-sm);
-}
-
-.chat__burbuja-meta {
-  font-size: var(--texto-xs);
-  color: var(--color-texto-muy-suave);
-  padding-inline: var(--esp-1);
-}
-
-.chat__input-area {
-  display: flex;
-  flex-direction: column;
-  gap: var(--esp-2);
-  padding: var(--esp-3);
-  border-top: 2px solid var(--color-borde);
-}
-
-.chat__textarea {
-  width: 100%;
-  resize: none;
-  padding: var(--esp-2) var(--esp-3);
-  border: 2px solid var(--color-borde);
-  border-radius: var(--radio-md);
-  font-family: var(--fuente);
-  font-size: var(--texto-sm);
-  color: var(--color-texto);
-  background-color: var(--color-fondo-card);
-}
-
-.chat__textarea:focus-visible {
-  outline: 3px solid var(--color-acento);
-  outline-offset: 1px;
-  border-color: var(--color-primario);
-}
-
-.chat__pie {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--esp-3);
-}
-
-.chat__contador {
-  font-size: var(--texto-xs);
-  color: var(--color-texto-muy-suave);
-}
-
-.chat__contador--limite {
-  color: var(--color-error);
-  font-weight: var(--peso-semibold);
-}
-
-/* ── Integración del chat en las tarjetas de solicitud (solicitudes-directas.js
-   / solicitudes-tablon.js) ── */
-.solicitud-item__btn-chat {
+/* ── Botón "Mensajes"/"Iniciar conversación" en tarjetas de solicitud, chat v2
+   (solicitudes-directas.js / solicitudes-tablon.js, Parte 8). ── */
+.solicitud-item__btn-mensajes {
   position: relative;
 }
 
@@ -3928,26 +3787,618 @@ p {
   line-height: 1;
 }
 
-.chat-panel-solicitud {
-  margin-top: var(--esp-3);
+/* ============================================================
+   PÁGINA: MENSAJES (INBOX) — chat v2
+   Estilos de mensajes.html / frontend/js/mensajes.js (Parte 6). Mobile-first:
+   la lista ocupa todo el ancho en mobile; en desktop se centra con un
+   máximo más angosto que --ancho-contenedor, porque una fila de bandeja se
+   lee peor muy ancha.
+   ============================================================ */
+.inbox-contenedor {
+  width: 100%;
+  max-width: 720px;
+  margin-inline: auto;
 }
 
-/* ── Pestaña "Mensajes" del panel de administración (migración 086) ── */
-.alerta-chat-admin {
-  padding: var(--esp-4);
+.inbox-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-3);
   margin-bottom: var(--esp-4);
-  border: 2px solid var(--color-advertencia);
-  border-radius: var(--radio-md);
-  background-color: var(--color-advertencia-bg);
-  color: var(--color-advertencia);
+}
+
+.inbox-busqueda {
+  margin: 0;
+}
+
+@media (min-width: 640px) {
+  .inbox-toolbar {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .inbox-busqueda {
+    max-width: 260px;
+  }
+}
+
+/* ── Lista de conversaciones ──────────────────────────────────── */
+.inbox-lista {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-2);
+}
+
+.inbox-lista[hidden] {
+  display: none;
+}
+
+.inbox-item {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-3);
+  width: 100%;
+  padding: var(--esp-4);
+  background-color: var(--color-fondo-card);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-lg);
+  text-align: left;
+  transition: border-color var(--transicion), box-shadow var(--transicion), background-color var(--transicion);
+}
+
+.inbox-item:hover {
+  border-color: var(--color-primario);
+  box-shadow: var(--sombra-sm);
+}
+
+.inbox-item:focus-visible {
+  outline: 2px solid var(--color-acento);
+  outline-offset: 2px;
+}
+
+.inbox-item__avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.inbox-item__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.inbox-item__avatar .avatar-placeholder {
+  font-size: var(--texto-sm);
+}
+
+.inbox-item__cuerpo {
+  flex: 1;
+  min-width: 0;
+}
+
+.inbox-item__linea-superior {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--esp-2);
+}
+
+.inbox-item__nombre {
+  font-size: var(--texto-base);
+  font-weight: var(--peso-semibold);
+  color: var(--color-primario);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.inbox-item__tiempo {
+  flex-shrink: 0;
+  font-size: var(--texto-xs);
+  color: var(--color-texto-muy-suave);
+}
+
+.inbox-item__titulo {
+  font-size: var(--texto-sm);
+  font-weight: var(--peso-medio);
+  color: var(--color-texto);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.inbox-item__preview {
+  font-size: var(--texto-sm);
+  color: var(--color-texto-suave);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.inbox-item__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--esp-1);
+  margin-top: var(--esp-1);
+}
+
+.inbox-item__badges:empty {
+  display: none;
+}
+
+/* Conversación con mensajes sin leer: título y preview en negrita para
+   distinguirla del resto de la bandeja -- mismo criterio visual que
+   .notificaciones__item (no leída = más marcada, no al revés). */
+.inbox-item--no-leido .inbox-item__titulo,
+.inbox-item--no-leido .inbox-item__preview {
+  color: var(--color-texto);
+  font-weight: var(--peso-semibold);
+}
+
+.inbox-item__no-leidos {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  padding-inline: var(--esp-2);
+  border-radius: var(--radio-completo);
+  background-color: var(--color-error);
+  color: var(--color-texto-inverso);
+  font-size: var(--texto-xs);
+  font-weight: var(--peso-bold);
+}
+
+/* ── Estado de carga: skeleton (3 filas grises animadas) ──────── */
+.inbox-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-2);
+}
+
+.inbox-skeleton[hidden] {
+  display: none;
+}
+
+.inbox-skeleton__fila {
+  height: 76px;
+  border-radius: var(--radio-lg);
+  background: linear-gradient(90deg, var(--color-borde-suave) 25%, var(--color-borde) 37%, var(--color-borde-suave) 63%);
+  background-size: 400% 100%;
+  animation: inbox-skeleton-brillo 1.4s ease infinite;
+}
+
+@keyframes inbox-skeleton-brillo {
+  0%   { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* ============================================================
+   PÁGINA: CONVERSACIÓN — chat v2
+   Estilos de conversacion.html / frontend/js/conversacion.js (Parte 7).
+   A diferencia del resto de la app, esta página no usa el header/footer
+   globales (.encabezado/.pie) -- es una vista de pantalla completa al
+   estilo de una app de mensajería: header fijo arriba, input fijo abajo,
+   mensajes con scroll en el medio (mismo criterio que "pantalla completa"
+   pedido para mobile). Mobile-first: en mobile ocupa el viewport completo;
+   en desktop se centra con un ancho máximo y toma apariencia de tarjeta
+   flotante.
+   ============================================================ */
+.conversacion {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  background-color: var(--color-fondo-card);
+}
+
+.conversacion[hidden] {
+  display: none;
+}
+
+/* ── Header ────────────────────────────────────────────────────── */
+.conversacion-header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--esp-3);
+  padding: var(--esp-3) var(--esp-4);
+  border-bottom: 1px solid var(--color-borde);
+  background-color: var(--color-fondo-card);
+}
+
+.conversacion-header__volver {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--esp-1);
+  color: var(--color-texto-suave);
   font-size: var(--texto-sm);
   font-weight: var(--peso-medio);
 }
 
-.chat-admin-historial {
-  height: auto;
+.conversacion-header__volver span {
+  display: none;
+}
+
+.conversacion-header__avatar {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.conversacion-header__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.conversacion-header__avatar .avatar-placeholder {
+  font-size: var(--texto-xs);
+}
+
+.conversacion-header__identidad {
+  flex: 1;
+  min-width: 0;
+}
+
+.conversacion-header__nombre {
+  font-size: var(--texto-base);
+  font-weight: var(--peso-semibold);
+  color: var(--color-primario);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.conversacion-header__titulo-boton {
+  display: block;
+  max-width: 100%;
+  padding: 0;
+  font-size: var(--texto-xs);
+  color: var(--color-texto-suave);
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-bottom: 1px dashed transparent;
+}
+
+.conversacion-header__titulo-boton:hover,
+.conversacion-header__titulo-boton:focus-visible {
+  color: var(--color-primario);
+  border-bottom-color: var(--color-borde);
+}
+
+.conversacion-header__titulo-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--esp-2);
+  align-items: center;
+}
+
+.conversacion-header__titulo-form[hidden] {
+  display: none;
+}
+
+.conversacion-header__titulo-form .campo__input {
+  flex: 1;
+  min-width: 140px;
+  padding: var(--esp-1) var(--esp-2);
+  font-size: var(--texto-sm);
+}
+
+.conversacion-header__menu {
+  flex-shrink: 0;
+}
+
+/* ── Banner de estado (cerrado / reapertura pendiente) ───────────── */
+.conversacion-banner {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--esp-3);
+  padding: var(--esp-3) var(--esp-4);
+  background-color: var(--color-advertencia-bg);
+  color: var(--color-advertencia);
+  font-size: var(--texto-sm);
+  border-bottom: 1px solid var(--color-borde);
+}
+
+.conversacion-banner[hidden] {
+  display: none;
+}
+
+.conversacion-banner__acciones {
+  display: flex;
+  gap: var(--esp-2);
+  flex-shrink: 0;
+}
+
+/* ── Área de mensajes (única zona con scroll) ────────────────────── */
+.conversacion-mensajes {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--esp-4);
+  background-color: var(--color-fondo);
+}
+
+.conversacion-mensajes__anteriores {
+  display: flex;
+  margin: 0 auto var(--esp-3);
+}
+
+.conversacion-mensajes__lista {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-3);
+}
+
+/* ── Burbujas ─────────────────────────────────────────────────────── */
+.mensaje-burbuja {
+  max-width: 75%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-1);
+}
+
+.mensaje-burbuja--propia {
+  align-self: flex-end;
+  align-items: flex-end;
+}
+
+.mensaje-burbuja--otro {
+  align-self: flex-start;
+  align-items: flex-start;
+}
+
+.mensaje-burbuja__contenido {
+  padding: var(--esp-2) var(--esp-3);
+  border-radius: var(--radio-lg);
+  font-size: var(--texto-sm);
+  line-height: var(--altura-linea-normal);
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+.mensaje-burbuja--propia .mensaje-burbuja__contenido {
+  background-color: var(--color-primario);
+  color: var(--color-texto-inverso);
+  border-bottom-right-radius: var(--radio-sm);
+}
+
+.mensaje-burbuja--otro .mensaje-burbuja__contenido {
+  background-color: var(--color-borde-suave);
+  color: var(--color-texto);
+  border-bottom-left-radius: var(--radio-sm);
+}
+
+/* "Este mensaje fue eliminado" -- solo la ve quien lo eliminó, ver
+   messages_view (migración 092): el receptor sigue viendo el original.
+   Selector compuesto (no descendiente): conversacion.js aplica esta clase
+   directamente sobre .mensaje-burbuja__contenido, no sobre un ancestro. */
+.mensaje-burbuja__contenido.mensaje-burbuja--eliminado {
+  font-style: italic;
+  color: var(--color-texto-muy-suave);
+  background-color: var(--color-borde-suave);
+}
+
+.mensaje-burbuja__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-1);
+  font-size: var(--texto-xs);
+  color: var(--color-texto-muy-suave);
+  padding-inline: var(--esp-1);
+}
+
+.mensaje-burbuja__editado {
+  font-style: italic;
+}
+
+/* ── Edición inline de un mensaje propio ─────────────────────────── */
+.mensaje-burbuja__edicion {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-2);
+  width: 100%;
+}
+
+.mensaje-burbuja__edicion textarea {
+  width: 100%;
+  resize: vertical;
+  padding: var(--esp-2) var(--esp-3);
+  border: 2px solid var(--color-borde);
+  border-radius: var(--radio-md);
+  font-size: var(--texto-sm);
+  font-family: inherit;
+}
+
+.mensaje-burbuja__edicion-acciones {
+  display: flex;
+  gap: var(--esp-2);
+  justify-content: flex-end;
+}
+
+/* ── Menú contextual de burbuja (clic derecho / long-press) ──────── */
+.conversacion-menu-contextual {
+  position: fixed;
+  min-width: 160px;
+  background-color: var(--color-fondo-card);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-md);
+  box-shadow: var(--sombra-md);
+  padding: var(--esp-2);
+  list-style: none;
+  z-index: 200;
+}
+
+.conversacion-menu-contextual[hidden] {
+  display: none;
+}
+
+/* ── Badge flotante "N mensajes nuevos" ──────────────────────────── */
+.conversacion-nuevos {
+  position: absolute;
+  left: 50%;
+  bottom: 92px;
+  transform: translateX(-50%);
+  padding: var(--esp-2) var(--esp-4);
+  border-radius: var(--radio-completo);
+  background-color: var(--color-primario);
+  color: var(--color-texto-inverso);
+  font-size: var(--texto-xs);
+  font-weight: var(--peso-semibold);
+  box-shadow: var(--sombra-md);
+  z-index: 10;
+}
+
+.conversacion-nuevos[hidden] {
+  display: none;
+}
+
+/* ── Input ────────────────────────────────────────────────────────── */
+.conversacion-input {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-1);
+  padding: var(--esp-3);
+  border-top: 1px solid var(--color-borde);
+  background-color: var(--color-fondo-card);
+}
+
+.conversacion-input__cerrado {
+  font-size: var(--texto-sm);
+  color: var(--color-texto-suave);
+  text-align: center;
+  padding-block: var(--esp-2);
+}
+
+.conversacion-input__fila {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--esp-2);
+}
+
+.conversacion-input__textarea {
+  flex: 1;
+  resize: none;
+  max-height: 140px;
+  padding: var(--esp-2) var(--esp-3);
+  border: 2px solid var(--color-borde);
+  border-radius: var(--radio-lg);
+  font-size: var(--texto-sm);
+  font-family: inherit;
+  line-height: var(--altura-linea-normal);
+}
+
+.conversacion-input__textarea:focus {
+  outline: none;
+  border-color: var(--color-primario);
+}
+
+.conversacion-input__textarea:disabled {
+  background-color: var(--color-fondo);
+  color: var(--color-texto-muy-suave);
+  cursor: not-allowed;
+}
+
+.conversacion-input__enviar {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--esp-2);
+}
+
+.conversacion-input__spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255,255,255,0.4);
+  border-top-color: var(--color-texto-inverso);
+  border-radius: 50%;
+  animation: girar 0.7s linear infinite;
+}
+
+.conversacion-input__pie {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--esp-2);
+  min-height: 1rem;
+}
+
+.conversacion-input__pie .campo__error {
+  margin: 0;
+}
+
+.conversacion-input__contador {
+  margin-left: auto;
+  font-size: var(--texto-xs);
+  color: var(--color-texto-muy-suave);
+}
+
+.conversacion-input__contador--limite {
+  color: var(--color-error);
+  font-weight: var(--peso-semibold);
+}
+
+@media (min-width: 900px) {
+  .conversacion-body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: var(--esp-6);
+  }
+
+  .conversacion-body .estado-vacio {
+    max-width: 800px;
+    width: 100%;
+  }
+
+  .conversacion {
+    max-width: 800px;
+    width: 100%;
+    height: min(100vh - var(--esp-12), 860px);
+    border: 1px solid var(--color-borde);
+    border-radius: var(--radio-xl);
+    box-shadow: var(--sombra-lg);
+    overflow: hidden;
+  }
+
+  .conversacion-header__volver span {
+    display: inline;
+  }
+}
+
+/* ── Pestaña "Mensajes" del panel de administración (chat v2, Parte 11) ──
+   Reutiliza las burbujas .mensaje-burbuja* de la página de conversación
+   (arriba) para que el historial se lea igual que el chat real -- el admin
+   no es "propio" en ningún sentido, así que .mensaje-burbuja--otro/--propia
+   se asignan con una convención fija (cliente = izquierda, abogado =
+   derecha) en vez de compararse contra un usuario autenticado. ── */
+.admin-mensajes-historial {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-3);
   max-height: 60vh;
+  overflow-y: auto;
+  padding: var(--esp-4);
   margin-top: var(--esp-4);
+  background-color: var(--color-fondo);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-lg);
 }
 
 /* ── Accesibilidad: respeta la preferencia del sistema de reducir animaciones ── */

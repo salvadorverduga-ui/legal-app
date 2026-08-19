@@ -192,32 +192,46 @@
           </div>
         </section>
 
-        <!-- ═══════════════ SECCIÓN: MENSAJES ═══════════════ -->
+        <!-- ═══════════════ SECCIÓN: MENSAJES (chat v2) ═══════════════ -->
         <section class="panel-seccion" id="seccionMensajes" role="tabpanel" aria-labelledby="tabMensajes" hidden>
 
-          <div class="alerta-chat-admin" role="alert">
-            El acceso a conversaciones privadas está restringido a casos con denuncia activa.
-            Este acceso queda registrado en el log de administración.
+          <div class="panel-banner panel-banner--info">
+            <p>El acceso a conversaciones privadas queda registrado en el log de administración.</p>
           </div>
 
-          <p class="campo__error" id="errorMensajes" role="alert" aria-live="polite"></p>
+          <p class="campo__error" id="errorMensajesAdmin" role="alert" aria-live="polite"></p>
 
-          <!-- ── Vista: lista de conversaciones ── -->
-          <div id="mensajesListaVista">
-            <div class="log-lista" id="conversacionesLista"></div>
+          <!-- ── Vista: lista de asuntos ── -->
+          <div id="mensajesAdminListaVista">
+            <div class="filtro-tipo" role="tablist" aria-label="Filtrar asuntos">
+              <button class="filtro-tipo__btn filtro-tipo__btn--activo" id="filtroMensajesTodos" type="button"
+                role="tab" aria-selected="true" data-filtro="todos">
+                Todos
+              </button>
+              <button class="filtro-tipo__btn" id="filtroMensajesActivos" type="button"
+                role="tab" aria-selected="false" data-filtro="active">
+                Activos
+              </button>
+              <button class="filtro-tipo__btn" id="filtroMensajesCerrados" type="button"
+                role="tab" aria-selected="false" data-filtro="closed">
+                Cerrados
+              </button>
+            </div>
 
-            <div class="estado-vacio" id="estadoSinConversaciones" hidden>
-              <p>No hay conversaciones con mensajes todavía.</p>
+            <div class="log-lista" id="mensajesAdminLista"></div>
+
+            <div class="estado-vacio" id="estadoSinMensajesAdmin" hidden>
+              <p>No hay asuntos con mensajes todavía.</p>
             </div>
           </div>
 
-          <!-- ── Vista: historial completo de una conversación ── -->
-          <div id="mensajesDetalleVista" hidden>
-            <button type="button" class="btn btn--secundario btn--sm" id="btnVolverConversaciones">
-              &larr; Volver a conversaciones
+          <!-- ── Vista: historial completo de un asunto ── -->
+          <div id="mensajesAdminDetalleVista" hidden>
+            <button type="button" class="btn btn--secundario btn--sm" id="btnVolverMensajesAdmin">
+              &larr; Volver a asuntos
             </button>
-            <h2 class="panel-inicio__seccion-titulo" id="detalleConversacionTitulo"></h2>
-            <div class="chat__mensajes chat-admin-historial" id="chatAdminHistorial"></div>
+            <h2 class="panel-inicio__seccion-titulo" id="detalleMensajesAdminTitulo"></h2>
+            <div class="admin-mensajes-historial" id="mensajesAdminHistorial"></div>
           </div>
         </section>
 

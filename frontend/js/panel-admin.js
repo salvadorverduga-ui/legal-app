@@ -34,17 +34,20 @@ const ETIQUETAS_METRICAS = {
 };
 
 const ETIQUETAS_ACCION_LOG = {
-  APROBAR:  { texto: 'Aprobó verificación',  clase: 'badge--verificado' },
-  RECHAZAR: { texto: 'Rechazó verificación', clase: 'badge--rechazado' },
-  VER_CHAT: { texto: 'Abrió una conversación de chat', clase: 'badge--pendiente' },
+  APROBAR:         { texto: 'Aprobó verificación',       clase: 'badge--verificado' },
+  RECHAZAR:        { texto: 'Rechazó verificación',      clase: 'badge--rechazado' },
+  VER_MENSAJES_V2: { texto: 'Abrió una conversación de chat', clase: 'badge--pendiente' },
 };
 
-// Solo se usa como fallback de texto si algún día se agrega un tercer tipo
-// de solicitante — hoy 'chat' (accion=VER_CHAT) siempre cae acá.
 const ETIQUETAS_TIPO_SOLICITANTE_LOG = {
-  abogado: 'Abogado individual',
-  estudio: 'Estudio jurídico',
-  chat:    'Chat interno',
+  abogado:  'Abogado individual',
+  estudio:  'Estudio jurídico',
+  mensajes: 'Chat interno',
+};
+
+const ETIQUETAS_ESTADO_MATTER = {
+  active: { texto: 'Activo', clase: 'badge--estado-aceptada' },
+  closed: { texto: 'Cerrado', clase: 'badge--estado-cancelada' },
 };
 
 const SECCIONES = ['Verificaciones', 'Suscripciones', 'Metricas', 'LogAcciones', 'Bloqueos', 'Mensajes', 'Configuracion'];
@@ -57,7 +60,8 @@ let busquedaVerificaciones = '';       // texto de búsqueda por nombre (abogado
 let tipoFiltroVerificacion = '';       // '' = todos | 'abogado' | 'estudio'
 let rechazadasActuales = [];          // sub-sección "Rechazados" de Verificaciones
 let suspendidasActuales = [];         // sub-sección "Suspendidos" de Verificaciones
-let conversacionesActuales = [];      // pestaña "Mensajes": listado de solicitudes con chat
+let mattersActuales = [];             // pestaña "Mensajes": listado de asuntos de chat v2
+let filtroMensajesAdmin = 'todos';    // 'todos' | 'active' | 'closed'
 
 // ─── Entry point ────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', inicializar);
@@ -97,7 +101,7 @@ async function inicializar() {
     cargarMetricas(),
     cargarLogAcciones(),
     cargarBloqueos(),
-    cargarConversacionesChat(),
+    cargarMensajesAdmin(),
     cargarConfigTablon(),
   ]);
 
@@ -143,8 +147,11 @@ function configurarEventos() {
 
   document.getElementById('bloqueosLista').addEventListener('click', manejarClickBloqueos);
 
-  document.getElementById('conversacionesLista').addEventListener('click', manejarClickConversaciones);
-  document.getElementById('btnVolverConversaciones').addEventListener('click', volverAListaConversaciones);
+  document.querySelectorAll('#seccionMensajes .filtro-tipo__btn').forEach(btn => {
+    btn.addEventListener('click', () => cambiarFiltroMensajesAdmin(btn.dataset.filtro));
+  });
+  document.getElementById('mensajesAdminLista').addEventListener('click', manejarClickMensajesAdminLista);
+  document.getElementById('btnVolverMensajesAdmin').addEventListener('click', volverAListaMensajesAdmin);
 }
 
 // ─── Navegación por secciones ───────────────────────────────────────────────
@@ -674,38 +681,66 @@ async function manejarClickBloqueos(e) {
   await cargarBloqueos();
 }
 
-// ─── Mensajes: conversaciones de chat (migración 086/088) ─────────────────────
-// Acceso restringido y auditado -- abrir una conversación llama al RPC
-// admin_ver_mensajes_chat() (migración 088), que registra el acceso en
-// admin_log y devuelve el historial en una sola llamada atómica, ver
-// abrirConversacion(). No hay envío de mensajes desde acá: el admin solo lee.
-async function cargarConversacionesChat() {
-  const contenedor = document.getElementById('conversacionesLista');
-  const vacio = document.getElementById('estadoSinConversaciones');
+// ─── Mensajes: asuntos de chat v2 (migración 099) ───────────────────────────
+// Acceso restringido y auditado -- abrir un asunto llama al RPC
+// admin_ver_mensajes_v2(), que registra el acceso en admin_log
+// (accion=VER_MENSAJES_V2) y devuelve el historial en una sola llamada
+// atómica, ver abrirDetalleMensajesAdmin(). No hay envío de mensajes desde
+// acá: el admin solo lee. Reemplaza a la pestaña "Mensajes" del chat
+// anterior (admin_conversaciones_chat/admin_ver_mensajes_chat, migraciones
+// 086/088), que sigue existiendo pero ya no se referencia desde acá.
+async function cargarMensajesAdmin() {
+  mattersActuales = await api.admin.getMatters();
+  renderizarMensajesAdmin();
+}
 
-  conversacionesActuales = await api.admin.getConversacionesChat();
+function cambiarFiltroMensajesAdmin(filtro) {
+  filtroMensajesAdmin = filtro;
+  document.querySelectorAll('#seccionMensajes .filtro-tipo__btn').forEach(btn => {
+    btn.classList.toggle('filtro-tipo__btn--activo', btn.dataset.filtro === filtro);
+  });
+  renderizarMensajesAdmin();
+}
 
-  if (conversacionesActuales.length === 0) {
+function renderizarMensajesAdmin() {
+  const contenedor = document.getElementById('mensajesAdminLista');
+  const vacio = document.getElementById('estadoSinMensajesAdmin');
+
+  const lista = filtroMensajesAdmin === 'todos'
+    ? mattersActuales
+    : mattersActuales.filter(m => m.status === filtroMensajesAdmin);
+
+  if (lista.length === 0) {
     contenedor.innerHTML = '';
     vacio.hidden = false;
     return;
   }
 
   vacio.hidden = true;
-  contenedor.innerHTML = conversacionesActuales.map(generarConversacionItem).join('');
+  contenedor.innerHTML = lista.map(generarMatterAdminItem).join('');
 }
 
-function generarConversacionItem(c) {
+function generarMatterAdminItem(m) {
+  const estado = ETIQUETAS_ESTADO_MATTER[m.status] ?? { texto: m.status, clase: 'badge--pendiente' };
+  const titulo = m.title_client || m.title_lawyer || 'Sin título';
+  const previewHtml = m.ultimo_mensaje_preview
+    ? `<p class="log-item__detalle">${escaparHtml(truncarPreview(m.ultimo_mensaje_preview))}</p>`
+    : '<p class="log-item__detalle">Sin mensajes todavía.</p>';
+
   return `
     <article class="log-item">
       <div class="log-item__header">
-        <p class="log-item__nombre">${escaparHtml(c.cliente_nombre)} &harr; ${escaparHtml(c.abogado_nombre)}</p>
-        <span class="badge badge--pendiente">${c.total_mensajes} ${c.total_mensajes === 1 ? 'mensaje' : 'mensajes'}</span>
+        <p class="log-item__nombre">${escaparHtml(m.cliente_nombre)} &harr; ${escaparHtml(m.abogado_nombre)}</p>
+        <span class="badge ${estado.clase}">${estado.texto}</span>
       </div>
-      <p class="log-item__detalle">${escaparHtml(c.ultimo_mensaje_preview ?? '')}</p>
-      <p class="log-item__detalle">Último mensaje: ${formatearFechaHora(c.ultimo_mensaje_at)}</p>
+      <p class="log-item__detalle">${escaparHtml(titulo)}</p>
+      ${previewHtml}
+      <p class="log-item__detalle">
+        ${m.total_mensajes} ${m.total_mensajes === 1 ? 'mensaje' : 'mensajes'}
+        · Último: ${m.last_message_at ? formatearFechaHora(m.last_message_at) : 'nunca'}
+      </p>
       <div class="solicitud-item__acciones">
-        <button type="button" class="btn btn--secundario btn--sm" data-accion="ver-conversacion" data-id="${escaparAtrib(c.solicitud_id)}">
+        <button type="button" class="btn btn--secundario btn--sm" data-accion="ver-matter" data-id="${escaparAtrib(m.matter_id)}">
           Ver conversación
         </button>
       </div>
@@ -713,23 +748,19 @@ function generarConversacionItem(c) {
   `;
 }
 
-function manejarClickConversaciones(e) {
-  const btn = e.target.closest('[data-accion="ver-conversacion"]');
+function manejarClickMensajesAdminLista(e) {
+  const btn = e.target.closest('[data-accion="ver-matter"]');
   if (!btn) return;
-  abrirConversacion(btn.dataset.id);
+  abrirDetalleMensajesAdmin(btn.dataset.id);
 }
 
-// El registro en admin_log y la lectura del historial ocurren en una sola
-// llamada atómica al RPC admin_ver_mensajes_chat (migración 088) -- ya no
-// hay un paso "registrar" separado de un paso "traer mensajes" que se pueda
-// saltear ni desincronizar.
-async function abrirConversacion(solicitudId) {
-  const conversacion = conversacionesActuales.find(c => c.solicitud_id === solicitudId);
-  const errorEl = document.getElementById('errorMensajes');
+async function abrirDetalleMensajesAdmin(matterId) {
+  const matter = mattersActuales.find(m => m.matter_id === matterId);
+  const errorEl = document.getElementById('errorMensajesAdmin');
   errorEl.textContent = '';
-  if (!conversacion) return;
+  if (!matter) return;
 
-  const { data: mensajes, error } = await api.admin.getMensajesConversacion(solicitudId);
+  const { data: mensajes, error } = await api.admin.getMensajesMatter(matterId);
   if (error) {
     const mensaje = mensajeAmigable(error, 'No se pudo abrir esta conversación. Intente de nuevo.');
     errorEl.textContent = mensaje;
@@ -737,31 +768,49 @@ async function abrirConversacion(solicitudId) {
     return;
   }
 
-  document.getElementById('detalleConversacionTitulo').textContent =
-    `${conversacion.cliente_nombre} ↔ ${conversacion.abogado_nombre}`;
-  document.getElementById('chatAdminHistorial').innerHTML =
-    mensajes.map(m => generarBurbujaAdmin(m, conversacion)).join('');
+  document.getElementById('detalleMensajesAdminTitulo').textContent =
+    `${matter.cliente_nombre} ↔ ${matter.abogado_nombre}`;
+  document.getElementById('mensajesAdminHistorial').innerHTML =
+    mensajes.map(m => generarBurbujaAdmin(m, matter)).join('');
 
-  document.getElementById('mensajesListaVista').hidden = true;
-  document.getElementById('mensajesDetalleVista').hidden = false;
+  document.getElementById('mensajesAdminListaVista').hidden = true;
+  document.getElementById('mensajesAdminDetalleVista').hidden = false;
 }
 
-function volverAListaConversaciones() {
-  document.getElementById('mensajesDetalleVista').hidden = true;
-  document.getElementById('mensajesListaVista').hidden = false;
+function volverAListaMensajesAdmin() {
+  document.getElementById('mensajesAdminDetalleVista').hidden = true;
+  document.getElementById('mensajesAdminListaVista').hidden = false;
 }
 
 // Lado de la burbuja según quién la envió -- el admin no es "propio" en
 // ningún sentido, así que se elige una convención fija (cliente = izquierda,
 // abogado = derecha) para que el historial se lea igual que el chat real.
-function generarBurbujaAdmin(m, conversacion) {
-  const esCliente = m.emisor_id === conversacion.cliente_id;
+// Sin lógica de edición/eliminación: se muestran body/edited_body/deleted_at
+// crudos, tal como están en la tabla (a diferencia de messages_view, que
+// resuelve qué ve cada participante).
+function generarBurbujaAdmin(m, matter) {
+  const esCliente = m.sender_id === matter.client_id;
+
+  const editadoHtml = m.edited_at
+    ? `<p class="mensaje-burbuja__meta">Editado el ${formatearFechaHora(m.edited_at)} — texto editado: "${escaparHtml(m.edited_body ?? '')}"</p>`
+    : '';
+  const eliminadoHtml = m.deleted_at
+    ? `<p class="mensaje-burbuja__meta">Eliminado el ${formatearFechaHora(m.deleted_at)}</p>`
+    : '';
+
   return `
-    <div class="chat__burbuja ${esCliente ? 'chat__burbuja--otro' : 'chat__burbuja--propia'}">
-      <p class="chat__burbuja-contenido">${escaparHtml(m.contenido)}</p>
-      <p class="chat__burbuja-meta">${escaparHtml(m.emisor_nombre)} · ${formatearFechaHora(m.created_at)}</p>
+    <div class="mensaje-burbuja ${esCliente ? 'mensaje-burbuja--otro' : 'mensaje-burbuja--propia'}">
+      <div class="mensaje-burbuja__contenido">${escaparHtml(m.body)}</div>
+      <p class="mensaje-burbuja__meta">${escaparHtml(m.sender_nombre)} · ${formatearFechaHora(m.created_at)}</p>
+      ${editadoHtml}
+      ${eliminadoHtml}
     </div>
   `;
+}
+
+function truncarPreview(texto) {
+  const limpio = texto.trim();
+  return limpio.length > 50 ? `${limpio.slice(0, 50)}...` : limpio;
 }
 
 // ─── Configuración: El Tablón ───────────────────────────────────────────────

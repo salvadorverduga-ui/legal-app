@@ -31,6 +31,8 @@ const ETIQUETAS_TIPO = {
   tablon_caso_cerrado:      'Caso de El Tablón cerrado',
   tablon_caso_expirado:     'Caso de El Tablón expirado',
   mensaje_nuevo:            'Nuevo mensaje',
+  reapertura_aprobada:      'Reapertura aprobada',
+  reapertura_rechazada:     'Reapertura rechazada',
 };
 
 let paginaActual = 1;

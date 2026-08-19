@@ -86,6 +86,18 @@ async function inicializar() {
       generarBotonFavorito(escaparAtrib(abogadoId), esFavorito);
     document.getElementById('perfilOpcionesMenu').hidden = false;
     configurarMenuOpciones(abogadoId, abogado.nombre_completo);
+
+    // Mensajes (chat v2): solo si el cliente ya tiene una solicitud
+    // ACEPTADA/COMPLETADA con este abogado -- getSolicitudesCliente() viene
+    // ordenada por created_at DESC, así que .find() toma la más reciente si
+    // hubiera más de una a lo largo del tiempo.
+    const misSolicitudes = await api.solicitudes.getSolicitudesCliente();
+    const solicitudConEsteAbogado = misSolicitudes.find(
+      s => s.abogado_id === abogadoId && (s.estado === 'ACEPTADA' || s.estado === 'COMPLETADA')
+    );
+    if (solicitudConEsteAbogado) {
+      await configurarBotonMensajes(solicitudConEsteAbogado.id);
+    }
   } else if (!sesion) {
     document.getElementById('seccionSinSesion').hidden = false;
   }
@@ -240,6 +252,7 @@ function configurarEventos(abogadoId) {
   });
 
   document.getElementById('perfilFavoritoContenedor').addEventListener('click', manejarClickFavorito);
+  document.getElementById('btnMensajesAbogado').addEventListener('click', manejarClickMensajes);
 
   // Un visitante sin cuenta puede iniciar sesión desde el enlace del header
   // o desde "Inicie sesión para contactar a este abogado" (#seccionSinSesion)
@@ -283,6 +296,51 @@ async function manejarClickFavorito(e) {
   toast.info(esFavorito ? 'Agregado a favoritos.' : 'Quitado de favoritos.');
 }
 
+// ─── Mensajes (chat v2) ─────────────────────────────────────────────────────
+// Resuelve si ya existe un asunto para la solicitud dada (api.mensajes.getMatter)
+// y arma el botón "Ver conversación" (navega directo) o "Iniciar conversación"
+// (crea el asunto al hacer clic) -- mismo criterio de dos estados que las
+// tarjetas de solicitudes-directas.js/solicitudes-tablon.js.
+async function configurarBotonMensajes(solicitudId) {
+  const boton = document.getElementById('btnMensajesAbogado');
+  const info = await api.mensajes.getMatter(solicitudId);
+
+  if (info?.conversation_id) {
+    boton.textContent = 'Ver conversación';
+    boton.dataset.accion = 'ver-conversacion';
+    boton.dataset.conversationId = info.conversation_id;
+  } else {
+    boton.textContent = 'Iniciar conversación';
+    boton.dataset.accion = 'iniciar-conversacion';
+    boton.dataset.solicitudId = solicitudId;
+  }
+
+  document.getElementById('seccionMensajesAbogado').hidden = false;
+}
+
+async function manejarClickMensajes(e) {
+  const btn = e.currentTarget;
+
+  if (btn.dataset.accion === 'ver-conversacion') {
+    window.location.href = `/pages/conversacion?id=${encodeURIComponent(btn.dataset.conversationId)}`;
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Iniciando...';
+
+  const { conversationId, error } = await api.mensajes.crearMatter(btn.dataset.solicitudId);
+
+  if (error) {
+    toast.error(mensajeAmigable(error, 'No se pudo iniciar la conversación. Intente de nuevo.'));
+    btn.disabled = false;
+    btn.textContent = 'Iniciar conversación';
+    return;
+  }
+
+  window.location.href = `/pages/conversacion?id=${encodeURIComponent(conversationId)}`;
+}
+
 // ─── Menú de opciones del perfil (bloquear) ─────────────────────────────────
 function configurarMenuOpciones(abogadoId, nombreAbogado) {
   const contenedor = document.getElementById('perfilOpcionesMenu');
@@ -317,6 +375,7 @@ function configurarMenuOpciones(abogadoId, nombreAbogado) {
     // sentido seguir en su perfil ni mostrar acciones que ya no aplican.
     document.getElementById('seccionBotonSolicitar').hidden = true;
     document.getElementById('seccionSolicitud').hidden = true;
+    document.getElementById('seccionMensajesAbogado').hidden = true;
     contenedor.hidden = true;
     document.getElementById('perfilFavoritoContenedor').innerHTML = '';
     setTimeout(() => { window.location.href = '/pages/busqueda'; }, 2000);

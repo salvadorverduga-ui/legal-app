@@ -25,6 +25,11 @@ import * as api from './api.js';
 import { rutaPanelPropio, aplicarEstadoDeshabilitado, inicializarTooltipsDeshabilitados, toast } from './utils.js';
 import { inicializarNotificaciones } from './notificaciones.js';
 
+// Cancela la suscripción anterior antes de resuscribirse -- inicializarHeader()
+// podría en teoría llamarse más de una vez en la misma carga de página
+// (defensivo; hoy cada página lo llama una sola vez).
+let cancelarEscuchaInboxHeader = null;
+
 // Mismo mensaje que panel-abogado.js usa para el acceso rápido "Ver mi
 // perfil público" del dashboard (CLAUDE.md §44 módulo 3) — acá se repite
 // para el ítem homónimo del menú de avatar, para que ambos digan lo mismo.
@@ -108,7 +113,14 @@ function renderizarAutenticado(nav, { rol, nombre, fotoPath, urlPerfilPublico, a
   if (rol === 'abogado' && abogadoNoVerificado) {
     aplicarEstadoDeshabilitado(nav.querySelector('#navEnlaceTablon'), true);
     aplicarEstadoDeshabilitado(nav.querySelector('#navEnlaceSeguimiento'), true);
+    aplicarEstadoDeshabilitado(nav.querySelector('#navEnlaceMensajes'), true);
     inicializarTooltipsDeshabilitados();
+  }
+
+  if (rol === 'cliente' || rol === 'abogado') {
+    cargarBadgeMensajes();
+    if (cancelarEscuchaInboxHeader) cancelarEscuchaInboxHeader();
+    cancelarEscuchaInboxHeader = api.mensajes.escucharInbox(() => cargarBadgeMensajes());
   }
 
   if (rol === 'admin') {
@@ -187,15 +199,39 @@ function configurarMenuDesplegable(contenedor, boton, lista) {
 // fondo oscuro de .encabezado.
 const ESTILO_BOTON_HEADER = 'border-color: rgba(255,255,255,0.4); color: rgba(255,255,255,0.85);';
 
-// El Tablón y En seguimiento son accesos comunes a cliente y abogado — se
-// insertan antes del avatar en cada página que usa este header.
+// El Tablón, Mensajes y En seguimiento son accesos comunes a cliente y
+// abogado — se insertan antes del avatar en cada página que usa este header.
 function generarEnlacesRapidos(rol) {
   if (rol !== 'cliente' && rol !== 'abogado') return '';
   const rutaSeguimiento = `${rutaPanelPropio(rol)}?tab=seguimiento`;
   return `
     <a class="btn btn--secundario btn--sm" id="navEnlaceTablon" href="/pages/tablon" style="${ESTILO_BOTON_HEADER}">El Tablón</a>
+    <a class="btn btn--secundario btn--sm" id="navEnlaceMensajes" href="/pages/mensajes" style="${ESTILO_BOTON_HEADER}">
+      Mensajes
+      <span class="badge-chat-no-leidos" id="navBadgeMensajes" hidden></span>
+    </a>
     <a class="btn btn--secundario btn--sm" id="navEnlaceSeguimiento" href="${escaparAtrib(rutaSeguimiento)}" style="${ESTILO_BOTON_HEADER}">En seguimiento</a>
   `;
+}
+
+// Suma unread_count de todos los asuntos del usuario (inbox_view, migración
+// 092/094) para el badge del link "Mensajes". Se recalcula por completo en
+// cada evento de escucharInbox() -- el payload crudo de conversations no
+// trae unread_count ya resuelto, mismo criterio que el refresco del inbox
+// en frontend/js/mensajes.js (Parte 6).
+async function cargarBadgeMensajes() {
+  const badge = document.getElementById('navBadgeMensajes');
+  if (!badge) return;
+
+  const inbox = await api.mensajes.getInbox();
+  const total = inbox.reduce((acc, item) => acc + (item.unread_count > 0 ? item.unread_count : 0), 0);
+
+  if (total > 0) {
+    badge.textContent = total > 99 ? '99+' : String(total);
+    badge.hidden = false;
+  } else {
+    badge.hidden = true;
+  }
 }
 
 // "Ver como" (solo admin): navegación en pestañas nuevas, no cambia el rol

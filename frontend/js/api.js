@@ -1514,12 +1514,10 @@ export const admin = {
 
   /**
    * Retorna el historial de acciones del admin desde la vista admin_log_detalle,
-   * con el nombre del admin y del abogado/estudio/conversación afectados ya
-   * resueltos. Ordenadas por fecha descendente (más reciente primero).
-   * admin_log se completa desde el trigger fn_propagar_estado_verificacion
-   * (migración 024, aprobar/rechazar) y desde el RPC admin_ver_mensajes_chat
-   * (migración 088, accion='VER_CHAT') — nunca con un INSERT directo desde el
-   * frontend en ninguno de los dos casos.
+   * con el nombre del admin y del abogado/estudio afectados ya resueltos.
+   * Ordenadas por fecha descendente (más reciente primero). admin_log se
+   * completa desde el trigger fn_propagar_estado_verificacion (migración
+   * 024, aprobar/rechazar) — nunca con un INSERT directo desde el frontend.
    * Retorna array (puede estar vacío).
    */
   async getLogAcciones() {
@@ -1536,42 +1534,42 @@ export const admin = {
   },
 
   /**
-   * Retorna las solicitudes con al menos un mensaje de chat, para la
-   * pestaña "Mensajes" del panel de administración (vista
-   * admin_conversaciones_chat, migración 086). Ya viene ordenada por fecha
-   * del último mensaje, más reciente primero.
+   * Retorna todos los asuntos de chat v2 (vista admin_matters_chat_v2,
+   * migración 099), para la pestaña "Mensajes" del panel de administración.
+   * Ya viene ordenada por last_message_at DESC. Nombre de cliente/abogado,
+   * total de mensajes y preview del último ya resueltos en la vista.
    * Retorna array (puede estar vacío).
    */
-  async getConversacionesChat() {
+  async getMatters() {
     const { data, error } = await _cliente
-      .from('admin_conversaciones_chat')
+      .from('admin_matters_chat_v2')
       .select('*');
 
     if (error) {
-      console.error('[api.admin.getConversacionesChat]', error.message);
+      console.error('[api.admin.getMatters]', error.message);
       return [];
     }
     return data ?? [];
   },
 
   /**
-   * Retorna el historial completo (sin el límite de 25 de api.chat.getMensajes)
-   * de una conversación, para la vista de detalle de la pestaña "Mensajes".
-   * Llama al RPC admin_ver_mensajes_chat (migración 088), que registra el
-   * acceso en admin_log y devuelve los mensajes en una sola operación
-   * atómica — reemplaza al flujo anterior de dos pasos (registrarAperturaChat()
-   * + SELECT directo a mensajes_con_perfil), que dejaba la auditoría como
-   * opcional: mensajes_con_perfil ya no tiene bypass de admin en su RLS, así
-   * que esta función es la única vía real de leer el historial completo.
+   * Historial completo (sin el límite de 25 de api.mensajes.getConversacion)
+   * de un asunto, para la vista de detalle de la pestaña "Mensajes". Llama
+   * al RPC admin_ver_mensajes_v2 (migración 099), que registra el acceso en
+   * admin_log (accion=VER_MENSAJES_V2) y devuelve los mensajes en una sola
+   * operación atómica -- mismo criterio que el chat anterior
+   * (admin_ver_mensajes_chat, migración 088). Sin resolver edición/
+   * eliminación como messages_view: retorna body/edited_body/deleted_at
+   * crudos, tal como están en la tabla.
    * Retorna { data: array, error }.
    */
-  async getMensajesConversacion(solicitudId) {
-    const { data, error } = await _cliente.rpc('admin_ver_mensajes_chat', {
-      p_solicitud_id: solicitudId,
+  async getMensajesMatter(matterId) {
+    const { data, error } = await _cliente.rpc('admin_ver_mensajes_v2', {
+      p_matter_id: matterId,
     });
 
     if (error) {
-      console.error('[api.admin.getMensajesConversacion]', error.message);
+      console.error('[api.admin.getMensajesMatter]', error.message);
       return { data: [], error };
     }
     return { data: data ?? [], error: null };
@@ -1673,6 +1671,28 @@ export const notificaciones = {
       return { data: null, error };
     }
     return { data, error: null };
+  },
+
+  /**
+   * Marca como leídas todas las notificaciones propias no leídas que
+   * coincidan con un tipo y url_destino exactos -- usada por conversacion.js
+   * (chat v2, Parte 9) para descartar en silencio la notificación de
+   * "mensaje nuevo" de una conversación que el usuario ya está viendo en
+   * pantalla en ese momento, sin necesidad de conocer el id de la fila.
+   * Retorna { error }.
+   */
+  async marcarLeidaPorUrl(urlDestino, tipo) {
+    const { error } = await _cliente
+      .from('notificaciones')
+      .update({ leida: true })
+      .eq('url_destino', urlDestino)
+      .eq('tipo', tipo)
+      .eq('leida', false);
+
+    if (error) {
+      console.error('[api.notificaciones.marcarLeidaPorUrl]', error.message);
+    }
+    return { error };
   },
 
   /**
@@ -2189,63 +2209,98 @@ export const seguimiento = {
 
 
 // ════════════════════════════════════════════════════════════
-// CHAT
-// Chat interno entre cliente y abogado de una solicitud ACEPTADA/COMPLETADA
-// (migración 083). RLS ya exige participante + estado válido en el INSERT —
-// este módulo valida además que el mensaje no contenga enlaces externos,
-// antes de intentar el INSERT, para dar feedback inmediato sin round-trip.
+// MENSAJES (chat v2)
+// asunto (matters) → conversación (conversations) → mensajes (messages),
+// migración 20260818_092_chat_v2.sql. Reemplaza al módulo `chat` anterior
+// (tabla mensajes, migraciones 083-091) — ese módulo se eliminó de este
+// archivo; la tabla vieja sigue existiendo en la base pero ya no se
+// referencia desde el frontend.
 // ════════════════════════════════════════════════════════════
 
-// No se permiten enlaces externos en el chat (ver fn_es_participante_solicitud,
-// migración 083 — la validación de contenido en sí vive solo acá, no en RLS).
-const REGEX_URL_CHAT = /(https?:\/\/|www\.)[^\s]+/i;
+// No se permiten enlaces externos en los mensajes -- primera línea de
+// defensa en el cliente antes de intentar el INSERT, para feedback
+// inmediato sin round-trip. El trigger fn_validar_sin_urls_message
+// (migración 093, mismo patrón que fn_validar_sin_urls_mensaje del chat
+// anterior, migración 089) repite una validación más completa en la base
+// de datos -- cubre además mailto:, ftp:// y dominios sueltos como
+// "ejemplo.com" -- porque este chequeo del cliente se puede saltear
+// llamando a la API de Supabase directamente.
+const REGEX_URL_MENSAJE = /(https?:\/\/|www\.)[^\s]+/i;
 
-export const chat = {
+export const mensajes = {
 
   /**
-   * Retorna una página de mensajes de una solicitud (vista mensajes_con_perfil,
-   * incluye nombre/foto del emisor), 25 por página. pagina es 1-indexed;
-   * página 1 = los 25 más recientes. El resultado se ordena ASC (más viejo
-   * primero) para renderizar directo en el chat, aunque internamente se pide
-   * DESC + .range() para poder tomar "los últimos N" de forma eficiente.
-   * Retorna { data: array, total: number, error }.
+   * Retorna la bandeja del usuario autenticado (vista inbox_view): un
+   * asunto por fila, con la contraparte y el título ya resueltos según el
+   * rol del usuario en ese asunto. Ordenada por last_message_at, más
+   * reciente primero (asuntos sin ningún mensaje aún quedan con NULL, al
+   * final por el orden DESC por defecto de Postgres).
+   * Retorna array (puede estar vacío).
    */
-  async getMensajes(solicitudId, pagina = 1) {
-    const POR_PAGINA = 25;
-    const desde = (pagina - 1) * POR_PAGINA;
-    const hasta = desde + POR_PAGINA - 1;
-
-    const { data, error, count } = await _cliente
-      .from('mensajes_con_perfil')
-      .select('*', { count: 'exact' })
-      .eq('solicitud_id', solicitudId)
-      .order('created_at', { ascending: false })
-      .range(desde, hasta);
+  async getInbox() {
+    const { data, error } = await _cliente
+      .from('inbox_view')
+      .select('*')
+      .order('last_message_at', { ascending: false });
 
     if (error) {
-      console.error('[api.chat.getMensajes]', error.message);
-      return { data: [], total: 0, error };
+      console.error('[api.mensajes.getInbox]', error.message);
+      return [];
     }
-    return { data: (data ?? []).reverse(), total: count ?? 0, error: null };
+    return data ?? [];
   },
 
   /**
-   * Envía un mensaje en el chat de una solicitud. Rechaza en el cliente
-   * cualquier contenido con URLs (http(s):// o www.) antes de intentar el
-   * INSERT — primera línea de defensa, no la única: el trigger
-   * fn_validar_sin_urls_mensaje (migración 089) repite una validación más
-   * completa en la base de datos (cubre además mailto:, ftp://, dominios
-   * sueltos como "ejemplo.com" y variantes con espacios alrededor del
-   * punto), porque el chequeo del cliente se puede saltear llamando a la
-   * API de Supabase directamente. RLS exige además participante + estado
-   * ACEPTADA/COMPLETADA (migración 083).
-   * Retorna { data, error }. Si contiene URL (detectado en el cliente o
-   * rechazado por el trigger), error.message es siempre el mismo texto
-   * amigable para mostrar al usuario.
+   * Retorna una página de 25 mensajes de una conversación (vista
+   * messages_view, con la lógica de edición/eliminación ya resuelta según
+   * quién consulta), en orden ASC (más viejo primero) listo para renderizar.
+   * Paginación por cursor, no por offset: sin cursor trae los 25 más
+   * recientes; para cargar mensajes más antiguos, pasar
+   * { created_at, id } del mensaje más antiguo ya cargado en pantalla --
+   * a diferencia de .range(), un cursor no se desincroniza si llegan
+   * mensajes nuevos entre una carga y la siguiente.
+   * Retorna { data: array, error }. data.length < 25 indica que no quedan
+   * mensajes más antiguos por cargar.
    */
-  async enviarMensaje(solicitudId, contenido) {
-    if (REGEX_URL_CHAT.test(contenido)) {
-      return { data: null, error: { message: 'No se permiten enlaces externos en el chat.' } };
+  async getConversacion(conversationId, cursor = null) {
+    const POR_PAGINA = 25;
+
+    let query = _cliente
+      .from('messages_view')
+      .select('*')
+      .eq('conversation_id', conversationId)
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
+      .limit(POR_PAGINA);
+
+    if (cursor?.created_at && cursor?.id) {
+      query = query.or(
+        `created_at.lt.${cursor.created_at},and(created_at.eq.${cursor.created_at},id.lt.${cursor.id})`
+      );
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('[api.mensajes.getConversacion]', error.message);
+      return { data: [], error };
+    }
+    return { data: (data ?? []).reverse(), error: null };
+  },
+
+  /**
+   * Envía un mensaje en una conversación. Rechaza en el cliente cualquier
+   * contenido con URLs (http(s):// o www.) antes de intentar el INSERT --
+   * ver REGEX_URL_MENSAJE arriba. El trigger fn_validar_sin_urls_message
+   * (migración 093) repite una validación más completa en la base de datos;
+   * si rechaza el INSERT (hint URL_NO_PERMITIDA) se traduce acá al mismo
+   * mensaje amigable que el chequeo del cliente. RLS exige además
+   * participante y que el asunto siga 'active' (migración 092).
+   * Retorna { data, error }.
+   */
+  async enviar(conversationId, body) {
+    if (REGEX_URL_MENSAJE.test(body)) {
+      return { data: null, error: { message: 'No se permiten enlaces externos en los mensajes.' } };
     }
 
     const { data: { user }, error: errUser } = await _cliente.auth.getUser();
@@ -2254,15 +2309,15 @@ export const chat = {
     }
 
     const { data, error } = await _cliente
-      .from('mensajes')
-      .insert({ solicitud_id: solicitudId, emisor_id: user.id, contenido })
+      .from('messages')
+      .insert({ conversation_id: conversationId, sender_id: user.id, body })
       .select()
       .single();
 
     if (error) {
-      console.error('[api.chat.enviarMensaje]', error.message);
+      console.error('[api.mensajes.enviar]', error.message);
       if (error.hint === 'URL_NO_PERMITIDA') {
-        return { data: null, error: { message: 'No se permiten enlaces externos en el chat.' } };
+        return { data: null, error: { message: 'No se permiten enlaces externos en los mensajes.' } };
       }
       return { data: null, error };
     }
@@ -2270,75 +2325,313 @@ export const chat = {
   },
 
   /**
-   * Marca como leídos todos los mensajes de la solicitud que no envió el
-   * propio usuario. La política RLS "receptor_marca_leido" (migración 083)
-   * ya restringe esto a los mensajes donde el usuario es el receptor.
+   * Edita un mensaje propio. La política RLS "emisor_edita_o_elimina_mensaje"
+   * (migración 092) solo permite este UPDATE si created_at está dentro de
+   * los últimos 5 minutos -- si ya venció, el UPDATE viola el WITH CHECK y
+   * Postgres devuelve 42501 (insufficient_privilege), que acá se traduce a
+   * un mensaje claro (mismo criterio que api.resenas.crearResena con la
+   * ventana de 24h, CLAUDE.md §30).
+   * Retorna { data, error }.
+   */
+  async editarMensaje(messageId, editedBody) {
+    const { data, error } = await _cliente
+      .from('messages')
+      .update({ edited_body: editedBody, edited_at: new Date().toISOString() })
+      .eq('id', messageId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[api.mensajes.editarMensaje]', error.message);
+      if (error.code === '42501') {
+        return {
+          data: null,
+          error: { message: 'Ya pasaron más de 5 minutos desde que se envió este mensaje; no se puede editar.' },
+        };
+      }
+      return { data: null, error };
+    }
+    return { data, error: null };
+  },
+
+  /**
+   * Elimina (soft delete) un mensaje propio, en cualquier momento -- sin la
+   * ventana de 5 minutos que aplica a editarMensaje(). deleted_at nunca se
+   * limpia: la eliminación es permanente aunque el mensaje siga existiendo
+   * en la fila (ver messages_view para cómo se muestra después).
+   * Retorna { data, error }.
+   */
+  async eliminarMensaje(messageId) {
+    const { data, error } = await _cliente
+      .from('messages')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', messageId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[api.mensajes.eliminarMensaje]', error.message);
+      return { data: null, error };
+    }
+    return { data, error: null };
+  },
+
+  /**
+   * Marca como leída la conversación para el usuario autenticado
+   * (conversation_participants.last_read_at = ahora). La política RLS
+   * "propio_actualiza_participacion" ya restringe esto a la fila propia.
    * Retorna { error }.
    */
-  async marcarLeidos(solicitudId) {
+  async marcarLeido(conversationId) {
     const { data: { user }, error: errUser } = await _cliente.auth.getUser();
     if (errUser || !user) {
       return { error: errUser ?? { message: 'No hay sesión activa.' } };
     }
 
     const { error } = await _cliente
-      .from('mensajes')
-      .update({ leido_por_receptor: true })
-      .eq('solicitud_id', solicitudId)
-      .eq('leido_por_receptor', false)
-      .neq('emisor_id', user.id);
+      .from('conversation_participants')
+      .update({ last_read_at: new Date().toISOString() })
+      .eq('conversation_id', conversationId)
+      .eq('user_id', user.id);
 
     if (error) {
-      console.error('[api.chat.marcarLeidos]', error.message);
+      console.error('[api.mensajes.marcarLeido]', error.message);
     }
     return { error };
   },
 
   /**
-   * Retorna la cantidad de mensajes sin leer de una solicitud que no envió
-   * el propio usuario (badge del botón "Chat").
-   */
-  async contarNoLeidos(solicitudId) {
-    const { data: { user }, error: errUser } = await _cliente.auth.getUser();
-    if (errUser || !user) return 0;
-
-    const { count, error } = await _cliente
-      .from('mensajes')
-      .select('id', { count: 'exact', head: true })
-      .eq('solicitud_id', solicitudId)
-      .eq('leido_por_receptor', false)
-      .neq('emisor_id', user.id);
-
-    if (error) {
-      console.error('[api.chat.contarNoLeidos]', error.message);
-      return 0;
-    }
-    return count ?? 0;
-  },
-
-  /**
-   * Se suscribe vía Supabase Realtime a nuevos mensajes (INSERT) de una
-   * solicitud puntual. El RLS de mensajes ya restringe el stream a
-   * participantes de esa solicitud, pero igual se filtra por solicitud_id
-   * en el canal para no recibir eventos de otras solicitudes propias.
-   * El payload viene de la tabla mensajes (sin emisor_nombre/emisor_foto,
-   * a diferencia de getMensajes()) — el llamador ya conoce esos datos
-   * (miId/nombreOtro, ver frontend/js/chat.js) y no necesita volver a
-   * pedirlos.
+   * Se suscribe vía Realtime a nuevos mensajes (INSERT) de una conversación
+   * puntual. El RLS de messages ya restringe el stream a participantes de
+   * esa conversación; se filtra además por conversation_id en el canal para
+   * no recibir eventos de otras conversaciones propias. El payload viene de
+   * la tabla messages sin resolver (sin sender_name/sender_photo, a
+   * diferencia de getConversacion()) -- el llamador ya conoce esos datos.
    * Retorna una función para cancelar la suscripción.
    */
-  escuchar(solicitudId, callback) {
+  escuchar(conversationId, callback) {
     const canal = _cliente
-      .channel(`chat-mensajes-${solicitudId}`)
+      .channel(`messages-${conversationId}`)
       .on('postgres_changes', {
-        event: 'INSERT', schema: 'public', table: 'mensajes',
-        filter: `solicitud_id=eq.${solicitudId}`,
+        event: 'INSERT', schema: 'public', table: 'messages',
+        filter: `conversation_id=eq.${conversationId}`,
       }, (payload) => {
         callback(payload.new);
       })
       .subscribe();
 
     return () => _cliente.removeChannel(canal);
+  },
+
+  /**
+   * Se suscribe vía Realtime a actualizaciones de conversations (dispara en
+   * cada mensaje nuevo, vía el trigger fn_actualizar_last_message_at) para
+   * refrescar el orden/last_message_at de la bandeja sin recargarla entera.
+   * conversations no tiene una columna de usuario propia para filtrar en el
+   * canal (los participantes viven en conversation_participants) -- el RLS
+   * de conversations ya acota qué filas llegan a cada sesión, igual que
+   * notificaciones (CLAUDE.md §21). El payload es la fila cruda de
+   * conversations (id, matter_id, last_message_at, created_at), no
+   * inbox_view resuelta -- el llamador decide si refresca esa fila puntual
+   * o vuelve a pedir getInbox().
+   * Retorna una función para cancelar la suscripción.
+   */
+  escucharInbox(callback) {
+    const canal = _cliente
+      .channel('inbox-conversations')
+      .on('postgres_changes', {
+        event: 'UPDATE', schema: 'public', table: 'conversations',
+      }, (payload) => {
+        callback(payload.new);
+      })
+      .subscribe();
+
+    return () => _cliente.removeChannel(canal);
+  },
+
+  /**
+   * Crea (o recupera, si ya existía) el asunto de una solicitud ACEPTADA
+   * vía el RPC fn_crear_matter (migración 092) -- idempotente del lado del
+   * servidor. source_type se deriva acá de solicitudes.caso_tablon_id
+   * (NULL = 'directa', si no 'tablon') porque el RPC exige ese parámetro y
+   * lo valida contra el origen real de la solicitud. El título inicial
+   * (mismo valor para title_client y title_lawyer, cada uno editable
+   * después por su dueño) sale de descripcion_caso si el cliente la cargó,
+   * o un genérico si la dejó vacía (es opcional, CLAUDE.md §3).
+   * fn_crear_matter solo retorna matter_id -- conversation_id se resuelve
+   * con una segunda consulta a conversations (1:1 con matters).
+   * Retorna { matterId, conversationId, error }.
+   */
+  async crearMatter(solicitudId) {
+    const { data: solicitud, error: errSolicitud } = await _cliente
+      .from('solicitudes')
+      .select('caso_tablon_id, descripcion_caso')
+      .eq('id', solicitudId)
+      .single();
+
+    if (errSolicitud) {
+      console.error('[api.mensajes.crearMatter] solicitud', errSolicitud.message);
+      return { matterId: null, conversationId: null, error: errSolicitud };
+    }
+
+    const sourceType = solicitud.caso_tablon_id ? 'tablon' : 'directa';
+    const titulo = solicitud.descripcion_caso?.trim()
+      ? solicitud.descripcion_caso.trim().slice(0, 80)
+      : 'Consulta legal';
+
+    const { data: matterId, error: errRpc } = await _cliente.rpc('fn_crear_matter', {
+      p_source_type: sourceType,
+      p_source_id: solicitudId,
+      p_title: titulo,
+    });
+
+    if (errRpc) {
+      console.error('[api.mensajes.crearMatter] rpc', errRpc.message);
+      return { matterId: null, conversationId: null, error: errRpc };
+    }
+
+    const { data: conversation, error: errConv } = await _cliente
+      .from('conversations')
+      .select('id')
+      .eq('matter_id', matterId)
+      .single();
+
+    if (errConv) {
+      console.error('[api.mensajes.crearMatter] conversation', errConv.message);
+      return { matterId, conversationId: null, error: errConv };
+    }
+
+    return { matterId, conversationId: conversation.id, error: null };
+  },
+
+  /**
+   * Solicita la reapertura de un asunto cerrado (fn_solicitar_reapertura).
+   * Retorna { error }.
+   */
+  async solicitarReapertura(matterId, reason) {
+    const { error } = await _cliente.rpc('fn_solicitar_reapertura', {
+      p_matter_id: matterId,
+      p_reason: reason,
+    });
+
+    if (error) {
+      console.error('[api.mensajes.solicitarReapertura]', error.message);
+    }
+    return { error };
+  },
+
+  /**
+   * Responde (aprueba o rechaza) una solicitud de reapertura pendiente --
+   * solo la parte que no la pidió puede responderla (fn_responder_reapertura).
+   * Retorna { error }.
+   */
+  async responderReapertura(matterId, aprobar) {
+    const { error } = await _cliente.rpc('fn_responder_reapertura', {
+      p_matter_id: matterId,
+      p_aprobar: aprobar,
+    });
+
+    if (error) {
+      console.error('[api.mensajes.responderReapertura]', error.message);
+    }
+    return { error };
+  },
+
+  /**
+   * Cierra un asunto -- cualquiera de los dos participantes puede hacerlo
+   * (fn_cerrar_matter).
+   * Retorna { error }.
+   */
+  async cerrarMatter(matterId) {
+    const { error } = await _cliente.rpc('fn_cerrar_matter', { p_matter_id: matterId });
+
+    if (error) {
+      console.error('[api.mensajes.cerrarMatter]', error.message);
+    }
+    return { error };
+  },
+
+  /**
+   * Busca el asunto ya creado para una solicitud (source_id = solicitud_id,
+   * ver nota de diseño en la migración 092 sobre por qué source_id nunca es
+   * caso_tablon_id). Incluye conversation_id resuelto para no obligar al
+   * llamador a pedirlo aparte.
+   * Retorna el asunto (con conversation_id agregado) o null si no existe
+   * todavía o si la consulta falla.
+   */
+  async getMatter(solicitudId) {
+    const { data: matter, error } = await _cliente
+      .from('matters')
+      .select('*')
+      .eq('source_id', solicitudId)
+      .maybeSingle();
+
+    if (error) {
+      console.error('[api.mensajes.getMatter]', error.message);
+      return null;
+    }
+    if (!matter) return null;
+
+    const { data: conversation, error: errConv } = await _cliente
+      .from('conversations')
+      .select('id')
+      .eq('matter_id', matter.id)
+      .maybeSingle();
+
+    if (errConv) {
+      console.error('[api.mensajes.getMatter] conversation', errConv.message);
+      return { ...matter, conversation_id: null };
+    }
+
+    return { ...matter, conversation_id: conversation?.id ?? null };
+  },
+
+  /**
+   * Retorna el detalle de un asunto a partir de su conversation_id (vista
+   * matter_detalle_view, migración 095) -- title/contraparte_nombre/
+   * contraparte_foto ya resueltos según el lado del usuario autenticado,
+   * más client_id/lawyer_id crudos y reopen_requested_by/reopen_reason para
+   * el banner de reapertura. Existe porque perfiles RLS (perfil_propio_select,
+   * migración 001) no permite leer el nombre/foto de la contraparte con un
+   * SELECT directo -- solo una vista SECURITY DEFINER puede resolverlo.
+   * Retorna el detalle o null si no existe / no hay acceso / falla la consulta.
+   */
+  async getMatterDetalle(conversationId) {
+    const { data, error } = await _cliente
+      .from('matter_detalle_view')
+      .select('*')
+      .eq('conversation_id', conversationId)
+      .maybeSingle();
+
+    if (error) {
+      console.error('[api.mensajes.getMatterDetalle]', error.message);
+      return null;
+    }
+    return data;
+  },
+
+  /**
+   * Actualiza el título propio de un asunto -- title_client si soyCliente,
+   * title_lawyer si no. Las políticas RLS "cliente_edita_matter"/
+   * "abogado_edita_matter" (migración 092) ya congelan cualquier otra
+   * columna, así que este UPDATE de una sola columna es seguro tal cual.
+   * Retorna { data, error }.
+   */
+  async actualizarTitulo(matterId, nuevoTitulo, soyCliente) {
+    const campo = soyCliente ? 'title_client' : 'title_lawyer';
+
+    const { data, error } = await _cliente
+      .from('matters')
+      .update({ [campo]: nuevoTitulo })
+      .eq('id', matterId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[api.mensajes.actualizarTitulo]', error.message);
+      return { data: null, error };
+    }
+    return { data, error: null };
   },
 
 };
@@ -2448,25 +2741,29 @@ export const clientes = {
   /**
    * Datos crudos para armar "Requiere su atención" (resumen de Inicio en
    * panel-cliente.html y listado completo en /pages/atencion): solicitudes
-   * propias, casos propios de El Tablón y notificaciones no leídas.
+   * propias, casos propios de El Tablón, notificaciones no leídas y la
+   * bandeja de chat v2 (inbox_view, migraciones 092/094 -- reemplaza a las
+   * notificaciones tipo mensaje_nuevo del chat anterior para el item de
+   * "mensajes sin leer").
    *
    * A diferencia de solicitudes.getSolicitudesCliente()/tablon.getMisCasos()/
-   * notificaciones.getNoLeidas() — que absorben el error internamente y
-   * retornan [] para no romper a sus otros llamadores en el resto de la
-   * app — esta función sí expone si alguna de las tres consultas falló, para
-   * que atencion.js pueda distinguir "genuinamente sin pendientes" de "no se
-   * pudo cargar" (auditoría de seguridad Codex, ronda 2, MEDIUM 2) en vez de
-   * mostrar siempre el estado vacío.
-   * Retorna { solicitudes, casosTablon, notificacionesNoLeidas, error }.
+   * notificaciones.getNoLeidas()/mensajes.getInbox() — que absorben el error
+   * internamente y retornan [] para no romper a sus otros llamadores en el
+   * resto de la app — esta función sí expone si alguna de las cuatro
+   * consultas falló, para que atencion.js pueda distinguir "genuinamente sin
+   * pendientes" de "no se pudo cargar" (auditoría de seguridad Codex, ronda
+   * 2, MEDIUM 2) en vez de mostrar siempre el estado vacío.
+   * Retorna { solicitudes, casosTablon, notificacionesNoLeidas, inboxMensajes, error }.
    */
   async getDatosAtencion() {
-    const [rSolicitudes, rCasos, rNotificaciones] = await Promise.all([
+    const [rSolicitudes, rCasos, rNotificaciones, rInbox] = await Promise.all([
       _cliente.from('panel_solicitudes_cliente').select('*').order('created_at', { ascending: false }),
       _cliente.from('tablon_casos_cliente').select('*').order('created_at', { ascending: false }),
       _cliente.from('notificaciones').select('*').eq('leida', false).order('created_at', { ascending: false }).limit(30),
+      _cliente.from('inbox_view').select('*'),
     ]);
 
-    const error = rSolicitudes.error || rCasos.error || rNotificaciones.error || null;
+    const error = rSolicitudes.error || rCasos.error || rNotificaciones.error || rInbox.error || null;
     if (error) {
       console.error('[api.clientes.getDatosAtencion]', error.message);
     }
@@ -2475,6 +2772,7 @@ export const clientes = {
       solicitudes: rSolicitudes.data ?? [],
       casosTablon: rCasos.data ?? [],
       notificacionesNoLeidas: rNotificaciones.data ?? [],
+      inboxMensajes: rInbox.data ?? [],
       error,
     };
   },
