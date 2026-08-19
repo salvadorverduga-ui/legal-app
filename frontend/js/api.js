@@ -2424,6 +2424,31 @@ export const mensajes = {
   },
 
   /**
+   * Se suscribe vía Realtime a cambios (UPDATE) del asunto puntual
+   * `matterId` -- para que la otra parte vea en vivo un cierre, una
+   * solicitud/respuesta de reapertura o un cambio de título, sin recargar la
+   * página. El RLS de matters ya acota el stream a las dos partes del asunto
+   * (o admin); se filtra además por id en el canal para no procesar eventos
+   * de otros asuntos propios. El payload es la fila cruda de matters (sin
+   * title/contraparte_* resueltos como matter_detalle_view) -- el llamador
+   * decide qué actualizar con status/reopen_requested_by/reopen_reason/etc.
+   * Retorna una función para cancelar la suscripción.
+   */
+  escucharMatter(matterId, callback) {
+    const canal = _cliente
+      .channel(`matter-${matterId}`)
+      .on('postgres_changes', {
+        event: 'UPDATE', schema: 'public', table: 'matters',
+        filter: `id=eq.${matterId}`,
+      }, (payload) => {
+        callback(payload.new);
+      })
+      .subscribe();
+
+    return () => _cliente.removeChannel(canal);
+  },
+
+  /**
    * Se suscribe vía Realtime a actualizaciones de conversations (dispara en
    * cada mensaje nuevo, vía el trigger fn_actualizar_last_message_at) para
    * refrescar el orden/last_message_at de la bandeja sin recargarla entera.

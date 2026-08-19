@@ -16,6 +16,7 @@ import { toast, mensajeAmigable, confirmar, generarMenuTarjeta, inicializarMenuT
 const UMBRAL_FONDO_PX = 80;
 const VENTANA_EDICION_MS = 5 * 60 * 1000;
 const DURACION_LONG_PRESS_MS = 500;
+const SEGUNDOS_ESPERA_CIERRE = 9;
 
 // ─── Estado de la página ───────────────────────────────────────────────────
 let miId = null;
@@ -32,6 +33,7 @@ let mensajesNuevosNoVistos = 0;
 let mensajeEnEdicionId = null;
 let enviando = false;
 let cancelarEscuchaMensajes = null;
+let cancelarEscuchaMatter = null;
 let longPressTimer = null;
 
 // ─── Entry point ────────────────────────────────────────────────────────────
@@ -86,6 +88,7 @@ async function inicializar() {
   await api.mensajes.marcarLeido(conversationId);
 
   cancelarEscuchaMensajes = api.mensajes.escuchar(conversationId, manejarMensajeRealtime);
+  cancelarEscuchaMatter = api.mensajes.escucharMatter(matterActual.matter_id, manejarMatterRealtime);
 }
 
 // "cancelar al salir" pedido explícitamente para esta página (a diferencia
@@ -93,6 +96,7 @@ async function inicializar() {
 // siguiendo el criterio de notificaciones.js).
 window.addEventListener('beforeunload', () => {
   if (cancelarEscuchaMensajes) cancelarEscuchaMensajes();
+  if (cancelarEscuchaMatter) cancelarEscuchaMatter();
 });
 
 // ─── Control de estados visuales ───────────────────────────────────────────
@@ -162,13 +166,24 @@ function renderizarHeader() {
   renderizarEstadoInput();
 }
 
+// "Cerrar asunto" solo se ofrece si la solicitud origen ya está COMPLETADA o
+// RESEÑADA (source_estado, resuelto por matter_detalle_view -- migración
+// 20260818_101) -- cerrar una conversación con una consulta todavía en curso
+// no tiene sentido y, más importante, dejaría al cliente sin forma de seguir
+// hablando con el abogado antes de completar la solicitud.
+function puedeCerrarAsunto() {
+  return matterActual.source_estado === 'COMPLETADA' || matterActual.source_estado === 'RESEÑADA';
+}
+
 function renderizarMenuAsunto() {
   const contenedor = document.getElementById('menuAsuntoContenedor');
   const hayReaperturaPendiente = Boolean(matterActual.reopen_requested_by);
   const opciones = [];
 
   if (matterActual.status === 'active') {
-    opciones.push({ texto: 'Cerrar asunto', accion: 'cerrar-asunto', id: matterActual.matter_id });
+    if (puedeCerrarAsunto()) {
+      opciones.push({ texto: 'Cerrar asunto', accion: 'cerrar-asunto', id: matterActual.matter_id });
+    }
   } else if (!hayReaperturaPendiente) {
     opciones.push({ texto: 'Solicitar reapertura', accion: 'solicitar-reapertura', id: matterActual.matter_id });
   }
@@ -263,6 +278,9 @@ function manejarClickMenuAsunto(e) {
 }
 
 async function manejarCerrarAsunto() {
+  const confirmado = await pedirConfirmacionCierre();
+  if (!confirmado) return;
+
   const { error } = await api.mensajes.cerrarMatter(matterActual.matter_id);
   if (error) {
     toast.error(mensajeAmigable(error, 'No se pudo cerrar el asunto. Intente de nuevo.'));
@@ -272,6 +290,91 @@ async function manejarCerrarAsunto() {
   matterActual.status = 'closed';
   renderizarHeader();
   toast.exito('Asunto cerrado.');
+}
+
+// Modal propio (no window.confirm, CLAUDE.md §7) con el texto exacto pedido
+// y un contador de 9 segundos en el botón de confirmar ("Cerrar (9)" →
+// "Cerrar (8)" → ... → "Cerrar (0)", habilitado recién en 0) -- mismo patrón
+// de countdown que abrirModalBloqueo/abrirModalSuspension (utils.js), pero
+// como una función local: esta acción es específica de esta página, igual
+// que pedirMotivoReapertura de arriba. "Cancelar" queda siempre activo.
+function pedirConfirmacionCierre() {
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-confirmar-overlay';
+    overlay.innerHTML = `
+      <div class="modal-confirmar" role="alertdialog" aria-modal="true" aria-labelledby="modalCerrarAsuntoMensaje">
+        <div class="modal-confirmar__mensaje" id="modalCerrarAsuntoMensaje">
+          <p>¿Está seguro de que desea cerrar este asunto?</p>
+          <p>Al cerrarlo:</p>
+          <ul class="modal-confirmar__lista">
+            <li>No podrá enviar ni recibir mensajes en esta conversación</li>
+            <li>El historial de mensajes quedará disponible en modo solo lectura</li>
+            <li>Si necesita retomar la comunicación, cualquiera de las dos partes puede solicitar la reapertura</li>
+            <li>La reapertura requiere la aprobación de la otra parte — no es automática</li>
+            <li>Si la otra parte rechaza la reapertura, el asunto permanecerá cerrado</li>
+          </ul>
+          <p>¿Desea continuar?</p>
+        </div>
+        <div class="modal-confirmar__acciones">
+          <button type="button" class="btn btn--secundario btn--sm" id="modalCerrarAsuntoCancelar">Cancelar</button>
+          <button type="button" class="btn btn--primario btn--sm" id="modalCerrarAsuntoConfirmar" disabled></button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    const btnCancelar = overlay.querySelector('#modalCerrarAsuntoCancelar');
+    const btnConfirmar = overlay.querySelector('#modalCerrarAsuntoConfirmar');
+    const elementoConFocoPrevio = document.activeElement;
+
+    let segundosRestantes = SEGUNDOS_ESPERA_CIERRE;
+    btnConfirmar.textContent = `Cerrar (${segundosRestantes})`;
+
+    const intervalo = setInterval(() => {
+      segundosRestantes -= 1;
+      btnConfirmar.textContent = `Cerrar (${segundosRestantes})`;
+      if (segundosRestantes <= 0) {
+        clearInterval(intervalo);
+        btnConfirmar.disabled = false;
+      }
+    }, 1000);
+
+    function cerrar(resultado) {
+      clearInterval(intervalo);
+      overlay.remove();
+      document.removeEventListener('keydown', manejarTecla);
+      if (elementoConFocoPrevio instanceof HTMLElement) elementoConFocoPrevio.focus();
+      resolve(resultado);
+    }
+
+    function manejarTecla(e) {
+      if (e.key === 'Escape') cerrar(false);
+    }
+
+    btnCancelar.addEventListener('click', () => cerrar(false));
+    btnConfirmar.addEventListener('click', () => {
+      if (btnConfirmar.disabled) return;
+      cerrar(true);
+    });
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) cerrar(false); });
+    document.addEventListener('keydown', manejarTecla);
+
+    btnCancelar.focus();
+  });
+}
+
+// ─── Realtime: cambios del asunto (cierre/reapertura desde la otra parte) ──
+// El payload viene de la tabla matters sin resolver (ver api.mensajes.
+// escucharMatter) -- status/reopen_requested_by/reopen_reason son las
+// columnas reales, se copian directo. renderizarHeader() ya cubre el badge
+// de estado, el aviso/deshabilitado del input y el banner/menú de reapertura
+// en un solo re-render, sin recargar la página ni volver a pedir el detalle.
+function manejarMatterRealtime(raw) {
+  matterActual.status = raw.status;
+  matterActual.reopen_requested_by = raw.reopen_requested_by;
+  matterActual.reopen_reason = raw.reopen_reason;
+  renderizarHeader();
 }
 
 function manejarClickBannerAcciones(e) {
@@ -435,7 +538,12 @@ function generarBurbujaHtml(m) {
   const esPropio = m.sender_id === miId;
   const idSeguro = escaparAtrib(m.id);
   const eliminadoPropio = m.is_deleted && esPropio;
-  const editadoTag = (m.is_edited && !m.is_deleted && esPropio)
+  // A diferencia de eliminadoPropio, esta etiqueta ya no se restringe a
+  // esPropio: messages_view (migración 20260818_100) ahora resuelve
+  // edited_body para ambas partes, así que quien recibe un mensaje editado
+  // también debe ver la marca "(editado)" -- de lo contrario vería el texto
+  // ya editado sin ningún indicio de que cambió desde el envío original.
+  const editadoTag = (m.is_edited && !m.is_deleted)
     ? ' <span class="mensaje-burbuja__editado">(editado)</span>'
     : '';
 
