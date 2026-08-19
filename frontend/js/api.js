@@ -2425,27 +2425,62 @@ export const mensajes = {
 
   /**
    * Se suscribe vía Realtime a cambios (UPDATE) del asunto puntual
-   * `matterId` -- para que la otra parte vea en vivo un cierre, una
-   * solicitud/respuesta de reapertura o un cambio de título, sin recargar la
-   * página. El RLS de matters ya acota el stream a las dos partes del asunto
-   * (o admin); se filtra además por id en el canal para no procesar eventos
-   * de otros asuntos propios. El payload es la fila cruda de matters (sin
-   * title/contraparte_* resueltos como matter_detalle_view) -- el llamador
-   * decide qué actualizar con status/reopen_requested_by/reopen_reason/etc.
-   * Retorna una función para cancelar la suscripción.
+   * `matterId` y a cambios (UPDATE) en los participantes de su conversación
+   * `conversationId` -- lo segundo para reflejar en vivo los indicadores de
+   * lectura (checkmarks ✓/✓✓/✓✓ azul) de las burbujas propias cuando la
+   * contraparte actualiza su last_read_at, sin recargar la página (la
+   * política "participantes_ven_participacion_conversacion", migración 102,
+   * es lo que permite que este stream reciba también la fila de la
+   * contraparte, no solo la propia). El RLS de matters ya acota su stream a
+   * las dos partes del asunto (o admin); ambos canales filtran además por
+   * id/conversation_id para no procesar eventos de otros asuntos propios.
+   * El callback recibe { tipo: 'matter' | 'participante', payload } -- el
+   * payload de 'matter' es la fila cruda de matters (status/
+   * reopen_requested_by/reopen_reason/etc.); el de 'participante' es la fila
+   * cruda de conversation_participants (conversation_id/user_id/
+   * last_read_at/muted_until). El llamador decide qué actualizar según tipo.
+   * Retorna una función para cancelar ambas suscripciones.
    */
-  escucharMatter(matterId, callback) {
+  escucharMatter(matterId, conversationId, callback) {
     const canal = _cliente
       .channel(`matter-${matterId}`)
       .on('postgres_changes', {
         event: 'UPDATE', schema: 'public', table: 'matters',
         filter: `id=eq.${matterId}`,
       }, (payload) => {
-        callback(payload.new);
+        callback({ tipo: 'matter', payload: payload.new });
+      })
+      .on('postgres_changes', {
+        event: 'UPDATE', schema: 'public', table: 'conversation_participants',
+        filter: `conversation_id=eq.${conversationId}`,
+      }, (payload) => {
+        callback({ tipo: 'participante', payload: payload.new });
       })
       .subscribe();
 
     return () => _cliente.removeChannel(canal);
+  },
+
+  /**
+   * Retorna las filas de conversation_participants de una conversación --
+   * incluye la propia y la de la contraparte (RLS
+   * "participantes_ven_participacion_conversacion", migración 102). Usado
+   * para calcular los indicadores de lectura (checkmarks) de los mensajes
+   * propios: se compara el last_read_at de la contraparte contra el
+   * created_at de cada mensaje propio.
+   * Retorna array (puede estar vacío).
+   */
+  async getParticipantes(conversationId) {
+    const { data, error } = await _cliente
+      .from('conversation_participants')
+      .select('user_id, last_read_at, muted_until')
+      .eq('conversation_id', conversationId);
+
+    if (error) {
+      console.error('[api.mensajes.getParticipantes]', error.message);
+      return [];
+    }
+    return data ?? [];
   },
 
   /**

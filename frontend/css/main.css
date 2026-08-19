@@ -4002,6 +4002,26 @@ p {
   display: none;
 }
 
+/* ── Layout: chat principal + panel lateral "Sobre este asunto" ─────
+   .conversacion pasa a contener un único hijo (.conversacion-layout, fila)
+   en vez de header/banner/mensajes/input directos -- esos ahora viven
+   dentro de .conversacion-principal (columna), a la izquierda del panel
+   lateral (Parte 2, ver más abajo). */
+.conversacion-layout {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+}
+
+.conversacion-principal {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 /* ── Header ────────────────────────────────────────────────────── */
 .conversacion-header {
   flex-shrink: 0;
@@ -4029,8 +4049,8 @@ p {
 
 .conversacion-header__avatar {
   flex-shrink: 0;
-  width: 40px;
-  height: 40px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   overflow: hidden;
 }
@@ -4042,7 +4062,7 @@ p {
 }
 
 .conversacion-header__avatar .avatar-placeholder {
-  font-size: var(--texto-xs);
+  font-size: var(--texto-sm);
 }
 
 .conversacion-header__identidad {
@@ -4057,6 +4077,25 @@ p {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* "Abogado • [especialidad]" / "Cliente" -- debajo del nombre. El ícono de
+   verificado (SVG inline, ver conversacion.js SVG_VERIFICADO) hereda
+   currentColor del badge verde vía la clase de abajo. */
+.conversacion-header__rol {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-1);
+  font-size: var(--texto-xs);
+  color: var(--color-texto-suave);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.conversacion-header__icono-verificado {
+  flex-shrink: 0;
+  color: var(--badge-verificado-color);
 }
 
 .conversacion-header__titulo-boton {
@@ -4096,6 +4135,36 @@ p {
   font-size: var(--texto-sm);
 }
 
+.conversacion-header__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-2);
+  margin-top: var(--esp-1);
+}
+
+/* Badge de origen ("Solicitud directa" / "El Tablón") -- variante de .badge
+   con ícono inline, mismo criterio de tamaño que el resto de los badges de
+   estado de esta página. */
+.badge--origen {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--esp-1);
+  background-color: var(--color-fondo);
+  color: var(--color-texto-suave);
+  border-color: var(--color-borde);
+}
+
+.conversacion-header__id {
+  font-size: var(--texto-xs);
+  color: var(--color-texto-muy-suave);
+}
+
+.conversacion-header__badge-estado {
+  flex-shrink: 0;
+  align-self: flex-start;
+  margin-top: 2px;
+}
+
 .conversacion-header__menu {
   flex-shrink: 0;
 }
@@ -4104,9 +4173,7 @@ p {
 .conversacion-banner {
   flex-shrink: 0;
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
   gap: var(--esp-3);
   padding: var(--esp-3) var(--esp-4);
   background-color: var(--color-advertencia-bg);
@@ -4119,10 +4186,30 @@ p {
   display: none;
 }
 
+.conversacion-banner__icono {
+  flex-shrink: 0;
+  display: flex;
+}
+
+.conversacion-banner__texto {
+  flex: 1;
+  min-width: 160px;
+}
+
+.conversacion-banner__titulo {
+  font-weight: var(--peso-semibold);
+}
+
+.conversacion-banner__subtexto {
+  color: var(--color-texto-suave);
+  margin-top: 2px;
+}
+
 .conversacion-banner__acciones {
   display: flex;
   gap: var(--esp-2);
   flex-shrink: 0;
+  margin-left: auto;
 }
 
 /* ── Área de mensajes (única zona con scroll) ────────────────────── */
@@ -4142,6 +4229,22 @@ p {
   display: flex;
   flex-direction: column;
   gap: var(--esp-3);
+}
+
+/* ── Separador de fecha entre mensajes de días distintos ─────────── */
+.conversacion-separador-fecha {
+  display: flex;
+  justify-content: center;
+  margin: var(--esp-2) 0;
+}
+
+.conversacion-separador-fecha span {
+  padding: var(--esp-1) var(--esp-3);
+  border-radius: var(--radio-completo);
+  background-color: var(--color-borde-suave);
+  color: var(--color-texto-suave);
+  font-size: var(--texto-xs);
+  font-weight: var(--peso-medio);
 }
 
 /* ── Burbujas ─────────────────────────────────────────────────────── */
@@ -4206,6 +4309,21 @@ p {
   font-style: italic;
 }
 
+/* ── Indicador de lectura (checkmarks) de burbujas propias ───────────
+   ✓ gris (enviado, no se produce con el flujo actual -- ver
+   calcularEstadoLectura en conversacion.js), ✓✓ gris (entregado, estado por
+   defecto de cualquier mensaje propio ya renderizado) y ✓✓ azul (leído,
+   last_read_at de la contraparte posterior al mensaje). */
+.mensaje-burbuja__check {
+  display: inline-flex;
+  align-items: center;
+  color: var(--color-texto-muy-suave);
+}
+
+.mensaje-burbuja__check--leido {
+  color: var(--color-primario);
+}
+
 /* ── Edición inline de un mensaje propio ─────────────────────────── */
 .mensaje-burbuja__edicion {
   display: flex;
@@ -4267,6 +4385,159 @@ p {
   display: none;
 }
 
+/* ── Panel lateral "Sobre este asunto" ────────────────────────────────
+   Mobile (< 640px, base): drawer a pantalla completa, oculto por defecto
+   (fuera de flujo, transform 100% a la derecha) -- se abre desde el menú de
+   tres puntos ("Ver detalles del asunto") o el ícono de ojo del checkmark
+   no aplica acá, es la X del panel / el overlay. Desktop (>= 640px, media
+   query más abajo): columna estática de 280px, visible por defecto,
+   colapsable con la misma X. panelVisible en conversacion.js controla ambas
+   clases a la vez -- cada una solo tiene efecto en su propio breakpoint. */
+.conversacion-panel {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--color-fondo-card);
+  border-left: 1px solid var(--color-borde);
+  overflow-y: auto;
+  transform: translateX(100%);
+  transition: transform 0.2s ease;
+  z-index: 300;
+}
+
+.conversacion-panel--abierto {
+  transform: translateX(0);
+}
+
+.conversacion-panel-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 23, 42, 0.45);
+  z-index: 290;
+}
+
+.conversacion-panel-overlay[hidden] {
+  display: none;
+}
+
+.conversacion-panel__header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--esp-2);
+  padding: var(--esp-3) var(--esp-4);
+  border-bottom: 1px solid var(--color-borde);
+}
+
+.conversacion-panel__titulo {
+  font-size: var(--texto-base);
+  font-weight: var(--peso-semibold);
+  color: var(--color-texto);
+}
+
+.conversacion-panel__contenido {
+  flex: 1;
+  padding: var(--esp-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-4);
+}
+
+.conversacion-panel__lista {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-2);
+}
+
+.conversacion-panel__fila {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--esp-2);
+  font-size: var(--texto-sm);
+}
+
+.conversacion-panel__fila dt {
+  color: var(--color-texto-suave);
+}
+
+.conversacion-panel__fila dd {
+  color: var(--color-texto);
+  text-align: right;
+}
+
+.conversacion-panel__seccion-titulo {
+  font-size: var(--texto-xs);
+  font-weight: var(--peso-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-texto-suave);
+  margin-bottom: var(--esp-2);
+}
+
+.conversacion-panel__descripcion {
+  font-size: var(--texto-sm);
+  color: var(--color-texto);
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+.conversacion-panel__ver-detalles {
+  display: flex;
+  justify-content: center;
+}
+
+.conversacion-panel__participantes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-3);
+}
+
+.conversacion-panel__participante {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-2);
+}
+
+.conversacion-panel__participante-avatar {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.conversacion-panel__participante-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.conversacion-panel__participante-avatar .avatar-placeholder {
+  font-size: var(--texto-xs);
+}
+
+.conversacion-panel__participante-nombre {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-1);
+  font-size: var(--texto-sm);
+  font-weight: var(--peso-medio);
+  color: var(--color-texto);
+}
+
+.conversacion-panel__badge-tu {
+  padding: 1px var(--esp-2);
+  font-size: 0.65rem;
+}
+
+.conversacion-panel__participante-rol {
+  font-size: var(--texto-xs);
+  color: var(--color-texto-suave);
+}
+
 /* ── Input ────────────────────────────────────────────────────────── */
 .conversacion-input {
   flex-shrink: 0;
@@ -4289,6 +4560,14 @@ p {
   display: flex;
   align-items: flex-end;
   gap: var(--esp-2);
+}
+
+/* Clip de adjuntos -- deshabilitado con tooltip (utils.js
+   aplicarEstadoDeshabilitado/inicializarTooltipsDeshabilitados,
+   clase .elemento-deshabilitado ya definida globalmente). */
+.conversacion-input__adjunto {
+  flex-shrink: 0;
+  align-self: center;
 }
 
 .conversacion-input__textarea {
@@ -4318,7 +4597,11 @@ p {
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
-  gap: var(--esp-2);
+  gap: var(--esp-1);
+}
+
+.conversacion-input__enviar-icono {
+  flex-shrink: 0;
 }
 
 .conversacion-input__spinner {
@@ -4351,6 +4634,33 @@ p {
 .conversacion-input__contador--limite {
   color: var(--color-error);
   font-weight: var(--peso-semibold);
+}
+
+/* Panel lateral como columna estática de 280px junto al chat (Parte 2) --
+   breakpoint independiente del que envuelve toda la página en una tarjeta
+   flotante (900px, más abajo): a partir de acá el layout ya es de dos
+   columnas, con o sin la tarjeta flotante. */
+@media (min-width: 640px) {
+  .conversacion-layout {
+    flex-direction: row;
+  }
+
+  .conversacion-panel {
+    position: static;
+    width: 280px;
+    flex-shrink: 0;
+    inset: auto;
+    transform: none;
+    transition: none;
+  }
+
+  .conversacion-panel--cerrado {
+    display: none;
+  }
+
+  .conversacion-panel-overlay {
+    display: none !important;
+  }
 }
 
 @media (min-width: 900px) {

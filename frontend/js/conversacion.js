@@ -1,22 +1,43 @@
 // conversacion.js
 // Lógica de conversacion.html: vista de una conversación puntual de chat v2
 // (?id=<conversation_id>) -- área de mensajes con paginación por cursor,
-// envío/edición/eliminación, y el ciclo de vida del asunto (título editable,
-// cerrar, solicitar/responder reapertura). A diferencia del resto de la app,
-// esta página no usa el header/footer globales -- es una vista de pantalla
-// completa al estilo de una app de mensajería (ver main.css, sección
-// PÁGINA: CONVERSACIÓN).
+// envío/edición/eliminación, el ciclo de vida del asunto (título editable,
+// cerrar, solicitar/responder reapertura), el panel lateral "Sobre este
+// asunto" y los indicadores de lectura de las burbujas propias. A diferencia
+// del resto de la app, esta página no usa el header/footer globales -- es
+// una vista de pantalla completa al estilo de una app de mensajería (ver
+// main.css, sección CONVERSACIÓN V2).
 //
 // Importa todo desde api.js — nunca consulta Supabase directamente.
 
 import * as api from './api.js';
 import { obtenerConfig } from './config.js';
-import { toast, mensajeAmigable, confirmar, generarMenuTarjeta, inicializarMenuTarjeta } from './utils.js';
+import {
+  toast, mensajeAmigable, confirmar,
+  generarMenuTarjeta, inicializarMenuTarjeta,
+  abrirModalBloqueo,
+  inicializarTooltipsDeshabilitados,
+} from './utils.js';
 
 const UMBRAL_FONDO_PX = 80;
 const VENTANA_EDICION_MS = 5 * 60 * 1000;
 const DURACION_LONG_PRESS_MS = 500;
 const SEGUNDOS_ESPERA_CIERRE = 9;
+const PUNTO_QUIEBRE_DESKTOP = '(min-width: 640px)';
+
+// ─── Iconografía inline (CLAUDE.md §7: sin emojis, SVG para badges) ───────
+const SVG_VERIFICADO = `<svg class="conversacion-header__icono-verificado" viewBox="0 0 24 24" width="14" height="14" fill="currentColor" role="img" aria-label="Verificado">
+  <path d="M12 2l2.2 2 3-.5.9 2.9 2.8 1.3-.8 3 1.4 2.7-2.3 1.9.1 3.1-3.1.4-1.7 2.6-2.8-1.1-2.8 1.1-1.7-2.6-3.1-.4.1-3.1-2.3-1.9 1.4-2.7-.8-3 2.8-1.3.9-2.9 3 .5L12 2z"/>
+  <path d="M8.6 12.3l2.1 2.1 4-4.4" stroke="#fff" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>`;
+
+const ICONO_ORIGEN = {
+  directa: `<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>`,
+  tablon: `<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v5"/></svg>`,
+};
+
+const SVG_CHECK_UNO = `<svg viewBox="0 0 18 18" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9l4 4L15 5"/></svg>`;
+const SVG_CHECK_DOBLE = `<svg viewBox="0 0 18 18" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 9l3.5 3.5L11 5.5"/><path d="M6.5 9l3.5 3.5L17 5.5"/></svg>`;
 
 // ─── Estado de la página ───────────────────────────────────────────────────
 let miId = null;
@@ -32,6 +53,8 @@ let estaEnElFondo = true;
 let mensajesNuevosNoVistos = 0;
 let mensajeEnEdicionId = null;
 let enviando = false;
+let contraparteLastReadAt = null; // conversation_participants.last_read_at de la contraparte -- checkmarks
+let panelVisible = false;
 let cancelarEscuchaMensajes = null;
 let cancelarEscuchaMatter = null;
 let longPressTimer = null;
@@ -77,6 +100,11 @@ async function inicializar() {
   }
   esCliente = matterActual.client_id === miId;
 
+  const participantes = await api.mensajes.getParticipantes(conversationId);
+  const filaContraparte = participantes.find(p => p.user_id === matterActual.contraparte_id);
+  contraparteLastReadAt = filaContraparte?.last_read_at ?? null;
+
+  inicializarPanelAsunto();
   renderizarHeader();
   configurarEventos();
 
@@ -88,7 +116,7 @@ async function inicializar() {
   await api.mensajes.marcarLeido(conversationId);
 
   cancelarEscuchaMensajes = api.mensajes.escuchar(conversationId, manejarMensajeRealtime);
-  cancelarEscuchaMatter = api.mensajes.escucharMatter(matterActual.matter_id, manejarMatterRealtime);
+  cancelarEscuchaMatter = api.mensajes.escucharMatter(matterActual.matter_id, conversationId, manejarEventoMatterRealtime);
 }
 
 // "cancelar al salir" pedido explícitamente para esta página (a diferencia
@@ -113,6 +141,7 @@ function mostrarContenido() {
 // ─── Configuración de eventos ──────────────────────────────────────────────
 function configurarEventos() {
   inicializarMenuTarjeta();
+  inicializarTooltipsDeshabilitados();
 
   document.getElementById('tituloBoton').addEventListener('click', abrirEdicionTitulo);
   document.getElementById('btnCancelarTitulo').addEventListener('click', cerrarEdicionTitulo);
@@ -120,6 +149,9 @@ function configurarEventos() {
 
   document.getElementById('menuAsuntoContenedor').addEventListener('click', manejarClickMenuAsunto);
   document.getElementById('bannerAsuntoAcciones').addEventListener('click', manejarClickBannerAcciones);
+
+  document.getElementById('btnCerrarPanel').addEventListener('click', cerrarPanel);
+  document.getElementById('panelAsuntoOverlay').addEventListener('click', cerrarPanel);
 
   const areaMensajes = document.getElementById('conversacionMensajes');
   areaMensajes.addEventListener('scroll', manejarScrollMensajes);
@@ -154,16 +186,36 @@ function renderizarHeader() {
   document.getElementById('conversacionAvatar').innerHTML =
     generarAvatarHtml(matterActual.contraparte_foto, matterActual.contraparte_nombre);
   document.getElementById('conversacionNombre').textContent = matterActual.contraparte_nombre;
+  document.getElementById('conversacionRol').innerHTML = generarRolContraparteHtml();
   document.getElementById('tituloBoton').textContent = matterActual.title || 'Sin título';
+
+  const origenTexto = matterActual.source_type === 'tablon' ? 'El Tablón' : 'Solicitud directa';
+  document.getElementById('badgeOrigenAsunto').innerHTML =
+    `${ICONO_ORIGEN[matterActual.source_type] ?? ''} ${escaparHtml(origenTexto)}`;
+  document.getElementById('textoIdAsunto').textContent = `#${matterActual.matter_id.slice(0, 8)}`;
 
   const badge = document.getElementById('badgeEstadoAsunto');
   const cerrado = matterActual.status !== 'active';
   badge.textContent = cerrado ? 'Cerrado' : 'Activo';
-  badge.className = `badge ${cerrado ? 'badge--estado-cancelada' : 'badge--estado-aceptada'}`;
+  badge.className = `badge conversacion-header__badge-estado ${cerrado ? 'badge--estado-cancelada' : 'badge--estado-aceptada'}`;
 
   renderizarMenuAsunto();
   renderizarBannerEstado();
   renderizarEstadoInput();
+  renderizarPanelAsunto();
+}
+
+// "Abogado • [primera especialidad]" con el ícono de verificado si aplica,
+// o "Cliente" -- contraparte_especialidades/contraparte_verificacion
+// (matter_detalle_view, migración 102) solo tienen valor cuando quien
+// consulta es el cliente (la contraparte es el abogado del asunto).
+function generarRolContraparteHtml() {
+  if (!esCliente) return 'Cliente';
+
+  const especialidad = matterActual.contraparte_especialidades?.[0];
+  const textoRol = especialidad ? `Abogado &bull; ${escaparHtml(especialidad)}` : 'Abogado';
+  const verificadoHtml = matterActual.contraparte_verificacion === 'VERIFICADO' ? ` ${SVG_VERIFICADO}` : '';
+  return `${textoRol}${verificadoHtml}`;
 }
 
 // "Cerrar asunto" solo se ofrece si la solicitud origen ya está COMPLETADA o
@@ -178,7 +230,10 @@ function puedeCerrarAsunto() {
 function renderizarMenuAsunto() {
   const contenedor = document.getElementById('menuAsuntoContenedor');
   const hayReaperturaPendiente = Boolean(matterActual.reopen_requested_by);
-  const opciones = [];
+
+  const opciones = [
+    { texto: 'Ver detalles del asunto', accion: 'ver-detalles', id: matterActual.matter_id },
+  ];
 
   if (matterActual.status === 'active') {
     if (puedeCerrarAsunto()) {
@@ -188,15 +243,26 @@ function renderizarMenuAsunto() {
     opciones.push({ texto: 'Solicitar reapertura', accion: 'solicitar-reapertura', id: matterActual.matter_id });
   }
 
-  contenedor.innerHTML = opciones.length ? generarMenuTarjeta(opciones) : '';
+  opciones.push({ texto: 'Reportar conversación', accion: 'reportar-conversacion', id: matterActual.matter_id });
+  opciones.push({
+    texto: 'Bloquear usuario',
+    accion: 'bloquear-usuario',
+    id: escaparAtrib(matterActual.contraparte_id),
+    dataNombre: escaparAtrib(matterActual.contraparte_nombre),
+  });
+
+  contenedor.innerHTML = generarMenuTarjeta(opciones);
 }
 
 // Cerrado + sin reapertura pendiente: aviso + botón. Cerrado + reapertura
 // pendiente por la contraparte: aviso + Aprobar/Rechazar. Cerrado +
 // reapertura pendiente por mí: solo aviso de espera. Activo: sin banner.
+// title/subtexto se asignan vía textContent (no innerHTML) -- interpolar
+// contraparte_nombre ahí es seguro sin escapado manual.
 function renderizarBannerEstado() {
   const banner = document.getElementById('bannerAsunto');
-  const texto = document.getElementById('bannerAsuntoTexto');
+  const titulo = document.getElementById('bannerAsuntoTitulo');
+  const subtexto = document.getElementById('bannerAsuntoSubtexto');
   const acciones = document.getElementById('bannerAsuntoAcciones');
 
   if (matterActual.status === 'active') {
@@ -206,19 +272,20 @@ function renderizarBannerEstado() {
   }
 
   const hayReaperturaPendiente = Boolean(matterActual.reopen_requested_by);
+  titulo.textContent = 'Este asunto está cerrado.';
 
   if (!hayReaperturaPendiente) {
-    texto.textContent = 'Este asunto está cerrado.';
+    subtexto.textContent = 'Ya no se pueden enviar mensajes. Puede solicitar la reapertura si es necesario.';
     acciones.innerHTML = `
       <button type="button" class="btn btn--secundario btn--sm" id="btnSolicitarReaperturaBanner">
         Solicitar reapertura
       </button>
     `;
   } else if (matterActual.reopen_requested_by === miId) {
-    texto.textContent = `Esperando respuesta de ${matterActual.contraparte_nombre} para reabrir el asunto.`;
+    subtexto.textContent = `Esperando respuesta de ${matterActual.contraparte_nombre} para reabrir el asunto.`;
     acciones.innerHTML = '';
   } else {
-    texto.textContent = `${matterActual.contraparte_nombre} solicitó reabrir este asunto.`;
+    subtexto.textContent = `${matterActual.contraparte_nombre} solicitó reabrir este asunto.`;
     acciones.innerHTML = `
       <button type="button" class="btn btn--primario btn--sm" id="btnAprobarReapertura">Aprobar</button>
       <button type="button" class="btn btn--secundario btn--sm" id="btnRechazarReapertura">Rechazar</button>
@@ -233,6 +300,112 @@ function renderizarEstadoInput() {
   document.getElementById('avisoCerrado').hidden = !cerrado;
   document.getElementById('inputMensaje').disabled = cerrado;
   actualizarEstadoBotonEnviar();
+}
+
+// ─── Panel lateral "Sobre este asunto" ──────────────────────────────────────
+// Mobile: drawer cerrado por defecto, se abre desde el menú de tres puntos
+// ("Ver detalles del asunto") o se colapsa con la X / el overlay. Desktop
+// (>= 640px, ver main.css): sidebar estático, visible por defecto,
+// colapsable con la misma X -- un único booleano (panelVisible) alcanza
+// para ambos breakpoints porque las clases que activa solo tienen efecto en
+// su media query correspondiente (ver CONVERSACIÓN V2 en main.css).
+function inicializarPanelAsunto() {
+  panelVisible = window.matchMedia(PUNTO_QUIEBRE_DESKTOP).matches;
+  aplicarVisibilidadPanel();
+}
+
+function aplicarVisibilidadPanel() {
+  const panel = document.getElementById('panelAsunto');
+  const overlay = document.getElementById('panelAsuntoOverlay');
+  panel.classList.toggle('conversacion-panel--abierto', panelVisible);
+  panel.classList.toggle('conversacion-panel--cerrado', !panelVisible);
+  overlay.hidden = !panelVisible;
+}
+
+function abrirPanel() {
+  panelVisible = true;
+  aplicarVisibilidadPanel();
+}
+
+function cerrarPanel() {
+  panelVisible = false;
+  aplicarVisibilidadPanel();
+}
+
+// Cliente primero, luego abogado siempre (orden estable), marcando "Tú" en
+// el lado que corresponde a la sesión actual.
+function obtenerParticipantesParaPanel() {
+  const yo = { nombre: miNombre, foto: miFoto, rol: esCliente ? 'Cliente' : 'Abogado', esYo: true };
+  const otro = {
+    nombre: matterActual.contraparte_nombre,
+    foto: matterActual.contraparte_foto,
+    rol: esCliente ? 'Abogado' : 'Cliente',
+    esYo: false,
+  };
+  return esCliente ? [yo, otro] : [otro, yo];
+}
+
+function renderizarPanelAsunto() {
+  const cerrado = matterActual.status !== 'active';
+  const origenTexto = matterActual.source_type === 'tablon' ? 'El Tablón' : 'Solicitud directa';
+  const urlDetalle = matterActual.source_type === 'tablon'
+    ? `/pages/solicitudes-tablon?solicitud=${matterActual.source_id}`
+    : `/pages/solicitudes-directas?solicitud=${matterActual.source_id}`;
+
+  const filaCierre = matterActual.closed_at ? `
+    <div class="conversacion-panel__fila">
+      <dt>Cerrado</dt>
+      <dd>${escaparHtml(formatearFechaCompleta(matterActual.closed_at))}</dd>
+    </div>
+  ` : '';
+
+  const seccionDescripcion = matterActual.descripcion_caso ? `
+    <div class="conversacion-panel__seccion">
+      <p class="conversacion-panel__seccion-titulo">Descripción del caso</p>
+      <p class="conversacion-panel__descripcion">${escaparHtml(matterActual.descripcion_caso)}</p>
+    </div>
+  ` : '';
+
+  const participantesHtml = obtenerParticipantesParaPanel().map(p => `
+    <li class="conversacion-panel__participante">
+      <div class="conversacion-panel__participante-avatar">${generarAvatarHtml(p.foto, p.nombre)}</div>
+      <div class="conversacion-panel__participante-datos">
+        <p class="conversacion-panel__participante-nombre">
+          ${escaparHtml(p.nombre)}${p.esYo ? ' <span class="badge conversacion-panel__badge-tu">Tú</span>' : ''}
+        </p>
+        <p class="conversacion-panel__participante-rol">${escaparHtml(p.rol)}</p>
+      </div>
+    </li>
+  `).join('');
+
+  document.getElementById('panelAsuntoContenido').innerHTML = `
+    <dl class="conversacion-panel__lista">
+      <div class="conversacion-panel__fila">
+        <dt>Estado</dt>
+        <dd><span class="badge ${cerrado ? 'badge--estado-cancelada' : 'badge--estado-aceptada'}">${cerrado ? 'Cerrado' : 'Activo'}</span></dd>
+      </div>
+      <div class="conversacion-panel__fila">
+        <dt>Origen</dt>
+        <dd>${escaparHtml(origenTexto)}</dd>
+      </div>
+      <div class="conversacion-panel__fila">
+        <dt>Creado</dt>
+        <dd>${escaparHtml(formatearFechaCompleta(matterActual.created_at))}</dd>
+      </div>
+      ${filaCierre}
+    </dl>
+
+    ${seccionDescripcion}
+
+    <a href="${escaparAtrib(urlDetalle)}" class="btn btn--secundario btn--sm conversacion-panel__ver-detalles">
+      Ver detalles completos &rarr;
+    </a>
+
+    <div class="conversacion-panel__seccion">
+      <p class="conversacion-panel__seccion-titulo">Participantes</p>
+      <ul class="conversacion-panel__participantes">${participantesHtml}</ul>
+    </div>
+  `;
 }
 
 // ─── Título editable ────────────────────────────────────────────────────────
@@ -273,8 +446,16 @@ function manejarClickMenuAsunto(e) {
   const btn = e.target.closest('[data-accion]');
   if (!btn) return;
 
+  if (btn.dataset.accion === 'ver-detalles') return abrirPanel();
   if (btn.dataset.accion === 'cerrar-asunto') return manejarCerrarAsunto();
   if (btn.dataset.accion === 'solicitar-reapertura') return abrirFormularioReapertura();
+  if (btn.dataset.accion === 'reportar-conversacion') {
+    toast.info('Esta función estará disponible próximamente.');
+    return;
+  }
+  if (btn.dataset.accion === 'bloquear-usuario') {
+    abrirModalBloqueo(btn.dataset.nombre, btn.dataset.id);
+  }
 }
 
 async function manejarCerrarAsunto() {
@@ -288,6 +469,7 @@ async function manejarCerrarAsunto() {
   }
 
   matterActual.status = 'closed';
+  matterActual.closed_at = new Date().toISOString();
   renderizarHeader();
   toast.exito('Asunto cerrado.');
 }
@@ -364,17 +546,37 @@ function pedirConfirmacionCierre() {
   });
 }
 
-// ─── Realtime: cambios del asunto (cierre/reapertura desde la otra parte) ──
+// ─── Realtime: cambios del asunto y de sus participantes ────────────────────
+// api.mensajes.escucharMatter (migración 102) despacha dos tipos de evento
+// por el mismo canal: 'matter' (cierre/reapertura/título desde la otra
+// parte) y 'participante' (last_read_at de cualquiera de las dos filas de
+// conversation_participants de esta conversación, para los checkmarks).
+function manejarEventoMatterRealtime({ tipo, payload }) {
+  if (tipo === 'matter') return manejarMatterUpdateRealtime(payload);
+  if (tipo === 'participante') return manejarParticipanteRealtime(payload);
+}
+
 // El payload viene de la tabla matters sin resolver (ver api.mensajes.
-// escucharMatter) -- status/reopen_requested_by/reopen_reason son las
-// columnas reales, se copian directo. renderizarHeader() ya cubre el badge
-// de estado, el aviso/deshabilitado del input y el banner/menú de reapertura
-// en un solo re-render, sin recargar la página ni volver a pedir el detalle.
-function manejarMatterRealtime(raw) {
+// escucharMatter) -- status/reopen_requested_by/reopen_reason/closed_at son
+// las columnas reales, se copian directo. renderizarHeader() ya cubre el
+// badge de estado, el aviso/deshabilitado del input, el banner/menú de
+// reapertura y el panel lateral en un solo re-render, sin recargar la
+// página ni volver a pedir el detalle.
+function manejarMatterUpdateRealtime(raw) {
   matterActual.status = raw.status;
   matterActual.reopen_requested_by = raw.reopen_requested_by;
   matterActual.reopen_reason = raw.reopen_reason;
+  matterActual.closed_at = raw.closed_at;
   renderizarHeader();
+}
+
+// Solo interesa la fila de la CONTRAPARTE (la propia se actualiza por mis
+// propias acciones, no aporta nada al checkmark de mis mensajes) --
+// contraparte_id sale de matter_detalle_view.
+function manejarParticipanteRealtime(raw) {
+  if (raw.user_id !== matterActual.contraparte_id) return;
+  contraparteLastReadAt = raw.last_read_at;
+  renderizarMensajes();
 }
 
 function manejarClickBannerAcciones(e) {
@@ -410,7 +612,10 @@ async function manejarResponderReapertura(aprobar) {
   }
 
   matterActual.reopen_requested_by = null;
-  if (aprobar) matterActual.status = 'active';
+  if (aprobar) {
+    matterActual.status = 'active';
+    matterActual.closed_at = null;
+  }
   renderizarHeader();
   toast.exito(aprobar ? 'Asunto reabierto.' : 'Solicitud de reapertura rechazada.');
 }
@@ -527,9 +732,29 @@ async function cargarMensajesAnteriores() {
 }
 
 // ─── Render de la lista de mensajes ──────────────────────────────────────────
+// Inserta una píldora separadora de fecha ("Hoy" / "Ayer" / "22 de agosto de
+// 2026") cada vez que el día del mensaje cambia respecto al anterior --
+// recalculado desde cero en cada render, mismo criterio que el resto de la
+// página (re-render completo de la lista, sin diffing incremental).
 function renderizarMensajes() {
-  document.getElementById('listaMensajes').innerHTML = mensajesActuales.map(generarBurbujaHtml).join('');
+  let html = '';
+  let fechaClaveAnterior = null;
+
+  for (const m of mensajesActuales) {
+    const fechaClave = new Date(m.created_at).toDateString();
+    if (fechaClave !== fechaClaveAnterior) {
+      html += generarSeparadorFechaHtml(m.created_at);
+      fechaClaveAnterior = fechaClave;
+    }
+    html += generarBurbujaHtml(m);
+  }
+
+  document.getElementById('listaMensajes').innerHTML = html;
   document.getElementById('btnCargarAnteriores').hidden = !hayMasAntiguos;
+}
+
+function generarSeparadorFechaHtml(fechaIso) {
+  return `<div class="conversacion-separador-fecha" role="separator"><span>${escaparHtml(formatearFechaSeparador(fechaIso))}</span></div>`;
 }
 
 function generarBurbujaHtml(m) {
@@ -546,11 +771,12 @@ function generarBurbujaHtml(m) {
   const editadoTag = (m.is_edited && !m.is_deleted)
     ? ' <span class="mensaje-burbuja__editado">(editado)</span>'
     : '';
+  const checkHtml = esPropio ? generarCheckHtml(calcularEstadoLectura(m)) : '';
 
   return `
     <div class="mensaje-burbuja ${esPropio ? 'mensaje-burbuja--propia' : 'mensaje-burbuja--otro'}" data-id="${idSeguro}">
       <div class="mensaje-burbuja__contenido${eliminadoPropio ? ' mensaje-burbuja--eliminado' : ''}">${escaparHtml(m.body)}</div>
-      <p class="mensaje-burbuja__meta">${escaparHtml(m.sender_name)} · ${formatearHora(m.created_at)}${editadoTag}</p>
+      <p class="mensaje-burbuja__meta">${escaparHtml(m.sender_name)} · ${formatearHora(m.created_at)}${editadoTag}${checkHtml}</p>
     </div>
   `;
 }
@@ -635,6 +861,26 @@ async function manejarEliminarMensaje(messageId) {
 
 function puedeEditar(m) {
   return Date.now() - new Date(m.created_at).getTime() < VENTANA_EDICION_MS;
+}
+
+// ─── Indicadores de lectura (checkmarks) de burbujas propias ───────────────
+// 'entregado' (✓✓ gris) es el mínimo posible para cualquier mensaje que
+// llega a renderizarse: no hay burbuja optimista en esta página (ver
+// manejarEnviar) -- por el momento en que un mensaje propio existe en
+// mensajesActuales, ya fue confirmado por Postgres. 'leido' (✓✓ azul) se
+// alcanza cuando el last_read_at de la contraparte es posterior al
+// created_at del mensaje. El estado 'enviado' (✓ gris, un solo check) queda
+// contemplado en generarCheckHtml() para un futuro envío optimista, pero
+// con el flujo actual nunca se produce -- por eso no aparece acá.
+function calcularEstadoLectura(mensaje) {
+  if (!contraparteLastReadAt) return 'entregado';
+  return new Date(mensaje.created_at) <= new Date(contraparteLastReadAt) ? 'leido' : 'entregado';
+}
+
+function generarCheckHtml(estado) {
+  const etiquetas = { enviado: 'Enviado', entregado: 'Entregado', leido: 'Leído' };
+  const svg = estado === 'enviado' ? SVG_CHECK_UNO : SVG_CHECK_DOBLE;
+  return `<span class="mensaje-burbuja__check mensaje-burbuja__check--${estado}" aria-label="${etiquetas[estado]}" title="${etiquetas[estado]}">${svg}</span>`;
 }
 
 // ─── Menú contextual de burbuja propia (clic derecho / long-press) ─────────
@@ -862,6 +1108,31 @@ function formatearHora(fechaIso) {
   const hora = String(fecha.getHours()).padStart(2, '0');
   const minutos = String(fecha.getMinutes()).padStart(2, '0');
   return `${hora}:${minutos}`;
+}
+
+// "Hoy" / "Ayer" / "22 de agosto de 2026" -- separador de fecha entre
+// mensajes de días distintos.
+function formatearFechaSeparador(fechaIso) {
+  const fecha = new Date(fechaIso);
+  const hoy = new Date();
+  const ayer = new Date(hoy);
+  ayer.setDate(hoy.getDate() - 1);
+
+  if (esMismoDia(fecha, hoy)) return 'Hoy';
+  if (esMismoDia(fecha, ayer)) return 'Ayer';
+  return new Intl.DateTimeFormat('es-EC', { day: 'numeric', month: 'long', year: 'numeric' }).format(fecha);
+}
+
+function esMismoDia(a, b) {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+
+// "22 de agosto de 2026, 14:32" -- fechas del panel lateral (creado/cerrado).
+function formatearFechaCompleta(fechaIso) {
+  if (!fechaIso) return '';
+  const fecha = new Date(fechaIso);
+  const fechaTexto = new Intl.DateTimeFormat('es-EC', { day: 'numeric', month: 'long', year: 'numeric' }).format(fecha);
+  return `${fechaTexto}, ${formatearHora(fechaIso)}`;
 }
 
 // ─── Seguridad: escapado de HTML ──────────────────────────────────────────

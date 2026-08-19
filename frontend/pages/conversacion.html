@@ -25,72 +25,122 @@
 
   <!-- Contenido -->
   <div class="conversacion" id="conversacion" hidden>
+    <div class="conversacion-layout">
 
-    <header class="conversacion-header">
-      <a href="/pages/mensajes" class="conversacion-header__volver" aria-label="Volver a Mensajes">
-        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-          <path d="M15 18l-6-6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        <span>Mensajes</span>
-      </a>
+      <div class="conversacion-principal">
 
-      <div class="conversacion-header__avatar" id="conversacionAvatar"></div>
+        <header class="conversacion-header">
+          <a href="/pages/mensajes" class="conversacion-header__volver" aria-label="Volver a Mensajes">
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+              <path d="M15 18l-6-6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>Mensajes</span>
+          </a>
 
-      <div class="conversacion-header__identidad">
-        <p class="conversacion-header__nombre" id="conversacionNombre"></p>
+          <div class="conversacion-header__avatar" id="conversacionAvatar"></div>
 
-        <div id="tituloContenedor">
-          <button class="conversacion-header__titulo-boton" type="button" id="tituloBoton"
-            aria-label="Editar título del asunto"></button>
-          <form class="conversacion-header__titulo-form" id="tituloForm" hidden>
-            <label for="tituloInput" class="sr-only">Título del asunto</label>
-            <input type="text" id="tituloInput" class="campo__input" maxlength="120" required>
-            <button type="submit" class="btn btn--primario btn--sm">Guardar</button>
-            <button type="button" class="btn btn--secundario btn--sm" id="btnCancelarTitulo">Cancelar</button>
-          </form>
+          <div class="conversacion-header__identidad">
+            <p class="conversacion-header__nombre" id="conversacionNombre"></p>
+            <p class="conversacion-header__rol" id="conversacionRol"></p>
+
+            <div id="tituloContenedor">
+              <button class="conversacion-header__titulo-boton" type="button" id="tituloBoton"
+                aria-label="Editar título del asunto"></button>
+              <form class="conversacion-header__titulo-form" id="tituloForm" hidden>
+                <label for="tituloInput" class="sr-only">Título del asunto</label>
+                <input type="text" id="tituloInput" class="campo__input" maxlength="120" required>
+                <button type="submit" class="btn btn--primario btn--sm">Guardar</button>
+                <button type="button" class="btn btn--secundario btn--sm" id="btnCancelarTitulo">Cancelar</button>
+              </form>
+            </div>
+
+            <div class="conversacion-header__meta">
+              <span class="badge badge--origen" id="badgeOrigenAsunto"></span>
+              <span class="conversacion-header__id" id="textoIdAsunto"></span>
+            </div>
+          </div>
+
+          <span class="badge conversacion-header__badge-estado" id="badgeEstadoAsunto"></span>
+
+          <div id="menuAsuntoContenedor" class="conversacion-header__menu"></div>
+        </header>
+
+        <div class="conversacion-banner" id="bannerAsunto" hidden>
+          <div class="conversacion-banner__icono" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="4" y="10" width="16" height="10" rx="2"/>
+              <path d="M8 10V7a4 4 0 0 1 8 0v3"/>
+            </svg>
+          </div>
+          <div class="conversacion-banner__texto">
+            <p class="conversacion-banner__titulo" id="bannerAsuntoTitulo"></p>
+            <p class="conversacion-banner__subtexto" id="bannerAsuntoSubtexto"></p>
+          </div>
+          <div class="conversacion-banner__acciones" id="bannerAsuntoAcciones"></div>
         </div>
+
+        <div class="conversacion-mensajes" id="conversacionMensajes">
+          <button class="btn btn--secundario btn--sm conversacion-mensajes__anteriores" type="button"
+            id="btnCargarAnteriores" hidden>
+            Cargar mensajes anteriores
+          </button>
+          <div class="conversacion-mensajes__lista" id="listaMensajes"></div>
+        </div>
+
+        <button class="conversacion-nuevos" id="badgeNuevosMensajes" type="button" hidden></button>
+
+        <form class="conversacion-input" id="formEnviar">
+          <p class="conversacion-input__cerrado" id="avisoCerrado" hidden>
+            Este asunto está cerrado. Solo lectura.
+          </p>
+          <div class="conversacion-input__fila">
+            <button type="button"
+              class="btn-icono-sutil conversacion-input__adjunto elemento-deshabilitado"
+              id="btnAdjunto"
+              aria-disabled="true"
+              aria-label="Adjuntar archivo"
+              data-tooltip="Los adjuntos estarán disponibles próximamente">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M21.44 11.05l-9.19 9.19a5 5 0 0 1-7.07-7.07l9.19-9.19a3.5 3.5 0 0 1 4.95 4.95l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+              </svg>
+            </button>
+
+            <label for="inputMensaje" class="sr-only">Escriba su mensaje</label>
+            <textarea id="inputMensaje" class="conversacion-input__textarea" rows="1" maxlength="2000"
+              placeholder="Escriba su mensaje..."></textarea>
+
+            <button type="submit" class="btn btn--primario btn--sm conversacion-input__enviar" id="btnEnviar" disabled>
+              <svg class="conversacion-input__enviar-icono" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
+                <path d="M3 20.5v-17l19 8.5-19 8.5zM5 18l12.35-5.5L5 7v4.5l7 1-7 1V18z"/>
+              </svg>
+              <span id="btnEnviarTexto">Enviar</span>
+              <span class="conversacion-input__spinner" id="btnEnviarSpinner" hidden aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="conversacion-input__pie">
+            <p class="campo__error" id="errorEnviar" role="alert" aria-live="polite"></p>
+            <span class="conversacion-input__contador" id="contadorMensaje">0 / 2000</span>
+          </div>
+        </form>
+
       </div>
 
-      <span class="badge" id="badgeEstadoAsunto"></span>
+      <aside class="conversacion-panel" id="panelAsunto" aria-label="Sobre este asunto">
+        <div class="conversacion-panel__header">
+          <h2 class="conversacion-panel__titulo">Sobre este asunto</h2>
+          <button type="button" class="btn-icono-sutil" id="btnCerrarPanel" aria-label="Cerrar panel">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M18 6L6 18M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+        <div class="conversacion-panel__contenido" id="panelAsuntoContenido"></div>
+      </aside>
 
-      <div id="menuAsuntoContenedor" class="conversacion-header__menu"></div>
-    </header>
-
-    <div class="conversacion-banner" id="bannerAsunto" hidden>
-      <p id="bannerAsuntoTexto"></p>
-      <div class="conversacion-banner__acciones" id="bannerAsuntoAcciones"></div>
     </div>
-
-    <div class="conversacion-mensajes" id="conversacionMensajes">
-      <button class="btn btn--secundario btn--sm conversacion-mensajes__anteriores" type="button"
-        id="btnCargarAnteriores" hidden>
-        Cargar mensajes anteriores
-      </button>
-      <div class="conversacion-mensajes__lista" id="listaMensajes"></div>
-    </div>
-
-    <button class="conversacion-nuevos" id="badgeNuevosMensajes" type="button" hidden></button>
-
-    <form class="conversacion-input" id="formEnviar">
-      <p class="conversacion-input__cerrado" id="avisoCerrado" hidden>
-        Este asunto está cerrado. Solo lectura.
-      </p>
-      <div class="conversacion-input__fila">
-        <label for="inputMensaje" class="sr-only">Escriba su mensaje</label>
-        <textarea id="inputMensaje" class="conversacion-input__textarea" rows="1" maxlength="2000"
-          placeholder="Escriba su mensaje..."></textarea>
-        <button type="submit" class="btn btn--primario btn--sm conversacion-input__enviar" id="btnEnviar" disabled>
-          <span id="btnEnviarTexto">Enviar</span>
-          <span class="conversacion-input__spinner" id="btnEnviarSpinner" hidden aria-hidden="true"></span>
-        </button>
-      </div>
-      <div class="conversacion-input__pie">
-        <p class="campo__error" id="errorEnviar" role="alert" aria-live="polite"></p>
-        <span class="conversacion-input__contador" id="contadorMensaje">0 / 2000</span>
-      </div>
-    </form>
-
   </div>
+
+  <div class="conversacion-panel-overlay" id="panelAsuntoOverlay" hidden></div>
 
   <!-- Menú contextual de burbuja propia: clic derecho o long-press -->
   <ul class="conversacion-menu-contextual" id="menuContextualMensaje" role="menu" hidden>
